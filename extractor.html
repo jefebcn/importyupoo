@@ -639,9 +639,7 @@ async function runCoversMode(pageUrl) {
       log('Fallback HTML: ' + ps.size + ' foto', ps.size > 0 ? 'success' : 'err');
     } catch(e) { log('Fallback HTML fail: ' + e.message, 'err'); }
   } else {
-    log('Nessun dato HTML disponibile. Vedi Debug → Proxy raw.', 'err');
-    openDebug('raw');
-    document.getElementById('proxy-note').style.display = 'block';
+    log('Nessun dato HTML disponibile. Provo scraping diretto...', 'warn');
   }
 
   // ── Method 4: Direct HTML scraping — extract photo.yupoo.com URLs from raw HTML ──
@@ -930,6 +928,8 @@ async function start() {
       openDebug('raw');
       document.getElementById('proxy-note').style.display = 'block';
     } else {
+      document.getElementById('debug-area').style.display  = 'none'; // hide any debug opened mid-flow
+      document.getElementById('proxy-note').style.display  = 'none';
       document.getElementById('pre-lbl').textContent = `Anteprima — ${images.length} immagini`;
       document.getElementById('info-box').style.display = 'block';
       document.getElementById('act-row').style.display  = 'flex';
@@ -1022,110 +1022,155 @@ function exportJSON() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// IMAGE DOWNLOAD — multi-proxy with Referer spoofing
-// The key insight: Yupoo CDN checks the Referer header for hotlink protection.
-// wsrv.nl supports ?ref= to set the Referer to the Yupoo shop domain,
-// making the CDN think the request originates from the Yupoo site itself.
+// IMAGE DOWNLOAD ENGINE
+//
+// Root cause of 4KB downloads:
+// 1. photo.yupoo.com blocks requests without correct Referer (hotlink protection)
+// 2. corsproxy.io sends its own Referer → blocked → returns HTML error ~4KB
+// 3. fit_p_900_900.jpg may not exist → Yupoo returns a placeholder image ~4-8KB
+//
+// Solution:
+// - Use wsrv.nl which supports &ref= to set the HTTP Referer header server-side
+// - Try the ORIGINAL thumbnail URL first (guaranteed to exist in CDN)
+// - Only try HD upgrade after original succeeds
+// - Validate blob with 15KB minimum threshold (real product images > 15KB)
 // ─────────────────────────────────────────────────────────────────────────────
-function makeImgProxies(url, fallbackUrl, host) {
-  const stripProto = u => u.replace(/^https?:\/\//, '');
-  const ref = host || shopHost || 'yupoo.com';
-  // Build chain: try HD url with 3 proxies, then fallback url with 3 proxies
-  const chains = [];
-  for (const u of [url, fallbackUrl].filter((v, i, a) => v && a.indexOf(v) === i)) {
-    // wsrv.nl: image CDN proxy, supports &ref= for Referer spoofing — best for hotlink-protected images
-    chains.push(`https://wsrv.nl/?url=${encodeURIComponent(stripProto(u))}&ref=${encodeURIComponent(ref)}&output=jpg&maxage=1d`);
-    // wsrv.nl alternative hostname
-    chains.push(`https://images.weserv.nl/?url=${encodeURIComponent(stripProto(u))}&ref=${encodeURIComponent(ref)}&output=jpg`);
-    // corsproxy.io — strips Referer, may work if CDN check is loose
-    chains.push(`https://corsproxy.io/?${encodeURIComponent(u)}`);
+
+function toHDVariant(url, variant) {
+  // Replace any known size variant with the requested one
+  return url.replace(/\/(small|thumb|tiny|medium|fit_[a-z]_\d+_\d+|large)\./i, '/' + variant + '.');
+}
+
+function buildDownloadChain(url, originalUrl) {
+  const strip = u => u.replace(/^https?:\/\//, '');
+  const ref = shopHost || 'yupoo.com';
+
+  // Priority order:
+  // 1. wsrv.nl + original thumbnail (from HTML - GUARANTEED to exist) + correct Referer
+  // 2. wsrv.nl + fit_p_720_720 (HD upgrade, commonly available)  
+  // 3. wsrv.nl + fit_p_900_900 (HD upgrade, may not always exist)
+  // 4. weserv.nl + original (fallback to secondary hostname)
+  // 5. corsproxy.io + original (last resort, may get blocked)
+
+  const orig = originalUrl || url;
+  const hd720 = toHDVariant(orig, 'fit_p_720_720');
+  const hd900 = toHDVariant(orig, 'fit_p_900_900');
+
+  const wsrv = (u) => `https://wsrv.nl/?url=${encodeURIComponent(strip(u))}&ref=${encodeURIComponent(ref)}&output=jpg&maxage=1d`;
+  const weserv = (u) => `https://images.weserv.nl/?url=${encodeURIComponent(strip(u))}&ref=${encodeURIComponent(ref)}&output=jpg`;
+
+  return [
+    wsrv(orig),           // 1. original via wsrv.nl + ref
+    wsrv(hd720),          // 2. 720px HD via wsrv.nl + ref
+    wsrv(hd900),          // 3. 900px HD via wsrv.nl + ref
+    weserv(orig),         // 4. original via weserv.nl + ref
+    `https://corsproxy.io/?${encodeURIComponent(orig)}`,   // 5. original via corsproxy
+  ];
+}
+
+async function fetchWithTimeout(url, timeoutMs = 12000) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    const r = await fetch(url, { signal: ctrl.signal, cache: 'no-store' });
+    clearTimeout(timer);
+    return r;
+  } catch(e) {
+    clearTimeout(timer);
+    throw e;
   }
-  return chains;
 }
 
 async function fetchImageBlob(url, originalUrl) {
-  // Step 1: try direct (works on localhost / permissive CORS)
-  try {
-    const r = await fetch(url, { mode: 'cors', cache: 'no-store' });
-    if (r.ok) {
-      const ct = r.headers.get('content-type') || '';
-      if (ct.startsWith('image/')) {
-        const b = await r.blob();
-        if (b.size > 2000) return { blob: b, usedUrl: url };
-      }
-    }
-  } catch {}
+  const chain = buildDownloadChain(url, originalUrl);
 
-  // Step 2: proxy chain with Referer spoofing
-  const proxies = makeImgProxies(url, originalUrl, shopHost);
-  for (const proxyUrl of proxies) {
+  for (let i = 0; i < chain.length; i++) {
+    const proxyUrl = chain[i];
     try {
-      const r = await fetch(proxyUrl, { cache: 'no-store' });
+      const r = await fetchWithTimeout(proxyUrl, 12000);
       if (!r.ok) continue;
+
       const b = await r.blob();
-      // Reject tiny responses (likely HTML error pages, not images)
-      if (b.size < 2000) continue;
-      // Accept if content-type is image, or if size is substantial (>5KB)
-      const ct = r.headers.get('content-type') || '';
-      if (ct.startsWith('image/') || b.size > 5000) {
-        return { blob: b, usedUrl: proxyUrl };
+      const ct = (r.headers.get('content-type') || b.type || '').toLowerCase();
+
+      // Strict validation:
+      // - Must be an image content type OR large enough to be a real photo
+      // - Must be > 15KB (Yupoo placeholders and HTML errors are < 10KB)
+      const isImageType = ct.startsWith('image/') && !ct.includes('svg');
+      const isLargeEnough = b.size > 15000;
+
+      if (isImageType && isLargeEnough) {
+        // Log first successful proxy
+        const proxyName = proxyUrl.includes('wsrv.nl') ? 'wsrv.nl' :
+                         proxyUrl.includes('weserv') ? 'weserv.nl' :
+                         proxyUrl.includes('corsproxy') ? 'corsproxy.io' : 'proxy';
+        return { blob: b, proxyName, size: b.size };
       }
-    } catch {}
+
+      // Log what we got for debugging
+      if (b.size > 0) {
+        const kb = (b.size / 1024).toFixed(1);
+        // If size is very small, this is likely a placeholder - skip silently
+      }
+    } catch(e) {
+      if (e.name === 'AbortError') continue; // timeout, try next
+    }
   }
-  throw new Error('all proxies failed for ' + url.split('/').slice(-2).join('/'));
+  throw new Error('no proxy returned a valid image (all returned placeholders or errors)');
 }
 
 async function exportZip() {
   if (!images.length) return;
   document.getElementById('act-row').querySelectorAll('button').forEach(b => b.disabled = true);
 
-  log(`ZIP ${images.length} immagini — usando wsrv.nl+Referer spoofing...`);
-  setBar(0, 'Avvio download...');
+  log(`Avvio ZIP — ${images.length} immagini | Referer: ${shopHost || 'yupoo.com'}`);
+  setBar(0, 'Test proxy (prima immagine)...');
+
+  // Quick proxy test on first image before processing all
+  let firstBlob;
+  try {
+    firstBlob = await fetchImageBlob(images[0].url, images[0].originalUrl);
+    log(`✅ Proxy OK: ${firstBlob.proxyName} — prima immagine ${(firstBlob.size/1024).toFixed(0)}KB`, 'success');
+  } catch(e) {
+    log(`❌ Test proxy fallito: ${e.message}`, 'err');
+    log('Yupoo CDN blocca tutti i proxy. Esporta catalog.json e usa VPN per il ZIP.', 'warn');
+    document.getElementById('act-row').querySelectorAll('button').forEach(b => b.disabled = false);
+    setBar(0, 'Test fallito'); return;
+  }
 
   const zip = new JSZip();
   const folder = zip.folder('yupoo_images');
   let done = 0, failed = 0;
-  let firstProxy = null;
 
-  for (let i = 0; i < images.length; i++) {
+  // Add first image (already fetched)
+  folder.file(images[0].filename, firstBlob.blob); done++;
+
+  for (let i = 1; i < images.length; i++) {
     const img = images[i];
     try {
-      const { blob, usedUrl } = await fetchImageBlob(img.url, img.originalUrl);
-      // Log which proxy worked the first time so user knows
-      if (done === 0 && usedUrl.includes('wsrv')) {
-        firstProxy = 'wsrv.nl ✓';
-        log(`Proxy funzionante: wsrv.nl con Referer=${shopHost}`, 'success');
-      } else if (done === 0 && usedUrl.includes('corsproxy')) {
-        firstProxy = 'corsproxy.io ✓';
-        log(`Proxy funzionante: corsproxy.io`, 'success');
-      } else if (done === 0 && !usedUrl.includes('http')) {
-        firstProxy = 'diretto ✓';
-      }
-      folder.file(img.filename, blob);
-      done++;
+      const { blob } = await fetchImageBlob(img.url, img.originalUrl);
+      folder.file(img.filename, blob); done++;
     } catch(e) {
       failed++;
-      if (failed <= 3) log(`⚠ ${img.filename}: ${e.message}`, 'warn');
+      if (failed <= 5) log(`⚠ img ${i+1}: ${e.message}`, 'warn');
     }
-    setBar(Math.round((i + 1) / images.length * 88), `${i+1}/${images.length} — OK:${done} ERR:${failed}`);
+    setBar(Math.round((i + 1) / images.length * 88), `${i+1}/${images.length} — ✓${done} ✗${failed}`);
   }
 
   if (done === 0) {
-    log('❌ Nessuna immagine scaricata. Il CDN Yupoo blocca tutte le richieste proxy.', 'err');
-    log('💡 Soluzione: apri il browser con CORS disabilitato oppure usa una VPN.', 'warn');
+    log('❌ Nessuna immagine scaricata.', 'err');
     document.getElementById('act-row').querySelectorAll('button').forEach(b => b.disabled = false);
-    setBar(0, 'Download fallito');
-    return;
+    setBar(0, 'Fallito'); return;
   }
 
-  log(`Compressione ZIP (${done} img)...`);
+  log(`Creazione ZIP (${done} immagini)...`);
   const zipBlob = await zip.generateAsync(
-    { type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 5 } },
+    { type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 4 } },
     m => setBar(88 + m.percent * 0.12, 'ZIP ' + Math.round(m.percent) + '%...')
   );
 
   saveAs(zipBlob, `yupoo_${username}_${done}img.zip`);
-  log(`✅ ZIP pronto: ${done} immagini scaricate${failed > 0 ? `, ${failed} fallite` : ''}`, 'success');
+  log(`✅ ZIP scaricato: ${done}/${images.length} immagini${failed > 0 ? ` (${failed} saltate)` : ''}`, 'success');
   setBar(100, `✓ ${done} immagini`);
   document.getElementById('act-row').querySelectorAll('button').forEach(b => b.disabled = false);
 }

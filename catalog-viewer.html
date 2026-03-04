@@ -163,14 +163,18 @@ let shopHost = ''; // extracted from catalog _meta.shopHost or _meta.source
 function buildProxies(url, origUrl) {
   const strip = u => u.replace(/^https?:\/\//, '');
   const ref = shopHost || 'yupoo.com';
-  const out = [];
-  // For each candidate URL (HD first, then thumbnail fallback)
-  for (const u of [...new Set([url, origUrl].filter(Boolean))]) {
-    out.push(`https://wsrv.nl/?url=${encodeURIComponent(strip(u))}&ref=${encodeURIComponent(ref)}&output=jpg&maxage=1d`);
-    out.push(`https://images.weserv.nl/?url=${encodeURIComponent(strip(u))}&ref=${encodeURIComponent(ref)}&output=jpg`);
-    out.push(`https://corsproxy.io/?${encodeURIComponent(u)}`);
-  }
-  return out;
+  const wsrv  = u => `https://wsrv.nl/?url=${encodeURIComponent(strip(u))}&ref=${encodeURIComponent(ref)}&output=jpg&maxage=1d`;
+  const weserv = u => `https://images.weserv.nl/?url=${encodeURIComponent(strip(u))}&ref=${encodeURIComponent(ref)}&output=jpg`;
+  const corpus = u => `https://corsproxy.io/?${encodeURIComponent(u)}`;
+  const orig = origUrl || url;
+  // origUrl is the thumbnail from HTML - GUARANTEED to exist
+  // url is the HD version (fit_p_900_900) - may not always exist
+  return [
+    wsrv(orig),      // 1. thumbnail via wsrv+ref → guaranteed to work
+    weserv(orig),    // 2. thumbnail via weserv+ref (backup)
+    wsrv(url),       // 3. HD via wsrv+ref (if exists)
+    corpus(orig),    // 4. thumbnail via corsproxy (no hotlink spoof, may fail)
+  ].filter(Boolean);
 }
 
 // ── Load catalog ──────────────────────────────────────────────────────────
@@ -236,8 +240,9 @@ function render() {
 
   g.innerHTML = items.map((item, i) => {
     const origUrl = item.originalUrl || item.url;
-    // Always start with wsrv.nl proxy + ref for hotlink bypass
-    const firstSrc = `https://wsrv.nl/?url=${encodeURIComponent(item.url.replace(/^https?:\/\//, ''))}&ref=${encodeURIComponent(shopHost || 'yupoo.com')}&output=jpg&maxage=1d`;
+    // Use the original thumbnail URL (guaranteed to exist in CDN) via wsrv.nl+ref
+    const origUrl2 = item.originalUrl || item.url;
+    const firstSrc = `https://wsrv.nl/?url=${encodeURIComponent(origUrl2.replace(/^https?:\/\//, ''))}&ref=${encodeURIComponent(shopHost || 'yupoo.com')}&output=jpg&maxage=1d`;
     return `
     <div class="item" style="animation-delay:${Math.min(i*.02,.4)}s" onclick="openLb(${item.id-1})">
       <div class="img-wrap loading" id="wrap-${item.id}">
@@ -308,7 +313,8 @@ function updateLb() {
   const lbImg = document.getElementById('lb-img');
   const origUrl = it.originalUrl || it.url;
   const ref = shopHost || 'yupoo.com';
-  const firstSrc = `https://wsrv.nl/?url=${encodeURIComponent(it.url.replace(/^https?:\/\//, ''))}&ref=${encodeURIComponent(ref)}&output=jpg&maxage=1d`;
+  const origUrlLb = it.originalUrl || it.url;
+  const firstSrc = `https://wsrv.nl/?url=${encodeURIComponent(origUrlLb.replace(/^https?:\/\//, ''))}&ref=${encodeURIComponent(ref)}&output=jpg&maxage=1d`;
 
   lbImg.dataset.hd = it.url;
   lbImg.dataset.orig = origUrl;
