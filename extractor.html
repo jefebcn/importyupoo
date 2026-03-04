@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Yupoo Extractor v4</title>
+<title>Yupoo Extractor v5</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
@@ -37,20 +37,25 @@
   .btn-o{background:transparent;border:1px solid var(--border);color:var(--text);font-family:'Syne',sans-serif;font-weight:600;font-size:13px;padding:14px 26px;border-radius:12px;cursor:pointer;transition:border-color .2s,transform .15s}
   .btn-o:hover{border-color:var(--accent);transform:translateY(-1px)}
   .btn-o:disabled{opacity:.35;cursor:not-allowed;transform:none}
+  /* Mode selector */
+  .mode-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:20px}
+  .mode-btn{padding:11px 12px;background:var(--surface);border:1px solid var(--border);border-radius:12px;cursor:pointer;font-size:12px;font-weight:600;color:var(--muted);transition:all .2s;text-align:center;line-height:1.4}
+  .mode-btn.on{background:rgba(0,229,255,.1);border-color:rgba(0,229,255,.3);color:var(--accent)}
+  .mode-desc{font-size:11px;color:var(--muted);margin-top:4px;display:block;font-weight:400}
   .opts{display:flex;gap:16px;margin-top:16px;flex-wrap:wrap;align-items:center}
   .opt{display:flex;align-items:center;gap:7px;cursor:pointer}
   .opt input[type=checkbox]{width:14px;height:14px;accent-color:var(--accent);cursor:pointer}
   .opt span{font-size:12px;color:var(--muted)}
-  .num-input{width:70px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:5px 8px;color:var(--text);font-family:'Space Mono',monospace;font-size:11px;outline:none;text-align:center}
+  .num-input{width:80px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:5px 8px;color:var(--text);font-family:'Space Mono',monospace;font-size:11px;outline:none;text-align:center}
   .stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
   .stat{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px;text-align:center}
   .stat-val{font-family:'Space Mono',monospace;font-size:22px;font-weight:700;color:var(--accent);line-height:1}
   .stat-lbl{font-family:'Space Mono',monospace;font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-top:4px}
   #status-area{display:none}
-  .s-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+  .s-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
   .s-title{font-family:'Space Mono',monospace;font-size:11px;text-transform:uppercase;letter-spacing:2px;color:var(--accent)}
   .bar-wrap{background:var(--surface);border:1px solid var(--border);border-radius:999px;height:4px;overflow:hidden;margin-bottom:14px}
-  .bar-fill{height:100%;border-radius:999px;background:linear-gradient(90deg,var(--accent),var(--accent2));width:0%;transition:width .3s}
+  .bar-fill{height:100%;border-radius:999px;background:linear-gradient(90deg,var(--accent),var(--accent2));width:0%;transition:width .4s}
   .log{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 16px;max-height:240px;overflow-y:auto;font-family:'Space Mono',monospace;font-size:11px;line-height:2;scrollbar-width:thin;scrollbar-color:var(--border) transparent}
   .ll{display:flex;gap:10px}
   .ll .ts{color:var(--muted);flex-shrink:0}
@@ -63,21 +68,35 @@
   .info-box{display:none;background:rgba(0,229,255,.05);border:1px solid rgba(0,229,255,.15);border-radius:12px;padding:16px 20px;margin-bottom:12px;font-size:12px;line-height:1.8;color:var(--muted)}
   .info-box strong{color:var(--accent)}
   .info-box code{background:rgba(255,255,255,.06);border-radius:4px;padding:1px 6px}
-  /* Stop button */
-  .btn-stop{background:rgba(255,71,87,.15);border:1px solid rgba(255,71,87,.3);color:var(--err);font-family:'Syne',sans-serif;font-weight:600;font-size:12px;padding:8px 18px;border-radius:10px;cursor:pointer;transition:background .2s;display:none}
-  .btn-stop:hover{background:rgba(255,71,87,.25)}
+  .btn-stop{background:rgba(255,71,87,.12);border:1px solid rgba(255,71,87,.3);color:var(--err);font-family:'Syne',sans-serif;font-weight:600;font-size:12px;padding:7px 16px;border-radius:10px;cursor:pointer;display:none}
+  .btn-stop:hover{background:rgba(255,71,87,.22)}
+  /* Debug panel */
+  #debug-area{display:none}
+  .debug-box{background:var(--surface);border:1px solid rgba(255,165,2,.2);border-radius:12px;padding:14px 16px;max-height:180px;overflow-y:auto;font-family:'Space Mono',monospace;font-size:10px;line-height:1.8;color:#aaa;word-break:break-all}
 </style>
 </head>
 <body>
 <div class="orb orb1"></div><div class="orb orb2"></div>
 <div class="wrap">
+
   <header>
-    <div class="badge">Yupoo Extractor v4</div>
+    <div class="badge">Yupoo Extractor v5</div>
     <h1>Extract &<br/><span>Export Catalog</span></h1>
-    <p class="sub">Supporta album singoli e categorie Yupoo con centinaia di pagine. Usa l'API JSON di Yupoo per estrarre le immagini reali anche da pagine renderizzate via JavaScript.</p>
+    <p class="sub">Estrae immagini reali da Yupoo — supporta categorie con migliaia di album.</p>
   </header>
 
   <div class="card">
+    <div class="mode-row">
+      <div class="mode-btn on" id="m-covers" onclick="setMode('covers')">
+        🖼️ Cover Album
+        <span class="mode-desc">1 foto per album — veloce, garantito.<br/>1175 album = 1175 immagini</span>
+      </div>
+      <div class="mode-btn" id="m-deep" onclick="setMode('deep')">
+        📦 Profondo (tutte le foto)
+        <span class="mode-desc">Tutte le foto di ogni album.<br/>Lento, può richiedere ore</span>
+      </div>
+    </div>
+
     <label class="lbl">Link Yupoo — Album, Categoria o Shop</label>
     <div class="row">
       <input type="text" id="url-input"
@@ -86,12 +105,12 @@
       <button class="btn" id="start-btn" onclick="start()">Estrai →</button>
     </div>
     <div class="opts">
-      <label class="opt"><input type="checkbox" id="opt-hd" checked/><span>Qualità max</span></label>
+      <label class="opt"><input type="checkbox" id="opt-hd" checked/><span>HD</span></label>
       <label class="opt"><input type="checkbox" id="opt-all" checked/><span>Tutte le pagine</span></label>
       <label class="opt"><input type="checkbox" id="opt-pre" checked/><span>Anteprima</span></label>
       <label class="opt">
-        <input type="number" id="opt-limit" class="num-input" value="5000" min="10" max="50000"/>
-        <span>max immagini</span>
+        <input type="number" id="opt-limit" class="num-input" value="10000" min="10" max="100000"/>
+        <span>max img</span>
       </label>
     </div>
   </div>
@@ -103,9 +122,9 @@
       <div class="stat"><div class="stat-val" id="st-imgs">0</div><div class="stat-lbl">Immagini</div></div>
       <div class="stat"><div class="stat-val" id="st-err">0</div><div class="stat-lbl">Errori</div></div>
     </div>
-    <div class="s-header">
+    <div class="s-hdr">
       <span class="s-title" id="s-title">Elaborazione...</span>
-      <button class="btn-stop" id="stop-btn" onclick="stopExtraction()">■ Ferma</button>
+      <button class="btn-stop" id="stop-btn" onclick="stop()">■ Ferma e salva</button>
     </div>
     <div class="bar-wrap"><div class="bar-fill" id="bar"></div></div>
     <div class="log" id="log"></div>
@@ -116,25 +135,28 @@
     <div class="pgrid" id="pgrid"></div>
   </div>
 
+  <div class="card" id="debug-area">
+    <div class="lbl" style="color:var(--warn)">⚠ Debug — HTML grezzo ricevuto dal proxy</div>
+    <div class="debug-box" id="debug-box"></div>
+  </div>
+
   <div class="info-box" id="info-box">
-    <strong>✅ catalog.json pronto!</strong><br/>
-    Carica il file nella root del repository GitHub insieme a <code>catalog-viewer.html</code>.<br/>
-    Le immagini vengono servite direttamente dal CDN Yupoo — <strong>zero storage Firebase</strong>.
+    <strong>✅ Pronto!</strong> Esporta il <code>catalog.json</code> e caricalo su GitHub insieme a <code>catalog-viewer.html</code>. Le immagini vengono servite dal CDN Yupoo — <strong>zero storage Firebase</strong>.
   </div>
 
   <div class="action-row" id="act-row">
     <button class="btn" onclick="exportJSON()">📄 Esporta catalog.json</button>
     <button class="btn-o" onclick="exportZip()">📦 Scarica ZIP</button>
   </div>
+
 </div>
-
 <script>
-// ── State ─────────────────────────────────────────────────────────────────
+// ── State ──────────────────────────────────────────────────────────────────
 let images = [], albumCount = 0, pageCount = 0, errCount = 0;
-let abortCtrl = null;
-let stopped = false;
+let abortCtrl = null, stopped = false;
+let extractMode = 'covers'; // 'covers' | 'deep'
 
-// ── CORS Proxies ──────────────────────────────────────────────────────────
+// ── CORS Proxies ───────────────────────────────────────────────────────────
 const PROXIES = [
   u => `https://corsproxy.io/?${encodeURIComponent(u)}`,
   u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
@@ -142,8 +164,8 @@ const PROXIES = [
 ];
 
 async function fetchP(url, pi = 0) {
-  if (stopped) throw new DOMException('stopped', 'AbortError');
-  if (pi >= PROXIES.length) { errCount++; updStats(); throw new Error('Tutti i proxy falliti per: ' + url); }
+  if (stopped) throw new DOMException('', 'AbortError');
+  if (pi >= PROXIES.length) { errCount++; throw new Error('proxy fail: ' + url); }
   try {
     const r = await fetch(PROXIES[pi](url), { signal: abortCtrl.signal });
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -154,280 +176,367 @@ async function fetchP(url, pi = 0) {
   }
 }
 
-// ── Detect URL type ───────────────────────────────────────────────────────
-function detectType(url) {
-  if (/\/categories\//.test(url)) return 'category';
-  if (/\/albums\//.test(url)) return 'album';
-  // shop root: huskyreps.x.yupoo.com with no path or just "/"
-  return 'category';
+function setMode(m) {
+  extractMode = m;
+  document.getElementById('m-covers').classList.toggle('on', m === 'covers');
+  document.getElementById('m-deep').classList.toggle('on', m === 'deep');
 }
 
-// ── Parse username from URL ───────────────────────────────────────────────
 function getUsername(url) {
-  try {
-    const host = new URL(url).hostname; // e.g. huskyreps.x.yupoo.com
-    return host.split('.')[0]; // huskyreps
-  } catch { return ''; }
+  try { return new URL(url).hostname.split('.')[0]; } catch { return ''; }
 }
-
-// ── HD URL upgrade ────────────────────────────────────────────────────────
 function hdUrl(u) {
-  return u
-    .replace(/\/(small|thumb|tiny|s|t)\./i, '/medium.')
-    .replace(/\/\d+x\d+\//, '/medium/');
+  return u.replace(/\/(small|thumb|tiny|s|t)\./i, '/medium.').replace(/\/\d+x\d+\//, '/medium/');
 }
 
-// ── ============================================================
-//    CORE: Extract images from an album page HTML
-//    Yupoo embeds photo data in multiple ways — we try all of them
-// ── ============================================================
-function extractImgsFromHtml(html, base, username) {
-  const found = new Set();
-
-  // ── Method 1: Direct photo.yupoo.com CDN URLs in HTML ──────────────────
-  for (const m of html.matchAll(/https?:\/\/photo\.yupoo\.com\/[^\s"'<>\)]+\.(?:jpg|jpeg|png|webp|gif)/gi)) {
-    const u = m[0].split('?')[0];
-    if (!u.includes('avatar') && !u.includes('logo') && !u.includes('icon') && !u.includes('blank')) {
-      found.add(u);
-    }
-  }
-
-  // ── Method 2: JSON embedded in <script> tags (Yupoo SSR data) ──────────
-  // Yupoo often embeds: window.__INITIAL_STATE__ or similar JSON blobs
-  const scriptMatches = html.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/gi);
-  for (const sm of scriptMatches) {
-    const scriptContent = sm[1];
-    // Look for photo IDs as hex strings near "photo.yupoo.com" patterns
-    for (const m of scriptContent.matchAll(/"(?:src|url|imageid|photo_id|uid|img)"\s*:\s*"([^"]+)"/gi)) {
-      const val = m[1].replace(/\\/g, '');
-      if (val.includes('photo.yupoo.com')) {
-        found.add(val.split('?')[0]);
-      }
-      // Reconstruct from hex photo IDs if username known
-      if (username && /^[0-9a-f]{8}$/i.test(val)) {
-        found.add(`https://photo.yupoo.com/${username}/${val}/medium.jpg`);
-      }
-    }
-    // Look for arrays of photo objects
-    for (const m of scriptContent.matchAll(/https?:\\?\/\\?\/photo\.yupoo\.com\\?\/[^\s"'\\]+\.(?:jpg|jpeg|png|webp|gif)/gi)) {
-      found.add(m[0].replace(/\\/g, '').split('?')[0]);
-    }
-  }
-
-  // ── Method 3: data-src, data-original, data-url lazy loading ───────────
-  for (const attr of ['data-src', 'data-original', 'data-url', 'data-lazy', 'data-imgsrc']) {
-    for (const m of html.matchAll(new RegExp(`${attr}=["']([^"']*photo\\.yupoo[^"']*\\.(?:jpg|jpeg|png|webp|gif))`, 'gi'))) {
-      found.add(m[1].split('?')[0]);
-    }
-  }
-
-  // ── Method 4: Yupoo-specific photo container patterns ──────────────────
-  // <div class="photo__wrap"> or similar with background-image
-  for (const m of html.matchAll(/url\(["']?(https?:\/\/photo\.yupoo\.com\/[^"'\)]+\.(?:jpg|jpeg|png|webp|gif))/gi)) {
-    found.add(m[1].split('?')[0]);
-  }
-
-  // ── Method 5: src= in img tags pointing to photo.yupoo.com ─────────────
-  for (const m of html.matchAll(/<img[^>]+src=["']([^"']*photo\.yupoo\.com[^"']*\.(?:jpg|jpeg|png|webp|gif))/gi)) {
-    found.add(m[1].split('?')[0]);
-  }
-
-  // ── Method 6: Yupoo photo IDs from href="/photos/HEXID" links ──────────
-  // e.g. href="/photos/6043bcb7" → reconstruct CDN URL
-  if (username) {
-    for (const m of html.matchAll(/href=["'][^"']*\/photos\/([0-9a-f]{8,})[^"']*["']/gi)) {
-      const photoId = m[1];
-      found.add(`https://photo.yupoo.com/${username}/${photoId}/medium.jpg`);
-    }
-    // Also from data-id attributes
-    for (const m of html.matchAll(/data-(?:photoid|photo-id|id)=["']([0-9a-f]{8,})["']/gi)) {
-      found.add(`https://photo.yupoo.com/${username}/${m[1]}/medium.jpg`);
-    }
-  }
-
-  return [...found].filter(u => u.startsWith('http'));
-}
-
-// ── ============================================================
-//    YUPOO API: Try the undocumented JSON API for album photos
-//    Yupoo has an internal API that returns structured JSON
-// ── ============================================================
-async function tryYupooApi(albumUrl, username) {
-  // Extract album ID from URL
-  const albumIdMatch = albumUrl.match(/\/albums\/(\d+)/);
-  if (!albumIdMatch) return [];
-  const albumId = albumIdMatch[1];
-  const baseUrl = `https://${username}.x.yupoo.com`;
-
-  const apiEndpoints = [
-    `${baseUrl}/albums/${albumId}?uid=1&type=list`,
-    `${baseUrl}/photos/list?album_id=${albumId}&page=1&uid=1`,
-    `${baseUrl}/albums/${albumId}?p=1&uid=1`,
-  ];
-
-  for (const endpoint of apiEndpoints) {
-    try {
-      const html = await fetchP(endpoint);
-      const imgs = extractImgsFromHtml(html, endpoint, username);
-      if (imgs.length > 0) {
-        log(`API hit: ${imgs.length} immagini da endpoint JSON`);
-        return imgs;
-      }
-    } catch (e) {
-      if (e.name === 'AbortError') throw e;
-    }
-  }
-  return [];
-}
-
-// ── ============================================================
-//    ALBUM SCRAPER: get all images from one album (all pages)
-// ── ============================================================
-async function scrapeAlbum(albumUrl, username) {
-  if (stopped) throw new DOMException('stopped', 'AbortError');
-  const found = new Set();
-  let pagesInAlbum = 0;
-
-  try {
-    // Fetch page 1
-    const html1 = await fetchP(albumUrl);
-    pageCount++;
-    const imgs1 = extractImgsFromHtml(html1, albumUrl, username);
-    imgs1.forEach(u => found.add(u));
-
-    // If no images found, try API endpoints
-    if (found.size === 0) {
-      const apiImgs = await tryYupooApi(albumUrl, username);
-      apiImgs.forEach(u => found.add(u));
-    }
-
-    // Detect total pages in this album
-    // Yupoo albums use ?p=N
-    if (document.getElementById('opt-all').checked) {
-      // Look for pagination in album page HTML
-      const albumTotalPages = getAlbumPageCount(html1);
-      pagesInAlbum = albumTotalPages;
-
-      for (let p = 2; p <= Math.min(albumTotalPages, 100); p++) {
-        if (stopped) break;
-        try {
-          const html = await fetchP(`${albumUrl}?p=${p}`);
-          pageCount++;
-          extractImgsFromHtml(html, albumUrl, username).forEach(u => found.add(u));
-        } catch (e) {
-          if (e.name === 'AbortError') throw e;
-          errCount++;
-        }
-      }
-    }
-  } catch (e) {
-    if (e.name === 'AbortError') throw e;
-    errCount++;
-  }
-
-  return [...found];
-}
-
-// ── Page count parsers ────────────────────────────────────────────────────
-
-// For ALBUMS: uses ?p=N
-function getAlbumPageCount(html) {
-  // Pattern: "1 / 5" or "> 5 <" pagination
-  const slashMatch = html.match(/\b1\s*\/\s*(\d+)\b/);
-  if (slashMatch) return parseInt(slashMatch[1]);
-  const pNums = [...html.matchAll(/[?&]p=(\d+)/g)].map(m => +m[1]);
-  if (pNums.length) return Math.max(...pNums);
-  return 1;
-}
-
-// For CATEGORIES: uses ?page=N
-function getCategoryPageCount(html) {
-  // Pattern: "1 / 10" shown on Yupoo category pages
-  const slashMatch = html.match(/\b1\s*\/\s*(\d+)\b/);
-  if (slashMatch && +slashMatch[1] > 1) return +slashMatch[1];
-  // Pattern: href="?page=N"
-  const pageNums = [...html.matchAll(/[?&]page=(\d+)/g)].map(m => +m[1]);
-  if (pageNums.length) return Math.max(...pageNums);
-  // Pattern: "in total X albums" → calculate pages
-  const totalMatch = html.match(/in\s+total\s+([\d,]+)\s+album/i) || html.match(/共\s*([\d,]+)\s*(?:个)?(?:相册|albums?)/i);
-  if (totalMatch) {
-    const total = parseInt(totalMatch[1].replace(/,/g, ''));
-    return Math.ceil(total / 120); // Yupoo shows ~120 albums per page
-  }
-  return 1;
-}
-
-// ── ============================================================
-//    CATEGORY SCRAPER: get all album links from category pages
-// ── ============================================================
-async function getCategoryAlbums(catUrl) {
-  if (stopped) throw new DOMException('stopped', 'AbortError');
-  const allAlbums = new Set();
-
-  // Page 1
-  let html1;
-  try {
-    html1 = await fetchP(catUrl);
-    pageCount++;
-  } catch (e) {
-    if (e.name === 'AbortError') throw e;
-    log('Impossibile accedere alla categoria.', 'err');
-    return [];
-  }
-
-  extractAlbumLinks(html1, catUrl).forEach(l => allAlbums.add(l));
-  log(`Pag.1 categoria: ${allAlbums.size} album trovati`);
-
-  const totalPages = getCategoryPageCount(html1);
-  log(`Pagine categoria: ${totalPages} (${totalPages * 120} album stimati)`);
-
-  if (document.getElementById('opt-all').checked && totalPages > 1) {
-    for (let p = 2; p <= Math.min(totalPages, 500); p++) {
-      if (stopped) break;
-      // Yupoo categories paginate with ?page=N
-      const pageUrl = catUrl.includes('?') ? `${catUrl}&page=${p}` : `${catUrl}?page=${p}`;
-      try {
-        const html = await fetchP(pageUrl);
-        pageCount++;
-        const links = extractAlbumLinks(html, catUrl);
-        links.forEach(l => allAlbums.add(l));
-        if (p % 5 === 0 || p === totalPages) {
-          log(`Categoria pag.${p}/${totalPages}: ${allAlbums.size} album totali`);
-        }
-        setBar(3 + (p / totalPages) * 12, `Scansione categoria pag.${p}/${totalPages}...`);
-        updStats();
-      } catch (e) {
-        if (e.name === 'AbortError') throw e;
-        errCount++;
-      }
-    }
-  }
-
-  return [...allAlbums];
-}
-
-// ── Extract /albums/XXXXX links from HTML ──────────────────────────────────
-function extractAlbumLinks(html, base) {
+// ── =========================================================
+//    EXTRACT: all photo.yupoo.com image URLs from HTML
+// ── =========================================================
+function pullImages(html, base, username) {
   const s = new Set();
-  for (const m of html.matchAll(/href=["']([^"']*\/albums\/\d+[^"'"?#]*)/gi)) {
+
+  const add = raw => {
+    if (!raw) return;
     try {
-      const u = new URL(m[1], base).href.split('?')[0];
-      s.add(u);
+      let u = raw.replace(/\\/g, '').split('?')[0];
+      if (!u.startsWith('http')) u = new URL(u, base).href.split('?')[0];
+      if (
+        u.includes('photo.yupoo.com') &&
+        /\.(jpg|jpeg|png|webp|gif)/i.test(u) &&
+        !u.includes('avatar') && !u.includes('icon') &&
+        !u.includes('blank') && !u.includes('logo')
+      ) s.add(u);
     } catch {}
+  };
+
+  // 1. Raw URLs anywhere in HTML/JS
+  for (const m of html.matchAll(/https?:\/\/photo\.yupoo\.com\/[^\s"'<>\)\\\n]+\.(?:jpg|jpeg|png|webp|gif)/gi))
+    add(m[0]);
+
+  // 2. JSON string values containing photo.yupoo.com
+  for (const m of html.matchAll(/"([^"]*photo\.yupoo\.com[^"]*\.(?:jpg|jpeg|png|webp|gif))"/gi))
+    add(m[1]);
+
+  // 3. data-* attributes
+  for (const m of html.matchAll(/data-[a-z-]+=["']([^"']*photo\.yupoo[^"']*\.(?:jpg|jpeg|png|webp|gif))/gi))
+    add(m[1]);
+
+  // 4. background-image: url(...)
+  for (const m of html.matchAll(/url\(["']?(https?:\/\/photo\.yupoo\.com[^"'\)]+\.(?:jpg|jpeg|png|webp|gif))/gi))
+    add(m[1]);
+
+  // 5. Reconstruct from photo hex IDs in href="/photos/HEXID"
+  //    This is the KEY method for JS-rendered album pages
+  if (username) {
+    for (const m of html.matchAll(/\/photos\/([0-9a-f]{8})\b/gi)) {
+      s.add(`https://photo.yupoo.com/${username}/${m[1]}/medium.jpg`);
+    }
+    // Also from data-id="HEXID"
+    for (const m of html.matchAll(/data-(?:id|photoid|photo-id|uid)=["']([0-9a-f]{8})["']/gi)) {
+      s.add(`https://photo.yupoo.com/${username}/${m[1]}/medium.jpg`);
+    }
+    // Also hex IDs in JSON: "imageid":"6043bcb7" or "id":"6043bcb7"
+    for (const m of html.matchAll(/"(?:imageid|photoid|photo_id|id|uid)"\s*:\s*"([0-9a-f]{8})"/gi)) {
+      s.add(`https://photo.yupoo.com/${username}/${m[1]}/medium.jpg`);
+    }
+    // "src":"/huskyreps/6043bcb7/..."
+    for (const m of html.matchAll(new RegExp(`/${username}/([0-9a-f]{8})/`, 'gi'))) {
+      s.add(`https://photo.yupoo.com/${username}/${m[1]}/medium.jpg`);
+    }
   }
-  // Also look for album IDs in JSON/JS
-  const baseOrigin = (() => { try { return new URL(base).origin; } catch { return ''; } })();
-  for (const m of html.matchAll(/"albums?(?:_id)?"\s*:\s*["']?(\d{6,})["']?/gi)) {
-    if (baseOrigin) s.add(`${baseOrigin}/albums/${m[1]}`);
+
+  return [...s];
+}
+
+// ── =========================================================
+//    CATEGORY PAGE COUNT (uses ?page=N)
+// ── =========================================================
+function getCatPageCount(html) {
+  // "1 / 10" pattern shown on Yupoo category header
+  const m1 = html.match(/\b1\s*[\/|]\s*(\d+)\b/);
+  if (m1 && +m1[1] > 1) return +m1[1];
+  // ?page=N links
+  const nums = [...html.matchAll(/[?&]page=(\d+)/g)].map(m => +m[1]);
+  if (nums.length) return Math.max(...nums);
+  // "in total X albums"
+  const m2 = html.match(/in\s+total\s+([\d,]+)\s+album/i) || html.match(/共\s*([\d,]+)/);
+  if (m2) return Math.ceil(parseInt(m2[1].replace(/,/g, '')) / 120);
+  return 1;
+}
+
+// Album page count (uses ?p=N)
+function getAlbumPageCount(html) {
+  const m1 = html.match(/\b1\s*[\/|]\s*(\d+)\b/);
+  if (m1 && +m1[1] > 1) return +m1[1];
+  const nums = [...html.matchAll(/[?&]p=(\d+)/g)].map(m => +m[1]);
+  if (nums.length) return Math.max(...nums);
+  return 1;
+}
+
+// ── =========================================================
+//    Extract album links from a category page HTML
+// ── =========================================================
+function pullAlbumLinks(html, base) {
+  const s = new Set();
+  for (const m of html.matchAll(/href=["']([^"']*\/albums\/\d+[^"'"#?]*)/gi)) {
+    try { s.add(new URL(m[1], base).href.split('?')[0]); } catch {}
   }
   return [...s];
+}
+
+// ── =========================================================
+//    MODE 1: COVERS — extract thumbnail from each category page
+//    Category pages are server-rendered → images ARE in HTML
+// ── =========================================================
+async function runCoversMode(catUrl, username, limit) {
+  const hd = document.getElementById('opt-hd').checked;
+  const seen = new Set();
+
+  // Fetch page 1
+  log('Recupero categoria pag.1...');
+  let html1;
+  try { html1 = await fetchP(catUrl); pageCount++; }
+  catch (e) { if (e.name === 'AbortError') throw e; log('Errore accesso categoria', 'err'); return; }
+
+  const totalPages = getCatPageCount(html1);
+  log(`Categoria: ${totalPages} pagine (${totalPages * 120} album stimati)`);
+
+  // Process page 1
+  addImgsFromHtml(html1, catUrl, username, hd, seen);
+  setBar(5, `Pag.1/${totalPages} — ${images.length} img`);
+
+  if (!document.getElementById('opt-all').checked) {
+    log(`Opzione "Tutte le pagine" disabilitata — solo pag.1`, 'warn');
+    return;
+  }
+
+  // Process pages 2..N
+  for (let p = 2; p <= Math.min(totalPages, 500); p++) {
+    if (stopped || images.length >= limit) break;
+    const pageUrl = catUrl.includes('?') ? `${catUrl}&page=${p}` : `${catUrl}?page=${p}`;
+    try {
+      const html = await fetchP(pageUrl);
+      pageCount++;
+      addImgsFromHtml(html, catUrl, username, hd, seen);
+      const pct = Math.round((p / totalPages) * 100);
+      setBar(pct, `Pag.${p}/${totalPages} — ${images.length} immagini`);
+      if (p % 2 === 0) log(`Pag.${p}/${totalPages}: ${images.length} immagini totali`);
+    } catch (e) {
+      if (e.name === 'AbortError') throw e;
+      errCount++; log(`Pag.${p} fallita`, 'warn');
+    }
+    updStats();
+  }
+}
+
+function addImgsFromHtml(html, base, username, hd, seen) {
+  let imgs = pullImages(html, base, username);
+  if (hd) imgs = imgs.map(hdUrl);
+  for (const u of imgs) {
+    if (!seen.has(u) && images.length < (+document.getElementById('opt-limit').value || 10000)) {
+      seen.add(u);
+      images.push({ id: images.length + 1, url: u, filename: `image_${String(images.length + 1).padStart(5, '0')}.jpg` });
+      if (images.length <= 60) addPrev(u);
+    }
+  }
+  albumCount++;
+  updStats();
+}
+
+// ── =========================================================
+//    MODE 2: DEEP — go into each album, extract all photos
+//    Uses photo hex ID reconstruction (works on SSR partial HTML)
+// ── =========================================================
+async function runDeepMode(catUrl, username, limit) {
+  const hd = document.getElementById('opt-hd').checked;
+  const seen = new Set();
+
+  // Step 1: collect all album links from all category pages
+  log('Raccolta album dalla categoria...');
+  const allAlbums = new Set();
+
+  let html1;
+  try { html1 = await fetchP(catUrl); pageCount++; }
+  catch (e) { if (e.name === 'AbortError') throw e; log('Errore accesso categoria', 'err'); return; }
+
+  pullAlbumLinks(html1, catUrl).forEach(l => allAlbums.add(l));
+  const totalCatPages = getCatPageCount(html1);
+  log(`Categoria: ${totalCatPages} pagine, ${allAlbums.size} album trovati pag.1`);
+
+  if (document.getElementById('opt-all').checked) {
+    for (let p = 2; p <= Math.min(totalCatPages, 500); p++) {
+      if (stopped) break;
+      const pu = catUrl.includes('?') ? `${catUrl}&page=${p}` : `${catUrl}?page=${p}`;
+      try {
+        const h = await fetchP(pu); pageCount++;
+        pullAlbumLinks(h, catUrl).forEach(l => allAlbums.add(l));
+        setBar(Math.round(p / totalCatPages * 15), `Categoria pag.${p}/${totalCatPages}: ${allAlbums.size} album`);
+      } catch (e) { if (e.name === 'AbortError') throw e; errCount++; }
+    }
+  }
+
+  const albumList = [...allAlbums];
+  log(`Trovati ${albumList.length} album. Avvio estrazione profonda...`, 'success');
+
+  // Step 2: scrape each album
+  for (let i = 0; i < albumList.length; i++) {
+    if (stopped || images.length >= limit) break;
+    const aUrl = albumList[i];
+    const aId = aUrl.split('/albums/')[1] || i;
+    setBar(15 + Math.round(i / albumList.length * 84), `Album ${i + 1}/${albumList.length} — #${aId}`);
+
+    let foundInAlbum = 0;
+    try {
+      const html = await fetchP(aUrl); pageCount++;
+      let imgs = pullImages(html, aUrl, username);
+      if (hd) imgs = imgs.map(hdUrl);
+
+      // Also try ?p=2..N for multi-page albums
+      const ap = getAlbumPageCount(html);
+      if (ap > 1 && document.getElementById('opt-all').checked) {
+        for (let p = 2; p <= Math.min(ap, 30); p++) {
+          if (stopped) break;
+          try {
+            const h2 = await fetchP(`${aUrl}?p=${p}`); pageCount++;
+            let mi = pullImages(h2, aUrl, username);
+            if (hd) mi = mi.map(hdUrl);
+            imgs = imgs.concat(mi);
+          } catch (e) { if (e.name === 'AbortError') throw e; errCount++; }
+        }
+      }
+
+      for (const u of [...new Set(imgs)]) {
+        if (!seen.has(u) && images.length < limit) {
+          seen.add(u);
+          images.push({ id: images.length + 1, url: u, filename: `image_${String(images.length + 1).padStart(5, '0')}.jpg`, album: aId });
+          if (images.length <= 80) addPrev(u);
+          foundInAlbum++;
+        }
+      }
+      albumCount++;
+    } catch (e) { if (e.name === 'AbortError') throw e; errCount++; }
+
+    if (foundInAlbum > 0) log(`Album #${aId}: +${foundInAlbum} → tot ${images.length}`);
+    else log(`Album #${aId}: 0 img (JS-only)`, 'warn');
+    updStats();
+  }
+}
+
+// ── =========================================================
+//    SINGLE ALBUM MODE
+// ── =========================================================
+async function runAlbumMode(url, username, limit) {
+  const hd = document.getElementById('opt-hd').checked;
+  const seen = new Set();
+
+  log('Scansione album singolo...');
+  try {
+    const html = await fetchP(url); pageCount++;
+
+    // Debug: show first 2000 chars of HTML to understand structure
+    document.getElementById('debug-area').style.display = 'block';
+    document.getElementById('debug-box').textContent =
+      '=== PRIMI 3000 CARATTERI HTML RICEVUTO ===\n' + html.substring(0, 3000);
+
+    let imgs = pullImages(html, url, username);
+    const ap = getAlbumPageCount(html);
+    log(`Pagine album: ${ap} | Immagini trovate pag.1: ${imgs.length}`);
+
+    if (ap > 1 && document.getElementById('opt-all').checked) {
+      for (let p = 2; p <= Math.min(ap, 50); p++) {
+        if (stopped) break;
+        try {
+          const h2 = await fetchP(`${url}?p=${p}`); pageCount++;
+          imgs = imgs.concat(pullImages(h2, url, username));
+        } catch (e) { if (e.name === 'AbortError') throw e; errCount++; }
+      }
+    }
+    if (hd) imgs = imgs.map(hdUrl);
+
+    for (const u of [...new Set(imgs)].slice(0, limit)) {
+      if (!seen.has(u)) {
+        seen.add(u);
+        images.push({ id: images.length + 1, url: u, filename: `image_${String(images.length + 1).padStart(5, '0')}.jpg` });
+        if (images.length <= 60) addPrev(u);
+      }
+    }
+    albumCount = 1;
+  } catch (e) { if (e.name === 'AbortError') throw e; errCount++; log('Errore album', 'err'); }
+  updStats();
+}
+
+// ── =========================================================
+//    MAIN
+// ── =========================================================
+async function start() {
+  const raw = document.getElementById('url-input').value.trim();
+  if (!raw) { alert('Inserisci un link Yupoo.'); return; }
+  let url; try { url = new URL(raw).href; } catch { alert('URL non valido.'); return; }
+
+  images = []; albumCount = 0; pageCount = 0; errCount = 0; stopped = false;
+  if (abortCtrl) abortCtrl.abort();
+  abortCtrl = new AbortController();
+
+  const username = getUsername(url);
+  const limit = +document.getElementById('opt-limit').value || 10000;
+  const isAlbum = /\/albums\//.test(url);
+
+  document.getElementById('status-area').style.display = 'block';
+  document.getElementById('preview-area').style.display = 'none';
+  document.getElementById('debug-area').style.display = 'none';
+  document.getElementById('pgrid').innerHTML = '';
+  document.getElementById('log').innerHTML = '';
+  document.getElementById('act-row').style.display = 'none';
+  document.getElementById('info-box').style.display = 'none';
+  document.getElementById('start-btn').disabled = true;
+  document.getElementById('stop-btn').style.display = 'block';
+  updStats(); setBar(2, 'Connessione...');
+
+  log(`Shop: ${username} | Modalità: ${isAlbum ? 'ALBUM' : extractMode.toUpperCase()} | Limite: ${limit}`);
+
+  try {
+    if (isAlbum) {
+      await runAlbumMode(url, username, limit);
+    } else if (extractMode === 'covers') {
+      await runCoversMode(url, username, limit);
+    } else {
+      await runDeepMode(url, username, limit);
+    }
+
+    setBar(100, `✓ ${images.length} immagini da ${albumCount} album`);
+    log(`Fine: ${images.length} immagini, ${albumCount} album, ${errCount} errori.`,
+      images.length > 0 ? 'success' : 'err');
+
+    if (images.length === 0) {
+      log('0 immagini — controlla il debug panel qui sotto.', 'err');
+    } else {
+      document.getElementById('pre-lbl').textContent = `Anteprima — ${images.length} immagini`;
+      document.getElementById('info-box').style.display = 'block';
+      document.getElementById('act-row').style.display = 'flex';
+    }
+  } catch (e) {
+    if (e.name === 'AbortError') { log('Fermato.', 'warn'); return; }
+    log(`Errore: ${e.message}`, 'err'); setBar(0, 'Errore');
+  } finally {
+    document.getElementById('start-btn').disabled = false;
+    document.getElementById('stop-btn').style.display = 'none';
+    if (images.length > 0 && stopped) {
+      document.getElementById('info-box').style.display = 'block';
+      document.getElementById('act-row').style.display = 'flex';
+    }
+  }
+}
+
+function stop() {
+  stopped = true;
+  if (abortCtrl) abortCtrl.abort();
+  log('Fermato — salva le immagini trovate finora.', 'warn');
 }
 
 // ── UI helpers ─────────────────────────────────────────────────────────────
 function log(msg, type = 'info') {
   const c = document.getElementById('log');
-  const d = document.createElement('div');
-  d.className = `ll ${type === 'success' ? 'ok' : type}`;
+  const d = document.createElement('div'); d.className = `ll ${type === 'success' ? 'ok' : type}`;
   const ts = new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
   d.innerHTML = `<span class="ts">${ts}</span><span class="msg">${msg}</span>`;
   c.appendChild(d); c.scrollTop = c.scrollHeight;
@@ -451,167 +560,24 @@ function addPrev(url) {
   document.getElementById('preview-area').style.display = 'block';
 }
 
-function stopExtraction() {
-  stopped = true;
-  if (abortCtrl) abortCtrl.abort();
-  log('Estrazione fermata dall\'utente.', 'warn');
-  document.getElementById('stop-btn').style.display = 'none';
-  if (images.length > 0) {
-    document.getElementById('info-box').style.display = 'block';
-    document.getElementById('act-row').style.display = 'flex';
-    document.getElementById('pre-lbl').textContent = `Anteprima — ${images.length} immagini (parziale)`;
-  }
-  document.getElementById('start-btn').disabled = false;
-}
-
-// ── ============================================================
-//    MAIN ENTRY POINT
-// ── ============================================================
-async function start() {
-  const raw = document.getElementById('url-input').value.trim();
-  if (!raw) { alert('Inserisci un link Yupoo.'); return; }
-  let url;
-  try { url = new URL(raw).href; } catch { alert('URL non valido.'); return; }
-
-  // Reset
-  images = []; albumCount = 0; pageCount = 0; errCount = 0; stopped = false;
-  if (abortCtrl) abortCtrl.abort();
-  abortCtrl = new AbortController();
-
-  const limit = +document.getElementById('opt-limit').value || 5000;
-  const hd = document.getElementById('opt-hd').checked;
-  const username = getUsername(url);
-  const type = detectType(url);
-
-  // Reset UI
-  document.getElementById('status-area').style.display = 'block';
-  document.getElementById('preview-area').style.display = 'none';
-  document.getElementById('pgrid').innerHTML = '';
-  document.getElementById('log').innerHTML = '';
-  document.getElementById('act-row').style.display = 'none';
-  document.getElementById('info-box').style.display = 'none';
-  document.getElementById('start-btn').disabled = true;
-  document.getElementById('stop-btn').style.display = 'block';
-  updStats(); setBar(2, 'Connessione...');
-
-  log(`Shop: ${username} | Modalità: ${type.toUpperCase()} | Limite: ${limit}`);
-
-  try {
-    if (type === 'category') {
-      // ── CATEGORY MODE ──────────────────────────────────────────────────
-      log('Raccolta album dalla categoria (può richiedere qualche minuto per categorie grandi)...');
-      setBar(3, 'Scansione categoria...');
-
-      const albumLinks = await getCategoryAlbums(url);
-      log(`Trovati ${albumLinks.length} album totali.`, 'success');
-
-      if (albumLinks.length === 0) {
-        log('Nessun album trovato. Prova a copiare il link direttamente da Yupoo.', 'err');
-        document.getElementById('stop-btn').style.display = 'none';
-        document.getElementById('start-btn').disabled = false;
-        return;
-      }
-
-      // Process each album
-      for (let i = 0; i < albumLinks.length; i++) {
-        if (stopped || images.length >= limit) break;
-        const aUrl = albumLinks[i];
-        const aId = aUrl.split('/albums/')[1]?.split(/[/?#]/)[0] || i;
-        const progress = 15 + (i / albumLinks.length) * 83;
-        setBar(progress, `Album ${i + 1}/${albumLinks.length} — #${aId}...`);
-
-        const imgs = await scrapeAlbum(aUrl, username);
-        const existing = new Set(images.map(x => x.url));
-        const processed = (hd ? imgs.map(hdUrl) : imgs)
-          .filter(u => u.startsWith('http') && !existing.has(u));
-        const deduped = [...new Set(processed)];
-
-        deduped.forEach(u => images.push({
-          id: images.length + 1,
-          url: u,
-          filename: `image_${String(images.length + 1).padStart(5, '0')}.jpg`,
-          album: aId
-        }));
-        albumCount++;
-
-        if (deduped.length > 0) {
-          log(`Album #${aId}: +${deduped.length} img → tot: ${images.length}`);
-          deduped.slice(0, 2).forEach(u => addPrev(u));
-        } else {
-          log(`Album #${aId}: 0 img trovate (JS-only o privato)`, 'warn');
-        }
-        updStats();
-      }
-
-    } else {
-      // ── SINGLE ALBUM MODE ──────────────────────────────────────────────
-      log('Scansione album singolo...');
-      setBar(10, 'Analisi album...');
-      const imgs = await scrapeAlbum(url, username);
-      albumCount = 1;
-      const processed = [...new Set(hd ? imgs.map(hdUrl) : imgs)]
-        .filter(u => u.startsWith('http'))
-        .slice(0, limit);
-      images = processed.map((u, i) => ({
-        id: i + 1,
-        url: u,
-        filename: `image_${String(i + 1).padStart(5, '0')}.jpg`
-      }));
-      images.forEach((x, i) => { if (i < 40) addPrev(x.url); });
-      updStats();
-    }
-
-    // ── Finalize ──────────────────────────────────────────────────────────
-    setBar(100, `✓ ${images.length} immagini da ${albumCount} album`);
-    log(`Completato: ${images.length} immagini, ${albumCount} album, ${errCount} errori.`,
-      images.length > 0 ? 'success' : 'warn');
-
-    if (images.length === 0) {
-      log('⚠ Nessuna immagine trovata. Le pagine album di Yupoo sono JavaScript-only e richiedono rendering nel browser. Prova con un album singolo come test.', 'err');
-    } else {
-      document.getElementById('pre-lbl').textContent = `Anteprima — ${images.length} immagini`;
-      document.getElementById('info-box').style.display = 'block';
-      document.getElementById('act-row').style.display = 'flex';
-    }
-
-  } catch (e) {
-    if (e.name === 'AbortError') { log('Annullato.', 'warn'); return; }
-    log(`Errore: ${e.message}`, 'err');
-    setBar(0, 'Errore');
-  } finally {
-    document.getElementById('start-btn').disabled = false;
-    document.getElementById('stop-btn').style.display = 'none';
-  }
-}
-
-// ── Export JSON ───────────────────────────────────────────────────────────
+// ── Export ─────────────────────────────────────────────────────────────────
 function exportJSON() {
   if (!images.length) return;
   const raw = document.getElementById('url-input').value.trim();
   const albumId = raw.split('/').filter(Boolean).pop() || 'catalog';
-  const catalog = {
-    _meta: {
-      source: raw,
-      album: albumId,
-      total: images.length,
-      generated: new Date().toISOString(),
-      note: "Images served from Yupoo CDN. No Firebase Storage needed."
-    },
+  const blob = new Blob([JSON.stringify({
+    _meta: { source: raw, album: albumId, total: images.length, generated: new Date().toISOString() },
     images
-  };
-  const blob = new Blob([JSON.stringify(catalog, null, 2)], { type: 'application/json' });
+  }, null, 2)], { type: 'application/json' });
   saveAs(blob, `catalog_${albumId}.json`);
   log(`✓ catalog_${albumId}.json — ${(blob.size / 1024).toFixed(1)} KB`, 'success');
 }
 
-// ── Export ZIP ────────────────────────────────────────────────────────────
 async function exportZip() {
   if (!images.length) return;
   document.getElementById('act-row').querySelectorAll('button').forEach(b => b.disabled = true);
-  log(`ZIP: ${images.length} immagini...`); setBar(0, 'Download...');
-  const zip = new JSZip();
-  const folder = zip.folder('yupoo_images');
-  let done = 0;
+  log(`ZIP: ${images.length} img...`); setBar(0, 'Download...');
+  const zip = new JSZip(); const folder = zip.folder('yupoo_images'); let done = 0;
   for (let i = 0; i < images.length; i++) {
     const { url, filename } = images[i];
     try {
@@ -622,11 +588,10 @@ async function exportZip() {
     } catch {}
     setBar(Math.round((i + 1) / images.length * 90), `Download ${i + 1}/${images.length}...`);
   }
-  const content = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } },
+  const c = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } },
     m => setBar(90 + m.percent * .1, `ZIP ${Math.round(m.percent)}%...`));
-  const albumId = document.getElementById('url-input').value.split('/').filter(Boolean).pop() || 'album';
-  saveAs(content, `yupoo_${albumId}_${done}img.zip`);
-  log(`✓ ZIP: ${done} immagini`, 'success'); setBar(100, '✓ Completato');
+  saveAs(c, `yupoo_${document.getElementById('url-input').value.split('/').pop()}_${done}img.zip`);
+  log(`✓ ZIP: ${done} img`, 'success'); setBar(100, '✓');
   document.getElementById('act-row').querySelectorAll('button').forEach(b => b.disabled = false);
 }
 
