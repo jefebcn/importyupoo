@@ -1501,7 +1501,11 @@ async function extractUrl(rawUrl) {
   const uname = u.hostname.split('.')[0];
   const sBase = u.protocol + '//' + u.hostname;
   const isAlb = /\/albums\//.test(url);
-  const hd    = document.getElementById('opt-hd').checked;
+
+  // CRITICAL: reset AbortController so fetches are not immediately aborted
+  if (abortCtrl) abortCtrl.abort();
+  abortCtrl = new AbortController();
+  stopped = false;
 
   // Reset per-extraction state
   images = []; seenUrls.clear();
