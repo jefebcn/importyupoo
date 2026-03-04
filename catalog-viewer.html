@@ -147,25 +147,30 @@
 
 <script>
 let allItems = [], filtered = [], lbIdx = 0;
+let shopHost = ''; // extracted from catalog _meta.shopHost or _meta.source
 
-// ── Multi-proxy fallback chain ─────────────────────────────────────────────
-// Yupoo CDN blocks direct browser img src from other origins (hotlink protection).
-// We try 3 different proxy services. If all fail, we fall back to the originalUrl thumbnail.
-const PROXIES = [
-  u => `https://corsproxy.io/?${encodeURIComponent(u)}`,
-  u => `https://images.weserv.nl/?url=${encodeURIComponent(u.replace(/^https?:\/\//,''))}`,
-  u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
-];
-const PROXY_NAMES = ['corsproxy.io', 'weserv.nl', 'allorigins'];
-
-// Always use proxy from the start — Yupoo always blocks direct embeds
-let useProxy = true;
-let proxyLevel = 0;
-
-function imgSrc(url) {
-  if (!useProxy) return url;
-  const fn = PROXIES[proxyLevel];
-  return fn ? fn(url) : url;
+// ─────────────────────────────────────────────────────────────────────────────
+// PROXY CHAIN — ordered by reliability for Yupoo hotlink-protected images
+//
+// Root cause: photo.yupoo.com CDN checks the HTTP Referer header.
+// Direct browser requests send Referer from our domain → BLOCKED.
+// corsproxy.io sends its own Referer → BLOCKED → returns HTML error (4KB).
+//
+// Solution: wsrv.nl supports &ref= to set a custom Referer.
+// By setting ref=shophost (e.g. huskyreps.x.yupoo.com) we spoof the Referer
+// to look like the request comes from inside Yupoo itself → ALLOWED.
+// ─────────────────────────────────────────────────────────────────────────────
+function buildProxies(url, origUrl) {
+  const strip = u => u.replace(/^https?:\/\//, '');
+  const ref = shopHost || 'yupoo.com';
+  const out = [];
+  // For each candidate URL (HD first, then thumbnail fallback)
+  for (const u of [...new Set([url, origUrl].filter(Boolean))]) {
+    out.push(`https://wsrv.nl/?url=${encodeURIComponent(strip(u))}&ref=${encodeURIComponent(ref)}&output=jpg&maxage=1d`);
+    out.push(`https://images.weserv.nl/?url=${encodeURIComponent(strip(u))}&ref=${encodeURIComponent(ref)}&output=jpg`);
+    out.push(`https://corsproxy.io/?${encodeURIComponent(u)}`);
+  }
+  return out;
 }
 
 // ── Load catalog ──────────────────────────────────────────────────────────
@@ -180,23 +185,38 @@ async function load() {
 function init(data) {
   let items = [];
   if (Array.isArray(data)) {
-    items = data.map((u, i) => ({ id: i + 1, url: u, filename: `image_${String(i+1).padStart(5,'0')}.jpg` }));
+    items = data.map((u, i) => ({ id: i+1, url: u, filename: `image_${String(i+1).padStart(5,'0')}.jpg` }));
   } else if (data.images) {
     items = data.images;
   } else if (data.urls) {
-    items = data.urls.map((u, i) => ({ id: i + 1, url: u, filename: `image_${String(i+1).padStart(5,'0')}.jpg` }));
+    items = data.urls.map((u, i) => ({ id: i+1, url: u, filename: `image_${String(i+1).padStart(5,'0')}.jpg` }));
+  }
+
+  // Extract shopHost for Referer spoofing
+  const meta = data._meta || {};
+  shopHost = meta.shopHost || '';
+  if (!shopHost && meta.source) {
+    try { shopHost = new URL(meta.source).hostname; } catch {}
+  }
+  if (!shopHost && items[0]?.url) {
+    // Derive shop subdomain from image URL pattern: photo.yupoo.com/USERNAME/...
+    const m = items[0].url.match(/photo\.yupoo\.com\/([^/]+)\//);
+    if (m) shopHost = m[1] + '.x.yupoo.com';
   }
 
   allItems = items; filtered = [...items];
-  const name = data._meta?.album || 'Catalogo';
+  const name = meta.album || 'Catalogo';
   document.getElementById('cat-title').textContent = name;
   document.getElementById('hero-h').innerHTML = `Collezione<br/><em>${name}</em>`;
   document.getElementById('hero-n').textContent = items.length;
   document.getElementById('top-info').textContent = `${items.length} articoli`;
   document.title = name;
 
-  document.getElementById('proxy-pill').style.display = 'inline-block';
-  document.getElementById('proxy-pill').textContent = `🔄 ${PROXY_NAMES[proxyLevel]}`;
+  const pill = document.getElementById('proxy-pill');
+  if (shopHost) {
+    pill.style.display = 'inline-block';
+    pill.textContent = `🔄 wsrv.nl+ref`;
+  }
   render();
 }
 
@@ -205,37 +225,41 @@ function render() {
   if (!allItems.length) return;
   const sort = document.querySelector('.sort-sel').value;
   let items = [...filtered];
-  if (sort === 'asc') items.sort((a, b) => a.id - b.id);
+  if (sort === 'asc')  items.sort((a, b) => a.id - b.id);
   if (sort === 'desc') items.sort((a, b) => b.id - a.id);
 
   const g = document.getElementById('grid');
-  if (!items.length) { g.innerHTML = `<div style="padding:60px;text-align:center;color:var(--muted)">Nessun risultato</div>`; return; }
+  if (!items.length) {
+    g.innerHTML = `<div style="padding:60px;text-align:center;color:var(--muted)">Nessun risultato</div>`;
+    return;
+  }
 
   g.innerHTML = items.map((item, i) => {
-    const fallbackUrl = item.originalUrl || item.url;
-    const fallbackJson = JSON.stringify(fallbackUrl);
+    const origUrl = item.originalUrl || item.url;
+    // Always start with wsrv.nl proxy + ref for hotlink bypass
+    const firstSrc = `https://wsrv.nl/?url=${encodeURIComponent(item.url.replace(/^https?:\/\//, ''))}&ref=${encodeURIComponent(shopHost || 'yupoo.com')}&output=jpg&maxage=1d`;
     return `
     <div class="item" style="animation-delay:${Math.min(i*.02,.4)}s" onclick="openLb(${item.id-1})">
       <div class="img-wrap loading" id="wrap-${item.id}">
         <img
-          src="${imgSrc(item.url)}"
+          src="${firstSrc}"
           alt="Prodotto ${item.id}"
           loading="lazy"
           referrerpolicy="no-referrer"
           data-hd="${item.url}"
-          data-orig="${fallbackUrl}"
+          data-orig="${origUrl}"
           data-retries="0"
-          onload="imgLoaded(this, ${item.id})"
-          onerror="imgError(this, ${item.id})"
+          onload="imgLoaded(this,${item.id})"
+          onerror="imgError(this,${item.id})"
         />
         <div class="img-overlay">
           <button class="ov-btn" onclick="event.stopPropagation();openLb(${item.id-1})">👁 Vedi</button>
-          <button class="ov-btn" onclick="event.stopPropagation();dlImg2('${item.url}','${item.filename}')">⬇</button>
+          <button class="ov-btn" onclick="event.stopPropagation();downloadSingle(${item.id-1})">⬇</button>
         </div>
       </div>
       <div class="item-info">
         <div class="item-id">#${String(item.id).padStart(4,'0')}</div>
-        <div class="item-name">${item.filename.replace(/\.[^.]+$/, '')}</div>
+        <div class="item-name">${item.filename.replace(/\.[^.]+$/,'')}</div>
       </div>
     </div>`;
   }).join('');
@@ -244,35 +268,19 @@ function render() {
 function imgLoaded(img, id) {
   img.classList.add('loaded');
   const wrap = document.getElementById('wrap-' + id);
-  if (wrap) { wrap.classList.remove('loading'); wrap.classList.remove('error'); }
+  if (wrap) { wrap.classList.remove('loading','error'); }
 }
 
-// Multi-level fallback:
-// 0: proxy[0](hdUrl)  → 1: proxy[1](hdUrl) → 2: proxy[2](hdUrl)
-// 3: proxy[0](origUrl) → 4: proxy[1](origUrl) → 5: proxy[2](origUrl) → error
 function imgError(img, id) {
   const wrap = document.getElementById('wrap-' + id);
-  let retries = parseInt(img.dataset.retries || '0');
-  retries++;
+  let retries = parseInt(img.dataset.retries || '0') + 1;
   img.dataset.retries = retries;
 
-  const hdUrl   = img.dataset.hd   || img.dataset.orig;
-  const origUrl = img.dataset.orig || hdUrl;
-  const totalSteps = PROXIES.length * 2; // try all proxies for both HD and thumbnail
-
-  if (retries <= PROXIES.length) {
-    // Still trying proxies with HD url
-    const level = retries - 1;
-    img.src = PROXIES[level](hdUrl);
-    // Update proxy pill to show which proxy is active
-    proxyLevel = level;
-    document.getElementById('proxy-pill').textContent = `🔄 ${PROXY_NAMES[level]}`;
-  } else if (retries <= PROXIES.length * 2 && origUrl !== hdUrl) {
-    // HD failed with all proxies — try thumbnail (originalUrl) with proxies
-    const level = retries - PROXIES.length - 1;
-    img.src = PROXIES[level](origUrl);
+  const proxies = buildProxies(img.dataset.hd, img.dataset.orig);
+  // retries=1 means initial wsrv failed, try next in chain (skip index 0 = wsrv which already failed)
+  if (retries < proxies.length) {
+    img.src = proxies[retries];
   } else {
-    // Everything failed — show error
     if (wrap) { wrap.classList.remove('loading'); wrap.classList.add('error'); }
   }
 }
@@ -294,29 +302,55 @@ function openLb(i) { lbIdx = i; updateLb(); document.getElementById('lb').classL
 function closeLb() { document.getElementById('lb').classList.remove('open'); document.body.style.overflow = ''; }
 function lbBg(e) { if (e.target === document.getElementById('lb')) closeLb(); }
 function lbGo(d) { lbIdx = (lbIdx + d + allItems.length) % allItems.length; updateLb(); }
+
 function updateLb() {
   const it = allItems[lbIdx];
   const lbImg = document.getElementById('lb-img');
-  lbImg.dataset.hd   = it.url;
-  lbImg.dataset.orig = it.originalUrl || it.url;
+  const origUrl = it.originalUrl || it.url;
+  const ref = shopHost || 'yupoo.com';
+  const firstSrc = `https://wsrv.nl/?url=${encodeURIComponent(it.url.replace(/^https?:\/\//, ''))}&ref=${encodeURIComponent(ref)}&output=jpg&maxage=1d`;
+
+  lbImg.dataset.hd = it.url;
+  lbImg.dataset.orig = origUrl;
   lbImg.dataset.retries = '0';
-  lbImg.src = imgSrc(it.url);
+  lbImg.src = firstSrc;
   lbImg.referrerPolicy = 'no-referrer';
   lbImg.onerror = () => {
-    let r = parseInt(lbImg.dataset.retries || '0') + 1;
+    const r = parseInt(lbImg.dataset.retries || '0') + 1;
     lbImg.dataset.retries = r;
-    const hdUrl   = lbImg.dataset.hd;
-    const origUrl = lbImg.dataset.orig;
-    if (r <= PROXIES.length) {
-      lbImg.src = PROXIES[r-1](hdUrl);
-    } else if (r <= PROXIES.length * 2 && origUrl !== hdUrl) {
-      lbImg.src = PROXIES[r - PROXIES.length - 1](origUrl);
-    }
+    const proxies = buildProxies(lbImg.dataset.hd, lbImg.dataset.orig);
+    if (r < proxies.length) lbImg.src = proxies[r];
   };
-  document.getElementById('lb-info').textContent = `${lbIdx + 1} / ${allItems.length} — #${String(it.id).padStart(4, '0')}`;
+  document.getElementById('lb-info').textContent = `${lbIdx+1} / ${allItems.length} — #${String(it.id).padStart(4,'0')}`;
 }
-function dlImg() { const it = allItems[lbIdx]; dlImg2(it.url, it.filename); }
-function dlImg2(url, name) { const a = document.createElement('a'); a.href = url; a.download = name; a.target = '_blank'; a.click(); }
+
+// ── Download single image via fetch+blob (bypasses hotlink protection) ──
+async function downloadSingle(idx) {
+  const it = allItems[idx];
+  const ref = shopHost || 'yupoo.com';
+  const proxies = buildProxies(it.url, it.originalUrl || it.url);
+  for (const proxyUrl of proxies) {
+    try {
+      const r = await fetch(proxyUrl, { cache: 'no-store' });
+      if (!r.ok) continue;
+      const b = await r.blob();
+      if (b.size < 2000) continue; // Skip HTML error pages
+      const ct = b.type || '';
+      if (ct.startsWith('image/') || b.size > 5000) {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(b);
+        a.download = it.filename;
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+        return;
+      }
+    } catch {}
+  }
+  // Last resort: open in new tab
+  window.open(it.url, '_blank');
+}
+
+function dlImg() { downloadSingle(lbIdx); }
 
 document.addEventListener('keydown', e => {
   if (!document.getElementById('lb').classList.contains('open')) return;
@@ -347,6 +381,5 @@ function readJson(f) {
 }
 
 load();
-</script>
 </body>
 </html>

@@ -84,7 +84,7 @@
 <div class="wrap">
 
   <header>
-    <div class="badge">Yupoo Extractor v9</div>
+    <div class="badge">Yupoo Extractor v10</div>
     <h1>Extract &<br/><span>Export Catalog</span></h1>
     <p class="sub">Multi-strategia: API Yupoo + Next.js data + <strong style="color:var(--accent)">scraping HTML diretto</strong>.</p>
   </header>
@@ -176,7 +176,7 @@
 let images = [], albumCount = 0, pageCount = 0, errCount = 0;
 let abortCtrl = null, stopped = false, extractMode = 'covers';
 let DEBUG = { raw: '', api: '', next: '', photos: '' };
-let siteBase = '', buildId = '', username = '';
+let siteBase = '', buildId = '', username = '', shopHost = '';
 let cachedHtml = ''; // Stores HTML from initial page fetch for scraping fallback
 const seenUrls = new Set();
 
@@ -893,6 +893,7 @@ async function start() {
   const u = new URL(url);
   username = u.hostname.split('.')[0];
   siteBase = `${u.protocol}//${u.hostname}`;
+  shopHost = u.hostname; // e.g. huskyreps.x.yupoo.com — used for Referer spoofing
   const isAlbum = /\/albums\//.test(url);
 
   document.getElementById('status-area').style.display  = 'block';
@@ -1006,34 +1007,126 @@ function exportJSON() {
   const raw = document.getElementById('url-input').value.trim();
   const id  = raw.split('/').filter(Boolean).pop() || 'catalog';
   const blob = new Blob([JSON.stringify({
-    _meta: { source: raw, album: id, total: images.length, generated: new Date().toISOString(), extractor: 'v8' },
+    _meta: {
+      source: raw,
+      shopHost,          // ← stored so catalog-viewer can use it for Referer spoofing
+      album: id,
+      total: images.length,
+      generated: new Date().toISOString(),
+      extractor: 'v10'
+    },
     images
   }, null, 2)], { type: 'application/json' });
   saveAs(blob, `catalog_${id}.json`);
   log('Salvato catalog_' + id + '.json — ' + (blob.size/1024).toFixed(1) + ' KB', 'success');
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// IMAGE DOWNLOAD — multi-proxy with Referer spoofing
+// The key insight: Yupoo CDN checks the Referer header for hotlink protection.
+// wsrv.nl supports ?ref= to set the Referer to the Yupoo shop domain,
+// making the CDN think the request originates from the Yupoo site itself.
+// ─────────────────────────────────────────────────────────────────────────────
+function makeImgProxies(url, fallbackUrl, host) {
+  const stripProto = u => u.replace(/^https?:\/\//, '');
+  const ref = host || shopHost || 'yupoo.com';
+  // Build chain: try HD url with 3 proxies, then fallback url with 3 proxies
+  const chains = [];
+  for (const u of [url, fallbackUrl].filter((v, i, a) => v && a.indexOf(v) === i)) {
+    // wsrv.nl: image CDN proxy, supports &ref= for Referer spoofing — best for hotlink-protected images
+    chains.push(`https://wsrv.nl/?url=${encodeURIComponent(stripProto(u))}&ref=${encodeURIComponent(ref)}&output=jpg&maxage=1d`);
+    // wsrv.nl alternative hostname
+    chains.push(`https://images.weserv.nl/?url=${encodeURIComponent(stripProto(u))}&ref=${encodeURIComponent(ref)}&output=jpg`);
+    // corsproxy.io — strips Referer, may work if CDN check is loose
+    chains.push(`https://corsproxy.io/?${encodeURIComponent(u)}`);
+  }
+  return chains;
+}
+
+async function fetchImageBlob(url, originalUrl) {
+  // Step 1: try direct (works on localhost / permissive CORS)
+  try {
+    const r = await fetch(url, { mode: 'cors', cache: 'no-store' });
+    if (r.ok) {
+      const ct = r.headers.get('content-type') || '';
+      if (ct.startsWith('image/')) {
+        const b = await r.blob();
+        if (b.size > 2000) return { blob: b, usedUrl: url };
+      }
+    }
+  } catch {}
+
+  // Step 2: proxy chain with Referer spoofing
+  const proxies = makeImgProxies(url, originalUrl, shopHost);
+  for (const proxyUrl of proxies) {
+    try {
+      const r = await fetch(proxyUrl, { cache: 'no-store' });
+      if (!r.ok) continue;
+      const b = await r.blob();
+      // Reject tiny responses (likely HTML error pages, not images)
+      if (b.size < 2000) continue;
+      // Accept if content-type is image, or if size is substantial (>5KB)
+      const ct = r.headers.get('content-type') || '';
+      if (ct.startsWith('image/') || b.size > 5000) {
+        return { blob: b, usedUrl: proxyUrl };
+      }
+    } catch {}
+  }
+  throw new Error('all proxies failed for ' + url.split('/').slice(-2).join('/'));
+}
+
 async function exportZip() {
   if (!images.length) return;
   document.getElementById('act-row').querySelectorAll('button').forEach(b => b.disabled = true);
-  log('ZIP ' + images.length + ' img...'); setBar(0, 'Download...');
-  const zip = new JSZip(), folder = zip.folder('yupoo_images');
-  let done = 0;
-  const proxy0 = u => `https://corsproxy.io/?${encodeURIComponent(u)}`;
+
+  log(`ZIP ${images.length} immagini — usando wsrv.nl+Referer spoofing...`);
+  setBar(0, 'Avvio download...');
+
+  const zip = new JSZip();
+  const folder = zip.folder('yupoo_images');
+  let done = 0, failed = 0;
+  let firstProxy = null;
+
   for (let i = 0; i < images.length; i++) {
-    const { url, filename } = images[i];
+    const img = images[i];
     try {
-      let blob;
-      try { const r = await fetch(url, { mode:'cors' }); if (!r.ok) throw 0; blob = await r.blob(); }
-      catch  { const r = await fetch(proxy0(url));                           blob = await r.blob(); }
-      folder.file(filename, blob); done++;
-    } catch {}
-    setBar(Math.round((i+1)/images.length*90), `${i+1}/${images.length}...`);
+      const { blob, usedUrl } = await fetchImageBlob(img.url, img.originalUrl);
+      // Log which proxy worked the first time so user knows
+      if (done === 0 && usedUrl.includes('wsrv')) {
+        firstProxy = 'wsrv.nl ✓';
+        log(`Proxy funzionante: wsrv.nl con Referer=${shopHost}`, 'success');
+      } else if (done === 0 && usedUrl.includes('corsproxy')) {
+        firstProxy = 'corsproxy.io ✓';
+        log(`Proxy funzionante: corsproxy.io`, 'success');
+      } else if (done === 0 && !usedUrl.includes('http')) {
+        firstProxy = 'diretto ✓';
+      }
+      folder.file(img.filename, blob);
+      done++;
+    } catch(e) {
+      failed++;
+      if (failed <= 3) log(`⚠ ${img.filename}: ${e.message}`, 'warn');
+    }
+    setBar(Math.round((i + 1) / images.length * 88), `${i+1}/${images.length} — OK:${done} ERR:${failed}`);
   }
-  const c = await zip.generateAsync({ type:'blob', compression:'DEFLATE', compressionOptions:{ level:6 } },
-    m => setBar(90 + m.percent*.1, 'ZIP ' + Math.round(m.percent) + '%...'));
-  saveAs(c, `yupoo_${done}img.zip`);
-  log('ZIP pronto: ' + done + ' img', 'success'); setBar(100, '✓');
+
+  if (done === 0) {
+    log('❌ Nessuna immagine scaricata. Il CDN Yupoo blocca tutte le richieste proxy.', 'err');
+    log('💡 Soluzione: apri il browser con CORS disabilitato oppure usa una VPN.', 'warn');
+    document.getElementById('act-row').querySelectorAll('button').forEach(b => b.disabled = false);
+    setBar(0, 'Download fallito');
+    return;
+  }
+
+  log(`Compressione ZIP (${done} img)...`);
+  const zipBlob = await zip.generateAsync(
+    { type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 5 } },
+    m => setBar(88 + m.percent * 0.12, 'ZIP ' + Math.round(m.percent) + '%...')
+  );
+
+  saveAs(zipBlob, `yupoo_${username}_${done}img.zip`);
+  log(`✅ ZIP pronto: ${done} immagini scaricate${failed > 0 ? `, ${failed} fallite` : ''}`, 'success');
+  setBar(100, `✓ ${done} immagini`);
   document.getElementById('act-row').querySelectorAll('button').forEach(b => b.disabled = false);
 }
 
