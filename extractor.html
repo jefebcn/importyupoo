@@ -52,13 +52,24 @@
   .itab.active{background:var(--accent);border-color:var(--accent);color:#000;font-weight:700}
   .itab:hover:not(.active){border-color:var(--accent);color:var(--accent)}
 
-  /* ── Batch textarea ── */
-  #batch-input{width:100%;min-height:110px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px;color:var(--text);font-family:'Space Mono',monospace;font-size:11px;resize:vertical;outline:none;box-sizing:border-box;transition:border-color .2s;line-height:1.6}
-  #batch-input:focus{border-color:var(--accent)}
-  .batch-controls{display:flex;align-items:center;justify-content:space-between;margin-top:10px}
+  /* ── Multi-link rows ── */
+  #link-rows{display:flex;flex-direction:column;gap:8px;margin-bottom:10px}
+  .link-row{display:flex;gap:8px;align-items:center}
+  .link-row input{flex:1;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 14px;color:var(--text);font-family:'Space Mono',monospace;font-size:11px;outline:none;transition:border-color .2s}
+  .link-row input:focus{border-color:var(--accent)}
+  .link-row input.row-ok{border-color:#00e5a0}
+  .link-row input.row-err{border-color:var(--err)}
+  .link-row input.row-running{border-color:var(--accent);animation:pulse .8s ease-in-out infinite alternate}
+  @keyframes pulse{from{border-color:var(--accent)}to{border-color:rgba(0,229,255,.3)}}
+  .row-status{font-size:13px;width:20px;text-align:center;flex-shrink:0}
+  .btn-rm-row{background:transparent;border:1px solid var(--border);border-radius:6px;padding:4px 8px;color:var(--muted);cursor:pointer;font-size:12px;flex-shrink:0}
+  .btn-rm-row:hover{border-color:var(--err);color:var(--err)}
+  .btn-add-row{background:transparent;border:1px dashed var(--border);border-radius:8px;padding:7px 16px;color:var(--muted);font-size:11px;cursor:pointer;width:100%;transition:all .2s;font-family:'Space Mono',monospace}
+  .btn-add-row:hover{border-color:var(--accent);color:var(--accent)}
+  .batch-controls{display:flex;align-items:center;justify-content:space-between;margin-top:12px}
   .batch-count{font-family:'Space Mono',monospace;font-size:10px;color:var(--muted)}
-  #batch-progress{margin-top:10px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px;max-height:160px;overflow-y:auto}
-  #batch-log{font-family:'Space Mono',monospace;font-size:10px;line-height:1.7}
+  #batch-progress{margin-top:10px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px;max-height:180px;overflow-y:auto}
+  #batch-log{font-family:'Space Mono',monospace;font-size:10px;line-height:1.8}
   #batch-log .bl-ok{color:#00e5a0}
   #batch-log .bl-err{color:var(--err)}
   #batch-log .bl-cur{color:var(--accent)}
@@ -138,7 +149,7 @@
     <!-- Mode tabs -->
     <div class="input-tabs">
       <button class="itab active" id="tab-single" onclick="setInputMode('single')">🔗 Singolo</button>
-      <button class="itab" id="tab-batch" onclick="setInputMode('batch')">📋 Batch (più link)</button>
+      <button class="itab" id="tab-batch" onclick="setInputMode('batch')">📋 Multi-link</button>
     </div>
 
     <!-- Single mode -->
@@ -151,11 +162,12 @@
       </div>
     </div>
 
-    <!-- Batch mode -->
+    <!-- Multi-link mode: individual rows, each like a single input -->
     <div id="batch-area" style="display:none">
-      <textarea id="batch-input" placeholder="Incolla uno o più link Yupoo, uno per riga:&#10;https://huskyreps.x.yupoo.com/categories/5003170&#10;https://huskyreps.x.yupoo.com/categories/5003229&#10;https://huskyreps.x.yupoo.com/albums/1234567" autocomplete="off" spellcheck="false"></textarea>
+      <div id="link-rows"></div>
+      <button class="btn-add-row" onclick="addLinkRow()">＋ Aggiungi link</button>
       <div class="batch-controls">
-        <span id="batch-count" class="batch-count">0 link</span>
+        <span id="batch-count" class="batch-count"></span>
         <button class="btn" id="batch-btn" onclick="startBatch()">🚀 Estrai &amp; ZIP tutto</button>
       </div>
       <div id="batch-progress" style="display:none">
@@ -1303,9 +1315,10 @@ async function exportZip() {
 document.getElementById('url-input').addEventListener('keydown', e => { if (e.key === 'Enter') start(); });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// INPUT MODE (single / batch)
+// INPUT MODE (single / multi-link)
 // ─────────────────────────────────────────────────────────────────────────────
 let inputMode = 'single';
+let linkRowCount = 0;
 
 function setInputMode(mode) {
   inputMode = mode;
@@ -1313,15 +1326,49 @@ function setInputMode(mode) {
   document.getElementById('batch-area').style.display  = mode === 'batch'  ? '' : 'none';
   document.getElementById('tab-single').classList.toggle('active', mode === 'single');
   document.getElementById('tab-batch').classList.toggle('active', mode === 'batch');
+  // Init with 3 rows on first open
+  if (mode === 'batch' && linkRowCount === 0) {
+    addLinkRow(); addLinkRow(); addLinkRow();
+  }
 }
 
-// Count links as user types in batch textarea
-document.getElementById('batch-input').addEventListener('input', function() {
-  const links = parseBatchUrls(this.value);
+function addLinkRow(value) {
+  const id = ++linkRowCount;
+  const container = document.getElementById('link-rows');
+  const row = document.createElement('div');
+  row.className = 'link-row';
+  row.id = 'link-row-' + id;
+  row.innerHTML =
+    '<span class="row-status" id="rs-' + id + '">🔗</span>' +
+    '<input type="text" id="link-' + id + '"' +
+    '  placeholder="https://huskyreps.x.yupoo.com/categories/..."' +
+    '  autocomplete="off" spellcheck="false"' +
+    '  oninput="updateBatchCount()"/>' +
+    '<button class="btn-rm-row" onclick="removeLinkRow(' + id + ')" title="Rimuovi">✕</button>';
+  container.appendChild(row);
+  if (value) { const inp = document.getElementById('link-' + id); if (inp) inp.value = value; }
+  updateBatchCount();
+  return id;
+}
+
+function removeLinkRow(id) {
+  const row = document.getElementById('link-row-' + id);
+  if (row) row.remove();
+  updateBatchCount();
+}
+
+function updateBatchCount() {
+  const urls = getValidBatchUrls();
   const cnt = document.getElementById('batch-count');
-  cnt.textContent = links.length + (links.length === 1 ? ' link' : ' link');
-  cnt.style.color = links.length > 0 ? 'var(--accent)' : 'var(--muted)';
-});
+  cnt.textContent = urls.length > 0 ? urls.length + ' link validi' : '';
+}
+
+function getValidBatchUrls() {
+  const inputs = document.querySelectorAll('#link-rows input[type=text]');
+  return Array.from(inputs)
+    .map(i => i.value.trim())
+    .filter(v => v.startsWith('http') && v.includes('yupoo.com'));
+}
 
 function parseBatchUrls(text) {
   return text.split(/[\n,;\s]+/)
@@ -1344,52 +1391,65 @@ function blogBatch(msg, cls) {
 // with one subfolder per link, then triggers download.
 // ─────────────────────────────────────────────────────────────────────────────
 async function startBatch() {
-  const urls = parseBatchUrls(document.getElementById('batch-input').value);
-  if (!urls.length) { alert('Nessun link Yupoo valido trovato. Incolla uno per riga.'); return; }
-  if (!workerUrl) {
-    alert('Configura il Worker URL (campo ⚡) prima di usare il Batch.');
-    return;
-  }
+  // Collect URLs from individual input rows
+  const inputs = Array.from(document.querySelectorAll('#link-rows .link-row'));
+  const rows = inputs.map(row => {
+    const inp = row.querySelector('input');
+    const id  = row.id.replace('link-row-','');
+    return { id, url: inp ? inp.value.trim() : '', inp };
+  }).filter(r => r.url.startsWith('http') && r.url.includes('yupoo.com'));
+
+  if (!rows.length) { alert('Inserisci almeno un link Yupoo valido.'); return; }
+  if (!workerUrl) { alert('Configura il Worker URL (campo ⚡) prima di usare il Multi-link.'); return; }
 
   const btn = document.getElementById('batch-btn');
   btn.disabled = true;
+  document.getElementById('batch-btn').textContent = '⏳ Elaborazione...';
   const prog = document.getElementById('batch-progress');
   prog.style.display = 'block';
   document.getElementById('batch-log').innerHTML = '';
 
-  blogBatch(`📋 Batch avviato: ${urls.length} link da processare`, 'bl-info');
+  blogBatch('📋 Avvio: ' + rows.length + ' link da processare', 'bl-info');
 
   const zip = new JSZip();
-  let totalDone = 0, totalFailed = 0;
+  let totalDone = 0;
 
-  for (let i = 0; i < urls.length; i++) {
-    const url = urls[i];
+  for (let i = 0; i < rows.length; i++) {
+    const { id, url, inp } = rows[i];
     const shortName = url.split('/').filter(Boolean).pop() || ('link_' + (i+1));
-    blogBatch(`\n[${i+1}/${urls.length}] 🔄 ${shortName} — estrazione...`, 'bl-cur');
+    const statusEl = document.getElementById('rs-' + id);
 
-    // ── Extract images for this URL ──
-    let extractedImages = [];
+    // Visual state: running
+    if (inp) inp.className = 'row-running';
+    if (statusEl) statusEl.textContent = '⟳';
+    blogBatch('[' + (i+1) + '/' + rows.length + '] ' + shortName + ' — estrazione...', 'bl-cur');
+
+    // ── 1. Extract images exactly like single mode ──
+    let extracted = [];
     try {
-      extractedImages = await extractUrl(url);
-      blogBatch(`  ✅ ${extractedImages.length} immagini trovate`, 'bl-ok');
+      extracted = await extractUrl(url);
     } catch(e) {
-      blogBatch(`  ❌ Estrazione fallita: ${e.message}`, 'bl-err');
-      totalFailed++;
+      blogBatch('  ❌ Errore estrazione: ' + e.message, 'bl-err');
+      if (inp) inp.className = 'row-err';
+      if (statusEl) statusEl.textContent = '❌';
       continue;
     }
 
-    if (!extractedImages.length) {
-      blogBatch(`  ⚠ Nessuna immagine trovata, skip`, 'bl-err');
+    if (!extracted.length) {
+      blogBatch('  ⚠ Nessuna immagine trovata', 'bl-err');
+      if (inp) inp.className = 'row-err';
+      if (statusEl) statusEl.textContent = '⚠';
       continue;
     }
 
-    // ── Download images via canvas into ZIP subfolder ──
+    blogBatch('  ✅ ' + extracted.length + ' immagini — scaricamento...', 'bl-ok');
+
+    // ── 2. Download via canvas → ZIP subfolder ──
     const folder = zip.folder(shortName);
     let done = 0, failed = 0;
-    const shopH = new URL(url).hostname;
 
-    for (let j = 0; j < extractedImages.length; j++) {
-      const img = extractedImages[j];
+    for (let j = 0; j < extracted.length; j++) {
+      const img = extracted[j];
       const src = workerUrl.replace(/\/$/, '') + '/?url=' + encodeURIComponent(img.originalUrl || img.url);
       try {
         const blob = await imgToBlob(src);
@@ -1398,29 +1458,34 @@ async function startBatch() {
       } catch(e) {
         failed++;
       }
-      if ((j+1) % 5 === 0 || j === extractedImages.length - 1) {
-        blogBatch(`  📥 ${j+1}/${extractedImages.length} — ✓${done} ✗${failed}`, 'bl-info');
+      // Update status every 5 images
+      if ((j + 1) % 5 === 0 || j === extracted.length - 1) {
+        if (statusEl) statusEl.textContent = '📥';
+        blogBatch('  ' + (j+1) + '/' + extracted.length + ' — ✓' + done + (failed ? ' ✗' + failed : ''), 'bl-info');
       }
     }
+
     totalDone += done;
-    blogBatch(`  📦 ${shortName}: ${done} immagini scaricate${failed ? ', ' + failed + ' fallite' : ''}`, done > 0 ? 'bl-ok' : 'bl-err');
+    if (inp) inp.className = done > 0 ? 'row-ok' : 'row-err';
+    if (statusEl) statusEl.textContent = done > 0 ? '✅' : '❌';
+    blogBatch('  📁 ' + shortName + ': ' + done + ' scaricate' + (failed ? ', ' + failed + ' fallite' : ''), done > 0 ? 'bl-ok' : 'bl-err');
   }
 
   if (totalDone === 0) {
-    blogBatch('\n❌ Nessuna immagine scaricata in nessun link.', 'bl-err');
-    btn.disabled = false; return;
+    blogBatch('\n❌ Nessuna immagine scaricata.', 'bl-err');
+    btn.disabled = false;
+    btn.textContent = '🚀 Estrai & ZIP tutto';
+    return;
   }
 
-  blogBatch(`\n📦 Creazione ZIP finale (${totalDone} immagini totali)...`, 'bl-cur');
-  const zipBlob = await zip.generateAsync(
-    { type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 4 } },
-    m => { if (m.percent % 20 < 1) blogBatch(`  ZIP: ${Math.round(m.percent)}%`, 'bl-info'); }
-  );
+  blogBatch('\n📦 Creazione ZIP (' + totalDone + ' immagini)...', 'bl-cur');
+  const zipBlob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 4 } });
+  const ts = new Date().toISOString().slice(0, 10);
+  saveAs(zipBlob, 'yupoo_' + rows.length + 'links_' + totalDone + 'img_' + ts + '.zip');
+  blogBatch('\n✅ ZIP scaricato! ' + totalDone + ' immagini totali.', 'bl-ok');
 
-  const ts = new Date().toISOString().slice(0,10);
-  saveAs(zipBlob, `yupoo_batch_${urls.length}links_${totalDone}img_${ts}.zip`);
-  blogBatch(`\n✅ ZIP scaricato! ${totalDone} immagini da ${urls.length} link.`, 'bl-ok');
   btn.disabled = false;
+  btn.textContent = '🚀 Estrai & ZIP tutto';
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1428,7 +1493,10 @@ async function startBatch() {
 // Returns array of image objects {url, originalUrl, filename}
 // ─────────────────────────────────────────────────────────────────────────────
 async function extractUrl(rawUrl) {
-  const url = new URL(rawUrl).href;
+  // Strip ?page=N and other query params — always extract from canonical URL
+  const _u0 = new URL(rawUrl);
+  _u0.search = '';
+  const url = _u0.href;
   const u   = new URL(url);
   const uname = u.hostname.split('.')[0];
   const sBase = u.protocol + '//' + u.hostname;
