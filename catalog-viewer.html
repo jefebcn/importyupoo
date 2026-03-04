@@ -148,14 +148,25 @@
 <script>
 let allItems = [], filtered = [], lbIdx = 0;
 
-// ── Proxy ─────────────────────────────────────────────────────────────────
-// corsproxy.io forwards the request without sending the Referer header,
-// so Yupoo CDN allows the image
-const PROXY = u => `https://corsproxy.io/?${encodeURIComponent(u)}`;
+// ── Multi-proxy fallback chain ─────────────────────────────────────────────
+// Yupoo CDN blocks direct browser img src from other origins (hotlink protection).
+// We try 3 different proxy services. If all fail, we fall back to the originalUrl thumbnail.
+const PROXIES = [
+  u => `https://corsproxy.io/?${encodeURIComponent(u)}`,
+  u => `https://images.weserv.nl/?url=${encodeURIComponent(u.replace(/^https?:\/\//,''))}`,
+  u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+];
+const PROXY_NAMES = ['corsproxy.io', 'weserv.nl', 'allorigins'];
 
-// We'll first try direct load; on error we switch to proxy
-// Track proxy mode globally so lightbox also uses it
-let useProxy = false;
+// Always use proxy from the start — Yupoo always blocks direct embeds
+let useProxy = true;
+let proxyLevel = 0;
+
+function imgSrc(url) {
+  if (!useProxy) return url;
+  const fn = PROXIES[proxyLevel];
+  return fn ? fn(url) : url;
+}
 
 // ── Load catalog ──────────────────────────────────────────────────────────
 async function load() {
@@ -184,34 +195,9 @@ function init(data) {
   document.getElementById('top-info').textContent = `${items.length} articoli`;
   document.title = name;
 
-  // Test if first image loads directly; if not, enable proxy mode
-  testDirectLoad(items[0]?.url);
+  document.getElementById('proxy-pill').style.display = 'inline-block';
+  document.getElementById('proxy-pill').textContent = `🔄 ${PROXY_NAMES[proxyLevel]}`;
   render();
-}
-
-// ── Test direct image load ─────────────────────────────────────────────────
-function testDirectLoad(url) {
-  if (!url) return;
-  const img = new Image();
-  img.referrerPolicy = 'no-referrer';
-  img.onload = () => {
-    // Direct works — hide proxy pill
-    useProxy = false;
-    document.getElementById('proxy-pill').style.display = 'none';
-  };
-  img.onerror = () => {
-    // Direct fails — switch all images to proxy mode
-    useProxy = true;
-    document.getElementById('proxy-pill').style.display = 'inline-block';
-    // Re-render with proxy URLs
-    render();
-  };
-  img.src = url;
-}
-
-// ── Get src for an image (direct or proxied) ──────────────────────────────
-function imgSrc(url) {
-  return useProxy ? PROXY(url) : url;
 }
 
 // ── Render ─────────────────────────────────────────────────────────────────
@@ -225,7 +211,10 @@ function render() {
   const g = document.getElementById('grid');
   if (!items.length) { g.innerHTML = `<div style="padding:60px;text-align:center;color:var(--muted)">Nessun risultato</div>`; return; }
 
-  g.innerHTML = items.map((item, i) => `
+  g.innerHTML = items.map((item, i) => {
+    const fallbackUrl = item.originalUrl || item.url;
+    const fallbackJson = JSON.stringify(fallbackUrl);
+    return `
     <div class="item" style="animation-delay:${Math.min(i*.02,.4)}s" onclick="openLb(${item.id-1})">
       <div class="img-wrap loading" id="wrap-${item.id}">
         <img
@@ -233,8 +222,11 @@ function render() {
           alt="Prodotto ${item.id}"
           loading="lazy"
           referrerpolicy="no-referrer"
+          data-hd="${item.url}"
+          data-orig="${fallbackUrl}"
+          data-retries="0"
           onload="imgLoaded(this, ${item.id})"
-          onerror="imgError(this, '${item.url}', ${item.id})"
+          onerror="imgError(this, ${item.id})"
         />
         <div class="img-overlay">
           <button class="ov-btn" onclick="event.stopPropagation();openLb(${item.id-1})">👁 Vedi</button>
@@ -245,7 +237,8 @@ function render() {
         <div class="item-id">#${String(item.id).padStart(4,'0')}</div>
         <div class="item-name">${item.filename.replace(/\.[^.]+$/, '')}</div>
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 function imgLoaded(img, id) {
@@ -254,15 +247,32 @@ function imgLoaded(img, id) {
   if (wrap) { wrap.classList.remove('loading'); wrap.classList.remove('error'); }
 }
 
-function imgError(img, originalUrl, id) {
+// Multi-level fallback:
+// 0: proxy[0](hdUrl)  → 1: proxy[1](hdUrl) → 2: proxy[2](hdUrl)
+// 3: proxy[0](origUrl) → 4: proxy[1](origUrl) → 5: proxy[2](origUrl) → error
+function imgError(img, id) {
   const wrap = document.getElementById('wrap-' + id);
-  // If not already proxied, try via proxy
-  if (!img.src.includes('corsproxy')) {
-    img.src = PROXY(originalUrl);
-    useProxy = true;
-    document.getElementById('proxy-pill').style.display = 'inline-block';
+  let retries = parseInt(img.dataset.retries || '0');
+  retries++;
+  img.dataset.retries = retries;
+
+  const hdUrl   = img.dataset.hd   || img.dataset.orig;
+  const origUrl = img.dataset.orig || hdUrl;
+  const totalSteps = PROXIES.length * 2; // try all proxies for both HD and thumbnail
+
+  if (retries <= PROXIES.length) {
+    // Still trying proxies with HD url
+    const level = retries - 1;
+    img.src = PROXIES[level](hdUrl);
+    // Update proxy pill to show which proxy is active
+    proxyLevel = level;
+    document.getElementById('proxy-pill').textContent = `🔄 ${PROXY_NAMES[level]}`;
+  } else if (retries <= PROXIES.length * 2 && origUrl !== hdUrl) {
+    // HD failed with all proxies — try thumbnail (originalUrl) with proxies
+    const level = retries - PROXIES.length - 1;
+    img.src = PROXIES[level](origUrl);
   } else {
-    // Proxy also failed — show error state
+    // Everything failed — show error
     if (wrap) { wrap.classList.remove('loading'); wrap.classList.add('error'); }
   }
 }
@@ -287,9 +297,22 @@ function lbGo(d) { lbIdx = (lbIdx + d + allItems.length) % allItems.length; upda
 function updateLb() {
   const it = allItems[lbIdx];
   const lbImg = document.getElementById('lb-img');
+  lbImg.dataset.hd   = it.url;
+  lbImg.dataset.orig = it.originalUrl || it.url;
+  lbImg.dataset.retries = '0';
   lbImg.src = imgSrc(it.url);
   lbImg.referrerPolicy = 'no-referrer';
-  lbImg.onerror = () => { if (!lbImg.src.includes('corsproxy')) lbImg.src = PROXY(it.url); };
+  lbImg.onerror = () => {
+    let r = parseInt(lbImg.dataset.retries || '0') + 1;
+    lbImg.dataset.retries = r;
+    const hdUrl   = lbImg.dataset.hd;
+    const origUrl = lbImg.dataset.orig;
+    if (r <= PROXIES.length) {
+      lbImg.src = PROXIES[r-1](hdUrl);
+    } else if (r <= PROXIES.length * 2 && origUrl !== hdUrl) {
+      lbImg.src = PROXIES[r - PROXIES.length - 1](origUrl);
+    }
+  };
   document.getElementById('lb-info').textContent = `${lbIdx + 1} / ${allItems.length} — #${String(it.id).padStart(4, '0')}`;
 }
 function dlImg() { const it = allItems[lbIdx]; dlImg2(it.url, it.filename); }

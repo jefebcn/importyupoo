@@ -410,8 +410,9 @@ function buildPhotoUrl(photo, uid, hd) {
 }
 
 function toHD(url) {
-  return url.replace(/\/(small|thumb|tiny|medium)\./i, '/large.')
-            .replace(/\/fit_p_\d+_\d+\./i, '/large.');
+  // fit_p_900_900 is a universally available Yupoo size (large.jpg often doesn't exist)
+  return url.replace(/\/(small|thumb|tiny|medium)\./i, '/fit_p_900_900.')
+            .replace(/\/fit_p_\d+_\d+\./i, '/fit_p_900_900.');
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -455,24 +456,30 @@ function urlToPath(url) {
 
 // Extract all photo.yupoo.com image URLs from raw HTML
 function parseHtmlPhotos(html) {
-  const urls = new Set();
+  const results = [];
+  const seenOrig = new Set();
+  const hd = document.getElementById('opt-hd').checked;
   // Match full photo.yupoo.com URLs
   const re = /https?:\/\/photo\.yupoo\.com\/[^\s"'<>)\]]+\.(?:jpg|jpeg|png|gif|webp)(?:\?[^\s"'<>)]*)?/gi;
   let m;
   while ((m = re.exec(html)) !== null) {
-    let url = m[0].split('?')[0]; // Remove query params
-    if (document.getElementById('opt-hd').checked) {
-      url = toHD(url);
-    }
-    urls.add(url);
+    const originalUrl = m[0].split('?')[0]; // strip query params
+    if (seenOrig.has(originalUrl)) continue;
+    seenOrig.add(originalUrl);
+    const hdUrl = hd ? toHD(originalUrl) : originalUrl;
+    results.push({ url: hdUrl, originalUrl });
   }
   // Also match relative /photo/... paths with yupoo pattern
   const re2 = /["']\/photo\/[a-z0-9_-]+\/[a-f0-9]{6,20}\/[^"']+\.(?:jpg|jpeg|png|gif|webp)["']/gi;
   while ((m = re2.exec(html)) !== null) {
     const path = m[0].replace(/["']/g, '');
-    urls.add('https://photo.yupoo.com' + path);
+    const originalUrl = 'https://photo.yupoo.com' + path;
+    if (seenOrig.has(originalUrl)) continue;
+    seenOrig.add(originalUrl);
+    const hdUrl = hd ? toHD(originalUrl) : originalUrl;
+    results.push({ url: hdUrl, originalUrl });
   }
-  return urls;
+  return results;
 }
 
 // Extract album IDs from href="/albums/NNNNNN" links in HTML
@@ -500,7 +507,7 @@ function parseHtmlAlbums(html) {
 async function fetchAlbumHtmlPhotos(albumId, page) {
   const url = `${siteBase}/albums/${albumId}${page > 1 ? '?p=' + page : ''}`;
   const html = await fetchHtml(url);
-  const photos = parseHtmlPhotos(html);
+  const photos = parseHtmlPhotos(html); // already returns [{url, originalUrl}]
   // Detect total pages from pagination links like ?p=2, ?p=3...
   let maxPage = 1;
   const pageRe = /\?p=(\d+)/g;
@@ -512,11 +519,16 @@ async function fetchAlbumHtmlPhotos(albumId, page) {
   return { photos, totalPages: maxPage };
 }
 
-function pushImg(url, albumId) {
+function pushImg(url, albumId, originalUrl) {
   const limit = +document.getElementById('opt-limit').value || 10000;
   if (!url || seenUrls.has(url) || images.length >= limit) return false;
   seenUrls.add(url);
-  const e = { id: images.length + 1, url, filename: `image_${String(images.length+1).padStart(5,'0')}.jpg` };
+  const e = {
+    id: images.length + 1,
+    url,
+    filename: `image_${String(images.length+1).padStart(5,'0')}.jpg`,
+    originalUrl: originalUrl && originalUrl !== url ? originalUrl : undefined
+  };
   if (albumId) e.album = String(albumId);
   images.push(e);
   if (images.length <= 80) addPrev(url);
@@ -636,10 +648,10 @@ async function runCoversMode(pageUrl) {
   if (images.length === 0 && cachedHtml) {
     log('Strategia 4: scraping diretto HTML (photo.yupoo.com)...');
     const directPhotos = parseHtmlPhotos(cachedHtml);
-    log(`Foto trovate nella pagina categoria: ${directPhotos.size}`);
-    for (const u of directPhotos) {
+    log(`Foto trovate nella pagina categoria: ${directPhotos.length}`);
+    for (const { url, originalUrl } of directPhotos) {
       if (images.length >= lim) break;
-      pushImg(u, null);
+      pushImg(url, null, originalUrl);
     }
     if (images.length > 0) {
       albumCount = Math.max(albumCount, 1); updStats();
@@ -657,8 +669,9 @@ async function runCoversMode(pageUrl) {
         setBar(Math.round(i / htmlAlbums.length * 100), `Copertina ${i+1}/${htmlAlbums.length}`);
         try {
           const { photos } = await fetchAlbumHtmlPhotos(album.id, 1);
-          if (photos.size > 0) {
-            pushImg([...photos][0], album.id); // 1 cover per album
+          if (photos.length > 0) {
+            const { url, originalUrl } = photos[0]; // 1 cover per album
+            pushImg(url, album.id, originalUrl);
             albumCount++; updStats();
           } else {
             log(`Album ${album.id}: 0 foto`, 'warn');
@@ -757,13 +770,13 @@ async function runDeepMode(pageUrl) {
           // HTML scraping fallback
           const { photos: ps1, totalPages: tp } = await fetchAlbumHtmlPhotos(album.id, 1);
           const before = images.length;
-          for (const u of ps1) pushImg(u, album.id);
+          for (const { url, originalUrl } of ps1) pushImg(url, album.id, originalUrl);
           if (document.getElementById('opt-all').checked && tp > 1) {
             for (let p = 2; p <= Math.min(tp, 100); p++) {
               if (stopped || images.length >= lim) break;
               try {
                 const { photos: psN } = await fetchAlbumHtmlPhotos(album.id, p);
-                for (const u of psN) pushImg(u, album.id);
+                for (const { url, originalUrl } of psN) pushImg(url, album.id, originalUrl);
               } catch {}
             }
           }
@@ -823,18 +836,18 @@ async function runAlbumMode(pageUrl) {
     log('API fallita. Provo scraping HTML per album singolo...');
     try {
       const { photos, totalPages: tp } = await fetchAlbumHtmlPhotos(albumId, 1);
-      if (photos.size > 0) {
-        log(`HTML scraping: ${photos.size} foto pag.1, ${tp} pagine totali`);
-        for (const u of photos) pushImg(u, null);
+      if (photos.length > 0) {
+        log(`HTML scraping: ${photos.length} foto pag.1, ${tp} pagine totali`);
+        for (const { url, originalUrl } of photos) pushImg(url, null, originalUrl);
         if (tp > 1 && document.getElementById('opt-all').checked) {
           for (let p = 2; p <= Math.min(tp, 100); p++) {
             if (stopped || images.length >= lim) break;
             const { photos: ps2 } = await fetchAlbumHtmlPhotos(albumId, p);
-            for (const u of ps2) pushImg(u, null);
+            for (const { url, originalUrl } of ps2) pushImg(url, null, originalUrl);
           }
         }
         albumCount = 1; updStats();
-        DEBUG.photos = [...photos].slice(0, 40).join('\n');
+        DEBUG.photos = photos.slice(0, 40).map(p => p.url).join('\n');
         return;
       }
     } catch(e) { if (e.name === 'AbortError') throw e; }
