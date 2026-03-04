@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Catalogo Prodotti</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<style>
+  /* ── Variables ── */
+  :root {
+    --bg: #f7f4ef;
+    --surface: #ffffff;
+    --border: #e8e3da;
+    --text: #1a1916;
+    --muted: #8a8580;
+    --accent: #c8a96e;
+    --accent-dark: #9c7a42;
+    --shadow: 0 2px 16px rgba(0,0,0,0.07);
+    --shadow-hover: 0 8px 40px rgba(0,0,0,0.13);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+  }
+
+  /* ── Topbar ── */
+  .topbar {
+    position: sticky; top: 0; z-index: 100;
+    background: rgba(247,244,239,0.85);
+    backdrop-filter: blur(16px);
+    border-bottom: 1px solid var(--border);
+    padding: 0 32px;
+    display: flex; align-items: center; justify-content: space-between;
+    height: 60px;
+  }
+  .topbar-logo {
+    font-family: 'DM Serif Display', serif;
+    font-size: 22px; font-weight: 400;
+    letter-spacing: -0.5px;
+  }
+  .topbar-info {
+    font-size: 12px; color: var(--muted);
+    font-weight: 500; letter-spacing: 0.5px;
+  }
+  .topbar-actions { display: flex; gap: 8px; align-items: center; }
+  .tag {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 999px; padding: 5px 14px;
+    font-size: 11px; font-weight: 500; color: var(--muted);
+  }
+  .tag.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+  /* ── Hero ── */
+  .hero {
+    padding: 56px 32px 40px;
+    max-width: 1200px; margin: 0 auto;
+    display: flex; align-items: flex-end; justify-content: space-between;
+    gap: 24px;
+  }
+  .hero h1 {
+    font-family: 'DM Serif Display', serif;
+    font-size: clamp(40px, 5vw, 72px);
+    font-weight: 400; line-height: 1.0;
+    letter-spacing: -2px;
+  }
+  .hero h1 em { font-style: italic; color: var(--accent); }
+  .hero-meta { text-align: right; }
+  .hero-meta .big { font-size: 48px; font-weight: 300; line-height: 1; color: var(--muted); }
+  .hero-meta .sub { font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 2px; color: var(--muted); margin-top: 4px; }
+
+  /* ── Controls ── */
+  .controls {
+    max-width: 1200px; margin: 0 auto;
+    padding: 0 32px 28px;
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  }
+  .search-wrap { position: relative; flex: 1; min-width: 200px; max-width: 340px; }
+  .search-wrap input {
+    width: 100%; background: var(--surface);
+    border: 1px solid var(--border); border-radius: 12px;
+    padding: 11px 16px 11px 40px;
+    font-family: 'DM Sans', sans-serif; font-size: 13px; color: var(--text);
+    outline: none; transition: border-color .2s;
+  }
+  .search-wrap input:focus { border-color: var(--accent); }
+  .search-icon { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 15px; }
+  .layout-btn {
+    width: 38px; height: 38px; border-radius: 10px;
+    border: 1px solid var(--border); background: var(--surface);
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    font-size: 15px; transition: border-color .2s;
+    color: var(--muted);
+  }
+  .layout-btn.active { border-color: var(--accent); color: var(--accent); background: rgba(200,169,110,0.08); }
+  .sort-select {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 10px 14px;
+    font-family: 'DM Sans', sans-serif; font-size: 12px; color: var(--text);
+    outline: none; cursor: pointer;
+  }
+
+  /* ── Grid ── */
+  .grid-wrap { max-width: 1200px; margin: 0 auto; padding: 0 32px 80px; }
+
+  #catalog-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 20px;
+    transition: all .3s;
+  }
+  #catalog-grid.list-mode {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  /* ── Card ── */
+  .item-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform .25s, box-shadow .25s;
+    animation: fadeIn .4s ease both;
+  }
+  @keyframes fadeIn { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:none; } }
+  .item-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-hover); }
+
+  .item-card .img-wrap {
+    position: relative; overflow: hidden;
+    aspect-ratio: 1;
+    background: var(--bg);
+  }
+  .item-card img {
+    width: 100%; height: 100%; object-fit: cover;
+    transition: transform .4s ease;
+    display: block;
+  }
+  .item-card:hover img { transform: scale(1.04); }
+
+  .item-card .img-overlay {
+    position: absolute; inset: 0;
+    background: rgba(0,0,0,0);
+    display: flex; align-items: center; justify-content: center;
+    gap: 10px;
+    transition: background .25s;
+  }
+  .item-card:hover .img-overlay { background: rgba(0,0,0,0.32); }
+  .overlay-btn {
+    background: rgba(255,255,255,0.95);
+    border: none; border-radius: 10px;
+    padding: 9px 16px; font-size: 12px; font-weight: 600;
+    cursor: pointer; opacity: 0;
+    transform: translateY(8px);
+    transition: opacity .2s, transform .2s;
+    color: var(--text);
+  }
+  .item-card:hover .overlay-btn { opacity: 1; transform: none; }
+  .overlay-btn:nth-child(2) { transition-delay: .05s; }
+
+  .item-info { padding: 14px 16px; }
+  .item-id { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 1.5px; color: var(--muted); margin-bottom: 4px; }
+  .item-name { font-size: 14px; font-weight: 500; }
+
+  /* List mode card */
+  #catalog-grid.list-mode .item-card {
+    display: flex; flex-direction: row; align-items: center;
+    gap: 0; border-radius: 12px;
+  }
+  #catalog-grid.list-mode .img-wrap {
+    width: 80px; height: 80px; aspect-ratio: unset; flex-shrink: 0;
+    border-radius: 10px 0 0 10px;
+  }
+  #catalog-grid.list-mode .item-info {
+    flex: 1; display: flex; align-items: center; gap: 24px;
+    padding: 0 20px;
+  }
+  #catalog-grid.list-mode .item-name { flex: 1; }
+
+  /* ── Lightbox ── */
+  .lightbox {
+    display: none; position: fixed; inset: 0; z-index: 200;
+    background: rgba(10,9,8,0.93);
+    align-items: center; justify-content: center;
+  }
+  .lightbox.open { display: flex; }
+  .lb-img-wrap { position: relative; max-width: 90vw; max-height: 86vh; }
+  .lb-img-wrap img { max-width: 90vw; max-height: 86vh; object-fit: contain; border-radius: 12px; display: block; }
+  .lb-close {
+    position: fixed; top: 20px; right: 24px;
+    background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 10px; padding: 8px 14px;
+    color: #fff; font-size: 13px; cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+    transition: background .2s;
+  }
+  .lb-close:hover { background: rgba(255,255,255,0.2); }
+  .lb-nav {
+    position: fixed; top: 50%; transform: translateY(-50%);
+    background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 10px; padding: 14px 18px;
+    color: #fff; font-size: 18px; cursor: pointer;
+    transition: background .2s;
+  }
+  .lb-nav:hover { background: rgba(255,255,255,0.2); }
+  .lb-prev { left: 20px; }
+  .lb-next { right: 20px; }
+  .lb-info {
+    position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%);
+    background: rgba(255,255,255,0.08); backdrop-filter: blur(12px);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 999px; padding: 8px 22px;
+    color: rgba(255,255,255,0.7); font-size: 12px;
+    display: flex; gap: 16px; align-items: center;
+  }
+  .lb-download {
+    background: var(--accent); color: #fff;
+    border: none; border-radius: 8px;
+    padding: 6px 14px; font-size: 11px; font-weight: 600;
+    cursor: pointer; font-family: 'DM Sans', sans-serif;
+    transition: opacity .2s;
+  }
+  .lb-download:hover { opacity: .85; }
+
+  /* ── Loading / Empty ── */
+  .loading-state {
+    text-align: center; padding: 80px 32px;
+    color: var(--muted);
+  }
+  .spinner {
+    width: 36px; height: 36px; border-radius: 50%;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    animation: spin .8s linear infinite;
+    margin: 0 auto 20px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .empty-state { text-align: center; padding: 80px 32px; color: var(--muted); }
+  .empty-state .big { font-size: 48px; margin-bottom: 16px; }
+  .empty-state p { font-size: 14px; line-height: 1.7; }
+  .empty-state code { background: var(--border); border-radius: 6px; padding: 2px 8px; font-size: 12px; }
+
+  /* ── Upload overlay (fallback if no catalog.json) ── */
+  .upload-zone {
+    border: 2px dashed var(--border); border-radius: 20px;
+    padding: 60px 32px; text-align: center; margin: 20px;
+    transition: border-color .2s; cursor: pointer;
+  }
+  .upload-zone:hover, .upload-zone.drag { border-color: var(--accent); }
+  .upload-zone .icon { font-size: 40px; margin-bottom: 16px; }
+  .upload-zone h3 { font-family: 'DM Serif Display', serif; font-size: 24px; font-weight: 400; margin-bottom: 10px; }
+  .upload-zone p { font-size: 13px; color: var(--muted); line-height: 1.7; }
+  .upload-zone input { display: none; }
+  .upload-btn {
+    display: inline-block; margin-top: 20px;
+    background: var(--accent); color: #fff;
+    border: none; border-radius: 10px; padding: 12px 28px;
+    font-family: 'DM Sans', sans-serif; font-weight: 600; font-size: 13px;
+    cursor: pointer; transition: opacity .2s;
+  }
+  .upload-btn:hover { opacity: .85; }
+
+  @media(max-width: 640px) {
+    .hero { flex-direction: column; align-items: flex-start; }
+    .hero-meta { text-align: left; }
+    #catalog-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+    .topbar { padding: 0 16px; }
+    .grid-wrap, .controls, .hero { padding-left: 16px; padding-right: 16px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Topbar -->
+<div class="topbar">
+  <div class="topbar-logo" id="catalog-title">Catalogo</div>
+  <div class="topbar-info" id="topbar-info">Caricamento...</div>
+  <div class="topbar-actions">
+    <span class="tag active" id="all-tag">Tutti</span>
+  </div>
+</div>
+
+<!-- Hero -->
+<div class="hero">
+  <h1 id="hero-title">Collezione<br/><em>Prodotti</em></h1>
+  <div class="hero-meta">
+    <div class="big" id="hero-count">—</div>
+    <div class="sub">Articoli</div>
+  </div>
+</div>
+
+<!-- Controls -->
+<div class="controls">
+  <div class="search-wrap">
+    <span class="search-icon">🔍</span>
+    <input type="text" id="search-input" placeholder="Cerca per numero..." oninput="filterGallery()"/>
+  </div>
+  <button class="layout-btn active" id="btn-grid" onclick="setLayout('grid')" title="Griglia">⊞</button>
+  <button class="layout-btn" id="btn-list" onclick="setLayout('list')" title="Lista">☰</button>
+  <select class="sort-select" id="sort-select" onchange="renderGallery()">
+    <option value="default">Ordine originale</option>
+    <option value="asc">ID crescente</option>
+    <option value="desc">ID decrescente</option>
+  </select>
+</div>
+
+<!-- Grid -->
+<div class="grid-wrap">
+  <div id="catalog-grid">
+    <div class="loading-state">
+      <div class="spinner"></div>
+      <p>Caricamento catalogo...</p>
+    </div>
+  </div>
+</div>
+
+<!-- Lightbox -->
+<div class="lightbox" id="lightbox" onclick="closeLightbox(event)">
+  <button class="lb-close" onclick="closeLightbox()">✕ Chiudi</button>
+  <button class="lb-nav lb-prev" onclick="lbNav(-1)">‹</button>
+  <div class="lb-img-wrap">
+    <img id="lb-img" src="" alt=""/>
+  </div>
+  <button class="lb-nav lb-next" onclick="lbNav(1)">›</button>
+  <div class="lb-info">
+    <span id="lb-counter">1 / 1</span>
+    <button class="lb-download" onclick="lbDownload()">⬇ Scarica</button>
+  </div>
+</div>
+
+<script>
+// ─── State ────────────────────────────────────────────────────────────────
+let allItems = [];
+let filteredItems = [];
+let lbIndex = 0;
+
+// ─── Load catalog ─────────────────────────────────────────────────────────
+async function loadCatalog() {
+  // 1. Try to fetch catalog.json from same directory
+  try {
+    const res = await fetch('./catalog.json');
+    if (res.ok) {
+      const data = await res.json();
+      initCatalog(data);
+      return;
+    }
+  } catch {}
+
+  // 2. Show upload fallback
+  showUploadZone();
+}
+
+function initCatalog(data) {
+  // Support both array and object formats
+  let items = [];
+  if (Array.isArray(data)) {
+    items = data.map((url, i) => ({ id: i + 1, url, filename: `image_${String(i+1).padStart(4,'0')}.jpg` }));
+  } else if (data.images) {
+    items = data.images;
+  } else if (data.urls) {
+    items = data.urls.map((url, i) => ({ id: i + 1, url, filename: `image_${String(i+1).padStart(4,'0')}.jpg` }));
+  }
+
+  allItems = items;
+  filteredItems = [...items];
+
+  // Update UI metadata
+  const albumName = data._meta?.album || 'Catalogo';
+  document.getElementById('catalog-title').textContent = albumName;
+  document.getElementById('hero-title').innerHTML = `Collezione<br/><em>${albumName}</em>`;
+  document.getElementById('hero-count').textContent = items.length;
+  document.getElementById('topbar-info').textContent = `${items.length} articoli`;
+  document.title = albumName;
+
+  renderGallery();
+}
+
+function showUploadZone() {
+  document.getElementById('catalog-title').textContent = 'Catalogo';
+  document.getElementById('hero-count').textContent = '0';
+  document.getElementById('topbar-info').textContent = 'Nessun catalogo';
+
+  const grid = document.getElementById('catalog-grid');
+  grid.innerHTML = `
+    <div class="upload-zone" id="drop-zone"
+      ondragover="event.preventDefault();this.classList.add('drag')"
+      ondragleave="this.classList.remove('drag')"
+      ondrop="handleDrop(event)">
+      <div class="icon">📂</div>
+      <h3>Carica catalog.json</h3>
+      <p>Trascina qui il file <code>catalog.json</code> generato dall'estrattore,<br/>
+         oppure posizionalo nella stessa cartella come <code>catalog.json</code><br/>
+         e ricarica la pagina.</p>
+      <input type="file" id="file-input" accept=".json" onchange="handleFileInput(event)"/>
+      <button class="upload-btn" onclick="document.getElementById('file-input').click()">Scegli file</button>
+    </div>`;
+}
+
+function handleDrop(e) {
+  e.preventDefault();
+  const file = e.dataTransfer.files[0];
+  if (file) readJsonFile(file);
+}
+function handleFileInput(e) {
+  const file = e.target.files[0];
+  if (file) readJsonFile(file);
+}
+function readJsonFile(file) {
+  const r = new FileReader();
+  r.onload = ev => {
+    try { initCatalog(JSON.parse(ev.target.result)); }
+    catch { alert('File JSON non valido.'); }
+  };
+  r.readAsText(file);
+}
+
+// ─── Render ───────────────────────────────────────────────────────────────
+function renderGallery() {
+  if (!allItems.length) return;
+  const sort = document.getElementById('sort-select').value;
+  let items = [...filteredItems];
+  if (sort === 'asc') items.sort((a,b) => a.id - b.id);
+  if (sort === 'desc') items.sort((a,b) => b.id - a.id);
+
+  const grid = document.getElementById('catalog-grid');
+  if (!items.length) {
+    grid.innerHTML = `<div class="empty-state"><div class="big">🔍</div><p>Nessun risultato trovato.</p></div>`;
+    return;
+  }
+
+  grid.innerHTML = items.map((item, i) => `
+    <div class="item-card" style="animation-delay:${Math.min(i*0.03, 0.5)}s" onclick="openLightbox(${item.id - 1})">
+      <div class="img-wrap">
+        <img src="${item.url}" alt="Prodotto ${item.id}" loading="lazy"
+          onerror="this.parentElement.style.background='#f0ede8';this.remove()"/>
+        <div class="img-overlay">
+          <button class="overlay-btn" onclick="event.stopPropagation();openLightbox(${item.id-1})">👁 Vedi</button>
+          <button class="overlay-btn" onclick="event.stopPropagation();downloadImg('${item.url}','${item.filename}')">⬇</button>
+        </div>
+      </div>
+      <div class="item-info">
+        <div class="item-id">#${String(item.id).padStart(4,'0')}</div>
+        <div class="item-name">${item.filename.replace(/\.[^.]+$/, '')}</div>
+      </div>
+    </div>`).join('');
+}
+
+function filterGallery() {
+  const q = document.getElementById('search-input').value.toLowerCase();
+  filteredItems = allItems.filter(item =>
+    !q || String(item.id).includes(q) || item.filename.toLowerCase().includes(q)
+  );
+  renderGallery();
+}
+
+// ─── Layout ───────────────────────────────────────────────────────────────
+function setLayout(mode) {
+  const grid = document.getElementById('catalog-grid');
+  grid.classList.toggle('list-mode', mode === 'list');
+  document.getElementById('btn-grid').classList.toggle('active', mode === 'grid');
+  document.getElementById('btn-list').classList.toggle('active', mode === 'list');
+}
+
+// ─── Lightbox ─────────────────────────────────────────────────────────────
+function openLightbox(index) {
+  lbIndex = index;
+  updateLightbox();
+  document.getElementById('lightbox').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeLightbox(e) {
+  if (e && e.target !== document.getElementById('lightbox') && !e.target.classList.contains('lb-close')) return;
+  document.getElementById('lightbox').classList.remove('open');
+  document.body.style.overflow = '';
+}
+function lbNav(dir) {
+  lbIndex = (lbIndex + dir + allItems.length) % allItems.length;
+  updateLightbox();
+}
+function updateLightbox() {
+  const item = allItems[lbIndex];
+  document.getElementById('lb-img').src = item.url;
+  document.getElementById('lb-counter').textContent = `${lbIndex + 1} / ${allItems.length} — #${String(item.id).padStart(4,'0')}`;
+}
+function lbDownload() {
+  const item = allItems[lbIndex];
+  downloadImg(item.url, item.filename);
+}
+function downloadImg(url, name) {
+  const a = document.createElement('a');
+  a.href = url; a.download = name; a.target = '_blank';
+  a.click();
+}
+
+// Keyboard navigation
+document.addEventListener('keydown', e => {
+  const lb = document.getElementById('lightbox');
+  if (!lb.classList.contains('open')) return;
+  if (e.key === 'ArrowLeft') lbNav(-1);
+  if (e.key === 'ArrowRight') lbNav(1);
+  if (e.key === 'Escape') { lb.classList.remove('open'); document.body.style.overflow = ''; }
+});
+
+// ─── Init ─────────────────────────────────────────────────────────────────
+loadCatalog();
+</script>
+</body>
+</html>
