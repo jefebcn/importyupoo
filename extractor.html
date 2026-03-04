@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Yupoo Extractor v5</title>
+<title>Yupoo Extractor v6</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
@@ -37,7 +37,6 @@
   .btn-o{background:transparent;border:1px solid var(--border);color:var(--text);font-family:'Syne',sans-serif;font-weight:600;font-size:13px;padding:14px 26px;border-radius:12px;cursor:pointer;transition:border-color .2s,transform .15s}
   .btn-o:hover{border-color:var(--accent);transform:translateY(-1px)}
   .btn-o:disabled{opacity:.35;cursor:not-allowed;transform:none}
-  /* Mode selector */
   .mode-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:20px}
   .mode-btn{padding:11px 12px;background:var(--surface);border:1px solid var(--border);border-radius:12px;cursor:pointer;font-size:12px;font-weight:600;color:var(--muted);transition:all .2s;text-align:center;line-height:1.4}
   .mode-btn.on{background:rgba(0,229,255,.1);border-color:rgba(0,229,255,.3);color:var(--accent)}
@@ -70,9 +69,11 @@
   .info-box code{background:rgba(255,255,255,.06);border-radius:4px;padding:1px 6px}
   .btn-stop{background:rgba(255,71,87,.12);border:1px solid rgba(255,71,87,.3);color:var(--err);font-family:'Syne',sans-serif;font-weight:600;font-size:12px;padding:7px 16px;border-radius:10px;cursor:pointer;display:none}
   .btn-stop:hover{background:rgba(255,71,87,.22)}
-  /* Debug panel */
   #debug-area{display:none}
-  .debug-box{background:var(--surface);border:1px solid rgba(255,165,2,.2);border-radius:12px;padding:14px 16px;max-height:180px;overflow-y:auto;font-family:'Space Mono',monospace;font-size:10px;line-height:1.8;color:#aaa;word-break:break-all}
+  .debug-box{background:var(--surface);border:1px solid rgba(255,165,2,.2);border-radius:12px;padding:14px 16px;max-height:240px;overflow-y:auto;font-family:'Space Mono',monospace;font-size:10px;line-height:1.8;color:#aaa;word-break:break-all;white-space:pre-wrap}
+  .debug-tabs{display:flex;gap:6px;margin-bottom:8px}
+  .debug-tab{font-family:'Space Mono',monospace;font-size:9px;text-transform:uppercase;letter-spacing:1px;padding:4px 10px;border-radius:6px;cursor:pointer;background:var(--surface);border:1px solid var(--border);color:var(--muted)}
+  .debug-tab.on{border-color:rgba(255,165,2,.5);color:var(--warn)}
 </style>
 </head>
 <body>
@@ -80,16 +81,16 @@
 <div class="wrap">
 
   <header>
-    <div class="badge">Yupoo Extractor v5</div>
+    <div class="badge">Yupoo Extractor v6</div>
     <h1>Extract &<br/><span>Export Catalog</span></h1>
-    <p class="sub">Estrae immagini reali da Yupoo — supporta categorie con migliaia di album.</p>
+    <p class="sub">Legge <code>__NEXT_DATA__</code> da Yupoo — estrazione affidabile anche da SPA.</p>
   </header>
 
   <div class="card">
     <div class="mode-row">
       <div class="mode-btn on" id="m-covers" onclick="setMode('covers')">
         🖼️ Cover Album
-        <span class="mode-desc">1 foto per album — veloce, garantito.<br/>1175 album = 1175 immagini</span>
+        <span class="mode-desc">1 copertina per album — veloce.<br/>1175 album = ~1175 immagini</span>
       </div>
       <div class="mode-btn" id="m-deep" onclick="setMode('deep')">
         📦 Profondo (tutte le foto)
@@ -136,7 +137,12 @@
   </div>
 
   <div class="card" id="debug-area">
-    <div class="lbl" style="color:var(--warn)">⚠ Debug — HTML grezzo ricevuto dal proxy</div>
+    <div style="color:var(--warn);font-family:'Space Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">⚠ Debug Panel</div>
+    <div class="debug-tabs">
+      <div class="debug-tab on" id="dtab-html" onclick="showDebug('html')">HTML grezzo</div>
+      <div class="debug-tab" id="dtab-next" onclick="showDebug('next')">__NEXT_DATA__</div>
+      <div class="debug-tab" id="dtab-ids" onclick="showDebug('ids')">IDs trovati</div>
+    </div>
     <div class="debug-box" id="debug-box"></div>
   </div>
 
@@ -154,7 +160,8 @@
 // ── State ──────────────────────────────────────────────────────────────────
 let images = [], albumCount = 0, pageCount = 0, errCount = 0;
 let abortCtrl = null, stopped = false;
-let extractMode = 'covers'; // 'covers' | 'deep'
+let extractMode = 'covers';
+let debugData = { html: '', next: '', ids: '' };
 
 // ── CORS Proxies ───────────────────────────────────────────────────────────
 const PROXIES = [
@@ -185,142 +192,216 @@ function setMode(m) {
 function getUsername(url) {
   try { return new URL(url).hostname.split('.')[0]; } catch { return ''; }
 }
-function hdUrl(u) {
-  return u.replace(/\/(small|thumb|tiny|s|t)\./i, '/medium.').replace(/\/\d+x\d+\//, '/medium/');
+
+// ── Image URL helpers ──────────────────────────────────────────────────────
+// Yupoo CDN pattern: https://photo.yupoo.com/{user}/{photoUid}/{size}.jpg
+// Sizes: small, medium, large, raw
+const IMG_SIZES = ['large', 'medium', 'raw'];
+
+function makeImgUrl(username, uid, hd = true) {
+  const size = hd ? 'large' : 'medium';
+  return `https://photo.yupoo.com/${username}/${uid}/${size}.jpg`;
 }
 
 // ── =========================================================
-//    EXTRACT: all photo.yupoo.com image URLs from HTML
+//    CORE: Parse Yupoo's __NEXT_DATA__ JSON from HTML
+//    This is THE reliable method for Next.js Yupoo pages
 // ── =========================================================
-function pullImages(html, base, username) {
-  const s = new Set();
+function parseNextData(html) {
+  const m = html.match(/<script[^>]+id=["']__NEXT_DATA__["'][^>]*>([\s\S]*?)<\/script>/i);
+  if (!m) return null;
+  try {
+    return JSON.parse(m[1]);
+  } catch {
+    return null;
+  }
+}
 
-  const add = raw => {
-    if (!raw) return;
-    try {
-      let u = raw.replace(/\\/g, '').split('?')[0];
-      if (!u.startsWith('http')) u = new URL(u, base).href.split('?')[0];
-      if (
-        u.includes('photo.yupoo.com') &&
-        /\.(jpg|jpeg|png|webp|gif)/i.test(u) &&
-        !u.includes('avatar') && !u.includes('icon') &&
-        !u.includes('blank') && !u.includes('logo')
-      ) s.add(u);
-    } catch {}
-  };
+// Recursively collect all values for given keys from a nested object
+function deepFind(obj, keys, results = new Set(), depth = 0) {
+  if (depth > 20 || !obj || typeof obj !== 'object') return results;
+  if (Array.isArray(obj)) {
+    for (const item of obj) deepFind(item, keys, results, depth + 1);
+  } else {
+    for (const [k, v] of Object.entries(obj)) {
+      if (keys.includes(k) && typeof v === 'string' && v.length >= 6 && v.length <= 20 && /^[0-9a-f]+$/i.test(v)) {
+        results.add(v);
+      }
+      if (typeof v === 'object' && v !== null) deepFind(v, keys, results, depth + 1);
+    }
+  }
+  return results;
+}
 
-  // 1. Raw URLs anywhere in HTML/JS
-  for (const m of html.matchAll(/https?:\/\/photo\.yupoo\.com\/[^\s"'<>\)\\\n]+\.(?:jpg|jpeg|png|webp|gif)/gi))
-    add(m[0]);
+// Collect album IDs/slugs from __NEXT_DATA__
+function deepFindAlbums(obj, results = [], depth = 0) {
+  if (depth > 20 || !obj || typeof obj !== 'object') return results;
+  if (Array.isArray(obj)) {
+    for (const item of obj) deepFindAlbums(item, results, depth + 1);
+  } else {
+    // An album object typically has id + (name or prettyName)
+    if (obj.id && (obj.name || obj.prettyName || obj.albumName)) {
+      results.push({ id: obj.id, name: obj.name || obj.prettyName || obj.albumName || String(obj.id) });
+    }
+    for (const v of Object.values(obj)) {
+      if (typeof v === 'object' && v !== null) deepFindAlbums(v, results, depth + 1);
+    }
+  }
+  return results;
+}
 
-  // 2. JSON string values containing photo.yupoo.com
-  for (const m of html.matchAll(/"([^"]*photo\.yupoo\.com[^"]*\.(?:jpg|jpeg|png|webp|gif))"/gi))
-    add(m[1]);
+// Photo UID keys Yupoo uses in __NEXT_DATA__
+const PHOTO_UID_KEYS = ['uid', 'imageid', 'imageId', 'photo_id', 'photoId', 'id', 'src', 'path'];
 
-  // 3. data-* attributes
-  for (const m of html.matchAll(/data-[a-z-]+=["']([^"']*photo\.yupoo[^"']*\.(?:jpg|jpeg|png|webp|gif))/gi))
-    add(m[1]);
+// ── =========================================================
+//    Extract photo UIDs from any HTML string using __NEXT_DATA__ first,
+//    then fall back to regex patterns
+// ── =========================================================
+function extractPhotoUids(html, username) {
+  const uids = new Set();
 
-  // 4. background-image: url(...)
-  for (const m of html.matchAll(/url\(["']?(https?:\/\/photo\.yupoo\.com[^"'\)]+\.(?:jpg|jpeg|png|webp|gif))/gi))
-    add(m[1]);
+  // ── Method 1: __NEXT_DATA__ JSON (most reliable) ──
+  const nextData = parseNextData(html);
+  if (nextData) {
+    const found = deepFind(nextData, PHOTO_UID_KEYS);
+    // Filter: Yupoo photo UIDs are typically 8 hex chars
+    for (const uid of found) {
+      if (/^[0-9a-f]{8}$/i.test(uid)) uids.add(uid.toLowerCase());
+    }
 
-  // 5. Reconstruct from photo hex IDs in href="/photos/HEXID"
-  //    This is the KEY method for JS-rendered album pages
+    // Also look for photo objects with a uid field directly
+    const photoRegex = /"uid"\s*:\s*"([0-9a-f]{6,12})"/gi;
+    const jsonStr = JSON.stringify(nextData);
+    for (const m of jsonStr.matchAll(photoRegex)) uids.add(m[1].toLowerCase());
+  }
+
+  // ── Method 2: JSON-style uid patterns in raw HTML ──
+  for (const m of html.matchAll(/"uid"\s*:\s*"([0-9a-f]{6,12})"/gi))
+    uids.add(m[1].toLowerCase());
+  for (const m of html.matchAll(/"imageid"\s*:\s*"([0-9a-f]{6,12})"/gi))
+    uids.add(m[1].toLowerCase());
+  for (const m of html.matchAll(/"photo_id"\s*:\s*"([0-9a-f]{6,12})"/gi))
+    uids.add(m[1].toLowerCase());
+
+  // ── Method 3: Direct photo.yupoo.com URLs ──
+  for (const m of html.matchAll(/photo\.yupoo\.com\/[^/"]+\/([0-9a-f]{6,12})\//gi))
+    uids.add(m[1].toLowerCase());
+
+  // ── Method 4: /{username}/{hexid}/ patterns ──
   if (username) {
-    for (const m of html.matchAll(/\/photos\/([0-9a-f]{8})\b/gi)) {
-      s.add(`https://photo.yupoo.com/${username}/${m[1]}/medium.jpg`);
-    }
-    // Also from data-id="HEXID"
-    for (const m of html.matchAll(/data-(?:id|photoid|photo-id|uid)=["']([0-9a-f]{8})["']/gi)) {
-      s.add(`https://photo.yupoo.com/${username}/${m[1]}/medium.jpg`);
-    }
-    // Also hex IDs in JSON: "imageid":"6043bcb7" or "id":"6043bcb7"
-    for (const m of html.matchAll(/"(?:imageid|photoid|photo_id|id|uid)"\s*:\s*"([0-9a-f]{8})"/gi)) {
-      s.add(`https://photo.yupoo.com/${username}/${m[1]}/medium.jpg`);
-    }
-    // "src":"/huskyreps/6043bcb7/..."
-    for (const m of html.matchAll(new RegExp(`/${username}/([0-9a-f]{8})/`, 'gi'))) {
-      s.add(`https://photo.yupoo.com/${username}/${m[1]}/medium.jpg`);
+    for (const m of html.matchAll(new RegExp(`/${username}/([0-9a-f]{8})/`, 'gi')))
+      uids.add(m[1].toLowerCase());
+  }
+
+  // ── Method 5: /photos/HEXID href patterns ──
+  for (const m of html.matchAll(/\/photos\/([0-9a-f]{8})\b/gi))
+    uids.add(m[1].toLowerCase());
+
+  return [...uids];
+}
+
+// ── =========================================================
+//    Extract album links from HTML / __NEXT_DATA__
+// ── =========================================================
+function extractAlbumLinks(html, base, username) {
+  const albums = new Map(); // id → url
+
+  // From __NEXT_DATA__
+  const nextData = parseNextData(html);
+  if (nextData) {
+    const found = deepFindAlbums(nextData);
+    for (const a of found) {
+      const url = `https://${username}.x.yupoo.com/albums/${a.id}`;
+      albums.set(String(a.id), url);
     }
   }
 
-  return [...s];
-}
-
-// ── =========================================================
-//    CATEGORY PAGE COUNT (uses ?page=N)
-// ── =========================================================
-function getCatPageCount(html) {
-  // "1 / 10" pattern shown on Yupoo category header
-  const m1 = html.match(/\b1\s*[\/|]\s*(\d+)\b/);
-  if (m1 && +m1[1] > 1) return +m1[1];
-  // ?page=N links
-  const nums = [...html.matchAll(/[?&]page=(\d+)/g)].map(m => +m[1]);
-  if (nums.length) return Math.max(...nums);
-  // "in total X albums"
-  const m2 = html.match(/in\s+total\s+([\d,]+)\s+album/i) || html.match(/共\s*([\d,]+)/);
-  if (m2) return Math.ceil(parseInt(m2[1].replace(/,/g, '')) / 120);
-  return 1;
-}
-
-// Album page count (uses ?p=N)
-function getAlbumPageCount(html) {
-  const m1 = html.match(/\b1\s*[\/|]\s*(\d+)\b/);
-  if (m1 && +m1[1] > 1) return +m1[1];
-  const nums = [...html.matchAll(/[?&]p=(\d+)/g)].map(m => +m[1]);
-  if (nums.length) return Math.max(...nums);
-  return 1;
-}
-
-// ── =========================================================
-//    Extract album links from a category page HTML
-// ── =========================================================
-function pullAlbumLinks(html, base) {
-  const s = new Set();
-  for (const m of html.matchAll(/href=["']([^"']*\/albums\/\d+[^"'"#?]*)/gi)) {
-    try { s.add(new URL(m[1], base).href.split('?')[0]); } catch {}
+  // From href="/albums/NNNN" patterns
+  for (const m of html.matchAll(/href=["']([^"']*\/albums\/(\d+)[^"'"#?]*)/gi)) {
+    try {
+      const url = new URL(m[1], base).href.split('?')[0];
+      albums.set(m[2], url);
+    } catch {}
   }
-  return [...s];
+
+  return [...albums.values()];
 }
 
 // ── =========================================================
-//    MODE 1: COVERS — extract thumbnail from each category page
-//    Category pages are server-rendered → images ARE in HTML
+//    Get total page count from __NEXT_DATA__ or HTML
+// ── =========================================================
+function getTotalPages(html, paramType = 'page') {
+  // Try __NEXT_DATA__ first
+  const nd = parseNextData(html);
+  if (nd) {
+    const jsonStr = JSON.stringify(nd);
+    // Common keys for total pages
+    for (const key of ['totalPages', 'total_pages', 'pageCount', 'pages']) {
+      const m = jsonStr.match(new RegExp(`"${key}"\\s*:\\s*(\\d+)`));
+      if (m && +m[1] > 1) return +m[1];
+    }
+    // total items / items per page
+    for (const key of ['totalAlbums', 'total', 'count', 'totalItems']) {
+      const m = jsonStr.match(new RegExp(`"${key}"\\s*:\\s*(\\d+)`));
+      if (m && +m[1] > 0) return Math.ceil(+m[1] / 30); // Yupoo default 30/page
+    }
+  }
+
+  // Fallback: "1 / 10" pattern
+  const m1 = html.match(/\b1\s*[\/|]\s*(\d+)\b/);
+  if (m1 && +m1[1] > 1) return +m1[1];
+
+  // ?page=N or ?p=N links
+  const param = paramType === 'page' ? 'page' : 'p';
+  const nums = [...html.matchAll(new RegExp(`[?&]${param}=(\\d+)`, 'g'))].map(m => +m[1]);
+  if (nums.length) return Math.max(...nums);
+
+  return 1;
+}
+
+// ── =========================================================
+//    MODE 1: COVERS — 1 image per album from category page
 // ── =========================================================
 async function runCoversMode(catUrl, username, limit) {
   const hd = document.getElementById('opt-hd').checked;
   const seen = new Set();
 
-  // Fetch page 1
   log('Recupero categoria pag.1...');
   let html1;
   try { html1 = await fetchP(catUrl); pageCount++; }
   catch (e) { if (e.name === 'AbortError') throw e; log('Errore accesso categoria', 'err'); return; }
 
-  const totalPages = getCatPageCount(html1);
-  log(`Categoria: ${totalPages} pagine (${totalPages * 120} album stimati)`);
+  // Store debug data
+  debugData.html = html1.substring(0, 4000);
+  const nd = parseNextData(html1);
+  debugData.next = nd ? JSON.stringify(nd, null, 2).substring(0, 4000) : '(nessun __NEXT_DATA__ trovato)';
 
-  // Process page 1
-  addImgsFromHtml(html1, catUrl, username, hd, seen);
+  const totalPages = getTotalPages(html1, 'page');
+  log(`Categoria: ${totalPages} pagine trovate`);
+
+  // Extract images from page 1
+  const uids1 = extractPhotoUids(html1, username);
+  debugData.ids = `Pag.1: ${uids1.length} uid\n${uids1.slice(0,20).join('\n')}`;
+  log(`Pag.1: ${uids1.length} foto uid estratti`);
+
+  addUidsToImages(uids1, username, hd, seen, null);
   setBar(5, `Pag.1/${totalPages} — ${images.length} img`);
 
   if (!document.getElementById('opt-all').checked) {
-    log(`Opzione "Tutte le pagine" disabilitata — solo pag.1`, 'warn');
-    return;
+    log(`Solo pag.1`, 'warn'); return;
   }
 
-  // Process pages 2..N
+  // Pages 2..N
   for (let p = 2; p <= Math.min(totalPages, 500); p++) {
     if (stopped || images.length >= limit) break;
     const pageUrl = catUrl.includes('?') ? `${catUrl}&page=${p}` : `${catUrl}?page=${p}`;
     try {
-      const html = await fetchP(pageUrl);
-      pageCount++;
-      addImgsFromHtml(html, catUrl, username, hd, seen);
+      const html = await fetchP(pageUrl); pageCount++;
+      const uids = extractPhotoUids(html, username);
+      addUidsToImages(uids, username, hd, seen, null);
       const pct = Math.round((p / totalPages) * 100);
       setBar(pct, `Pag.${p}/${totalPages} — ${images.length} immagini`);
-      if (p % 2 === 0) log(`Pag.${p}/${totalPages}: ${images.length} immagini totali`);
+      if (p % 3 === 0) log(`Pag.${p}/${totalPages}: ${images.length} immagini totali`);
     } catch (e) {
       if (e.name === 'AbortError') throw e;
       errCount++; log(`Pag.${p} fallita`, 'warn');
@@ -329,38 +410,26 @@ async function runCoversMode(catUrl, username, limit) {
   }
 }
 
-function addImgsFromHtml(html, base, username, hd, seen) {
-  let imgs = pullImages(html, base, username);
-  if (hd) imgs = imgs.map(hdUrl);
-  for (const u of imgs) {
-    if (!seen.has(u) && images.length < (+document.getElementById('opt-limit').value || 10000)) {
-      seen.add(u);
-      images.push({ id: images.length + 1, url: u, filename: `image_${String(images.length + 1).padStart(5, '0')}.jpg` });
-      if (images.length <= 60) addPrev(u);
-    }
-  }
-  albumCount++;
-  updStats();
-}
-
 // ── =========================================================
-//    MODE 2: DEEP — go into each album, extract all photos
-//    Uses photo hex ID reconstruction (works on SSR partial HTML)
+//    MODE 2: DEEP — scrape every album for all photos
 // ── =========================================================
 async function runDeepMode(catUrl, username, limit) {
   const hd = document.getElementById('opt-hd').checked;
   const seen = new Set();
 
-  // Step 1: collect all album links from all category pages
   log('Raccolta album dalla categoria...');
-  const allAlbums = new Set();
+  const allAlbums = new Map();
 
   let html1;
   try { html1 = await fetchP(catUrl); pageCount++; }
   catch (e) { if (e.name === 'AbortError') throw e; log('Errore accesso categoria', 'err'); return; }
 
-  pullAlbumLinks(html1, catUrl).forEach(l => allAlbums.add(l));
-  const totalCatPages = getCatPageCount(html1);
+  debugData.html = html1.substring(0, 4000);
+  const nd = parseNextData(html1);
+  debugData.next = nd ? JSON.stringify(nd, null, 2).substring(0, 4000) : '(nessun __NEXT_DATA__)';
+
+  extractAlbumLinks(html1, catUrl, username).forEach(u => allAlbums.set(u, u));
+  const totalCatPages = getTotalPages(html1, 'page');
   log(`Categoria: ${totalCatPages} pagine, ${allAlbums.size} album trovati pag.1`);
 
   if (document.getElementById('opt-all').checked) {
@@ -369,55 +438,45 @@ async function runDeepMode(catUrl, username, limit) {
       const pu = catUrl.includes('?') ? `${catUrl}&page=${p}` : `${catUrl}?page=${p}`;
       try {
         const h = await fetchP(pu); pageCount++;
-        pullAlbumLinks(h, catUrl).forEach(l => allAlbums.add(l));
-        setBar(Math.round(p / totalCatPages * 15), `Categoria pag.${p}/${totalCatPages}: ${allAlbums.size} album`);
+        extractAlbumLinks(h, catUrl, username).forEach(u => allAlbums.set(u, u));
+        setBar(Math.round(p / totalCatPages * 15), `Categoria pag.${p}: ${allAlbums.size} album`);
       } catch (e) { if (e.name === 'AbortError') throw e; errCount++; }
     }
   }
 
-  const albumList = [...allAlbums];
+  const albumList = [...allAlbums.values()];
   log(`Trovati ${albumList.length} album. Avvio estrazione profonda...`, 'success');
 
-  // Step 2: scrape each album
   for (let i = 0; i < albumList.length; i++) {
     if (stopped || images.length >= limit) break;
     const aUrl = albumList[i];
-    const aId = aUrl.split('/albums/')[1] || i;
+    const aId = aUrl.split('/albums/')[1]?.split(/[/?#]/)[0] || String(i);
     setBar(15 + Math.round(i / albumList.length * 84), `Album ${i + 1}/${albumList.length} — #${aId}`);
 
     let foundInAlbum = 0;
     try {
       const html = await fetchP(aUrl); pageCount++;
-      let imgs = pullImages(html, aUrl, username);
-      if (hd) imgs = imgs.map(hdUrl);
+      const albumPages = getTotalPages(html, 'p');
+      let uids = extractPhotoUids(html, username);
 
-      // Also try ?p=2..N for multi-page albums
-      const ap = getAlbumPageCount(html);
-      if (ap > 1 && document.getElementById('opt-all').checked) {
-        for (let p = 2; p <= Math.min(ap, 30); p++) {
+      if (albumPages > 1 && document.getElementById('opt-all').checked) {
+        for (let p = 2; p <= Math.min(albumPages, 30); p++) {
           if (stopped) break;
           try {
             const h2 = await fetchP(`${aUrl}?p=${p}`); pageCount++;
-            let mi = pullImages(h2, aUrl, username);
-            if (hd) mi = mi.map(hdUrl);
-            imgs = imgs.concat(mi);
+            uids = uids.concat(extractPhotoUids(h2, username));
           } catch (e) { if (e.name === 'AbortError') throw e; errCount++; }
         }
       }
 
-      for (const u of [...new Set(imgs)]) {
-        if (!seen.has(u) && images.length < limit) {
-          seen.add(u);
-          images.push({ id: images.length + 1, url: u, filename: `image_${String(images.length + 1).padStart(5, '0')}.jpg`, album: aId });
-          if (images.length <= 80) addPrev(u);
-          foundInAlbum++;
-        }
-      }
+      const before = images.length;
+      addUidsToImages([...new Set(uids)], username, hd, seen, aId);
+      foundInAlbum = images.length - before;
       albumCount++;
     } catch (e) { if (e.name === 'AbortError') throw e; errCount++; }
 
     if (foundInAlbum > 0) log(`Album #${aId}: +${foundInAlbum} → tot ${images.length}`);
-    else log(`Album #${aId}: 0 img (JS-only)`, 'warn');
+    else log(`Album #${aId}: 0 img`, 'warn');
     updStats();
   }
 }
@@ -433,35 +492,53 @@ async function runAlbumMode(url, username, limit) {
   try {
     const html = await fetchP(url); pageCount++;
 
-    // Debug: show first 2000 chars of HTML to understand structure
-    document.getElementById('debug-area').style.display = 'block';
-    document.getElementById('debug-box').textContent =
-      '=== PRIMI 3000 CARATTERI HTML RICEVUTO ===\n' + html.substring(0, 3000);
+    debugData.html = html.substring(0, 4000);
+    const nd = parseNextData(html);
+    debugData.next = nd ? JSON.stringify(nd, null, 2).substring(0, 4000) : '(nessun __NEXT_DATA__)';
 
-    let imgs = pullImages(html, url, username);
-    const ap = getAlbumPageCount(html);
-    log(`Pagine album: ${ap} | Immagini trovate pag.1: ${imgs.length}`);
+    let uids = extractPhotoUids(html, username);
+    const ap = getTotalPages(html, 'p');
+    log(`Pagine album: ${ap} | UID foto trovati pag.1: ${uids.length}`);
+
+    debugData.ids = `UIDs trovati: ${uids.length}\n${uids.slice(0,30).join('\n')}`;
 
     if (ap > 1 && document.getElementById('opt-all').checked) {
       for (let p = 2; p <= Math.min(ap, 50); p++) {
         if (stopped) break;
         try {
           const h2 = await fetchP(`${url}?p=${p}`); pageCount++;
-          imgs = imgs.concat(pullImages(h2, url, username));
+          uids = uids.concat(extractPhotoUids(h2, username));
         } catch (e) { if (e.name === 'AbortError') throw e; errCount++; }
       }
     }
-    if (hd) imgs = imgs.map(hdUrl);
 
-    for (const u of [...new Set(imgs)].slice(0, limit)) {
-      if (!seen.has(u)) {
-        seen.add(u);
-        images.push({ id: images.length + 1, url: u, filename: `image_${String(images.length + 1).padStart(5, '0')}.jpg` });
-        if (images.length <= 60) addPrev(u);
-      }
-    }
+    addUidsToImages([...new Set(uids)].slice(0, limit), username, hd, seen, null);
     albumCount = 1;
   } catch (e) { if (e.name === 'AbortError') throw e; errCount++; log('Errore album', 'err'); }
+  updStats();
+  showDebugAuto();
+}
+
+// ── =========================================================
+//    Add UIDs to images array
+// ── =========================================================
+function addUidsToImages(uids, username, hd, seen, albumId) {
+  const limit = +document.getElementById('opt-limit').value || 10000;
+  for (const uid of uids) {
+    if (seen.has(uid) || images.length >= limit) continue;
+    seen.add(uid);
+    const url = makeImgUrl(username, uid, hd);
+    const entry = {
+      id: images.length + 1,
+      url,
+      filename: `image_${String(images.length + 1).padStart(5, '0')}.jpg`,
+      uid
+    };
+    if (albumId) entry.album = albumId;
+    images.push(entry);
+    if (images.length <= 60) addPrev(url);
+  }
+  albumCount++;
   updStats();
 }
 
@@ -474,6 +551,7 @@ async function start() {
   let url; try { url = new URL(raw).href; } catch { alert('URL non valido.'); return; }
 
   images = []; albumCount = 0; pageCount = 0; errCount = 0; stopped = false;
+  debugData = { html: '', next: '', ids: '' };
   if (abortCtrl) abortCtrl.abort();
   abortCtrl = new AbortController();
 
@@ -508,15 +586,16 @@ async function start() {
       images.length > 0 ? 'success' : 'err');
 
     if (images.length === 0) {
-      log('0 immagini — controlla il debug panel qui sotto.', 'err');
+      log('0 immagini — apri il Debug panel qui sotto per capire cosa ha restituito il proxy.', 'err');
+      showDebugAuto();
     } else {
       document.getElementById('pre-lbl').textContent = `Anteprima — ${images.length} immagini`;
       document.getElementById('info-box').style.display = 'block';
       document.getElementById('act-row').style.display = 'flex';
     }
   } catch (e) {
-    if (e.name === 'AbortError') { log('Fermato.', 'warn'); return; }
-    log(`Errore: ${e.message}`, 'err'); setBar(0, 'Errore');
+    if (e.name === 'AbortError') { log('Fermato.', 'warn'); }
+    else { log(`Errore: ${e.message}`, 'err'); setBar(0, 'Errore'); showDebugAuto(); }
   } finally {
     document.getElementById('start-btn').disabled = false;
     document.getElementById('stop-btn').style.display = 'none';
@@ -531,6 +610,22 @@ function stop() {
   stopped = true;
   if (abortCtrl) abortCtrl.abort();
   log('Fermato — salva le immagini trovate finora.', 'warn');
+}
+
+// ── Debug helpers ──────────────────────────────────────────────────────────
+function showDebugAuto() {
+  document.getElementById('debug-area').style.display = 'block';
+  showDebug('next'); // default show __NEXT_DATA__
+}
+
+function showDebug(tab) {
+  ['html','next','ids'].forEach(t => {
+    document.getElementById('dtab-' + t).classList.toggle('on', t === tab);
+  });
+  const box = document.getElementById('debug-box');
+  if (tab === 'html') box.textContent = debugData.html || '(nessun dato)';
+  else if (tab === 'next') box.textContent = debugData.next || '(nessun __NEXT_DATA__ trovato — la pagina potrebbe essere JS-only o il proxy ha restituito un errore)';
+  else box.textContent = debugData.ids || '(nessun UID trovato)';
 }
 
 // ── UI helpers ─────────────────────────────────────────────────────────────
@@ -566,7 +661,13 @@ function exportJSON() {
   const raw = document.getElementById('url-input').value.trim();
   const albumId = raw.split('/').filter(Boolean).pop() || 'catalog';
   const blob = new Blob([JSON.stringify({
-    _meta: { source: raw, album: albumId, total: images.length, generated: new Date().toISOString() },
+    _meta: {
+      source: raw,
+      album: albumId,
+      total: images.length,
+      generated: new Date().toISOString(),
+      extractor: 'v6-nextdata'
+    },
     images
   }, null, 2)], { type: 'application/json' });
   saveAs(blob, `catalog_${albumId}.json`);
