@@ -55,6 +55,8 @@
   .worker-badge{font-family:'Space Mono',monospace;font-size:10px;padding:3px 8px;border-radius:999px;background:var(--surface);border:1px solid var(--border);color:var(--muted);white-space:nowrap;flex-shrink:0}
   .worker-badge.ok{border-color:#00e5a0;color:#00e5a0;background:rgba(0,229,160,.08)}
   .worker-badge.err{border-color:var(--err);color:var(--err);background:rgba(255,59,59,.06)}
+  .btn-test{background:rgba(0,229,255,.1);border:1px solid rgba(0,229,255,.3);border-radius:8px;padding:7px 12px;color:var(--accent);font-size:11px;cursor:pointer;white-space:nowrap;flex-shrink:0}
+  .btn-test:hover{background:rgba(0,229,255,.2)}
   .worker-help{margin-top:8px;font-size:11px}
   .worker-help-full{margin-top:8px;font-size:11px;line-height:1.7;color:var(--muted)}
   .worker-help-full ol{margin:8px 0 0 16px}
@@ -136,6 +138,7 @@
     <div class="worker-cfg" id="worker-cfg">
       <div class="worker-row">
         <span class="worker-icon">⚡</span>
+        <button class="btn-test" onclick="testWorker()" title="Testa connessione Worker">🔍 Test</button>
         <input type="text" id="worker-url" value="https://yupoo-proxy.conti9708.workers.dev" placeholder="https://yupoo-proxy.TUO-NOME.workers.dev  ← incolla il tuo Worker URL per abilitare il download ZIP" autocomplete="off" spellcheck="false" oninput="onWorkerUrlChange()"/>
         <span class="worker-badge" id="worker-badge">–</span>
       </div>
@@ -1122,39 +1125,54 @@ async function fetchWithTimeout(url, timeoutMs = 15000) {
 async function fetchImageBlob(url, originalUrl) {
   const orig = originalUrl || url;
 
-  // STRATEGY 1: Cloudflare Worker (the ONLY reliable method)
-  if (workerUrl) {
-    const proxyUrl = workerProxyUrl(orig);
-    try {
-      const r = await fetchWithTimeout(proxyUrl, 15000);
-      if (r.ok) {
-        const b = await r.blob();
-        const ct = (b.type || r.headers.get('content-type') || '').toLowerCase();
-        if (ct.startsWith('image/') && b.size > 5000) {
-          return { blob: b, proxyName: 'Worker', size: b.size };
-        }
-      }
-    } catch(e) { /* timeout or network error */ }
-
-    // Worker failed on orig → try HD variant
-    if (url !== orig) {
-      const proxyHd = workerProxyUrl(url);
-      try {
-        const r = await fetchWithTimeout(proxyHd, 15000);
-        if (r.ok) {
-          const b = await r.blob();
-          const ct = (b.type || r.headers.get('content-type') || '').toLowerCase();
-          if (ct.startsWith('image/') && b.size > 5000) {
-            return { blob: b, proxyName: 'Worker-HD', size: b.size };
-          }
-        }
-      } catch(e) { /* timeout */ }
-    }
-    throw new Error('Worker did not return a valid image — check Worker deployment');
+  if (!workerUrl) {
+    throw new Error('Worker non configurato');
   }
 
-  // STRATEGY 2 (no worker): tell user they need it
-  throw new Error('Cloudflare Worker non configurato — incolla il Worker URL nel campo ⚡ in alto');
+  // Try orig first, then HD variant
+  for (const imageUrl of [...new Set([orig, url])]) {
+    const proxyUrl = workerProxyUrl(imageUrl);
+    let r, b;
+    try {
+      r = await fetchWithTimeout(proxyUrl, 18000);
+    } catch(e) {
+      if (e.name === 'AbortError') throw new Error('Timeout (18s) — Worker non risponde');
+      throw new Error('Rete: ' + e.message);
+    }
+
+    if (!r.ok) {
+      // Read error body for diagnostics
+      let errBody = '';
+      try { errBody = await r.text(); } catch {}
+      // If it's JSON from our Worker, parse it
+      try {
+        const j = JSON.parse(errBody);
+        if (j.error) throw new Error(`Worker: ${j.error} (HTTP ${r.status})`);
+      } catch(e2) { if (e2.message.startsWith('Worker:')) throw e2; }
+      throw new Error(`HTTP ${r.status} — ${errBody.substring(0,80)}`);
+    }
+
+    b = await r.blob();
+    const ct = (r.headers.get('content-type') || b.type || '').toLowerCase();
+    const kb = (b.size / 1024).toFixed(1);
+
+    if (ct.startsWith('image/') && b.size > 1000) {
+      return { blob: b, proxyName: 'Worker', size: b.size };
+    }
+
+    // Not an image — give diagnostic
+    if (b.size < 500) {
+      let body = '';
+      try { body = await b.text(); } catch {}
+      // Worker returns Hello World? Common mistake
+      if (body.includes('Hello World') || body.includes('hello world')) {
+        throw new Error('Il Worker ha ancora il codice "Hello World" di default. Devi incollare il codice yupoo-proxy-worker.js!');
+      }
+      throw new Error(`Worker ha restituito ${kb}KB di tipo "${ct}" — contenuto: ${body.substring(0,60)}`);
+    }
+    throw new Error(`Worker ha restituito tipo "${ct}", ${kb}KB — non è un\'immagine valida`);
+  }
+  throw new Error('Tutti i tentativi falliti');
 }
 
 async function exportZip() {
@@ -1253,6 +1271,43 @@ function updateWorkerBadge() {
   }
 }
 
+async function testWorker() {
+  if (!workerUrl) { alert('Inserisci prima il Worker URL'); return; }
+  const badge = document.getElementById('worker-badge');
+  badge.className = 'worker-badge'; badge.textContent = '⟳ Test...';
+
+  // Use a known public Yupoo image for testing
+  const testImgUrl = 'https://photo.yupoo.com/huskyreps/Fek3wMYw/fit_p_360_360.jpg';
+  const proxyUrl = workerUrl.replace(/\/$/, '') + '/?url=' + encodeURIComponent(testImgUrl);
+
+  try {
+    const r = await fetch(proxyUrl, { cache: 'no-store' });
+    const ct = r.headers.get('content-type') || '';
+    let body = null;
+    if (!ct.startsWith('image/')) {
+      try { body = await r.text(); } catch {}
+    } else {
+      const b = await r.blob();
+      body = `✅ Immagine OK — ${(b.size/1024).toFixed(0)}KB, tipo: ${ct}`;
+    }
+
+    if (ct.startsWith('image/')) {
+      badge.className = 'worker-badge ok'; badge.textContent = '✓ Worker OK';
+      log('✅ Worker funzionante! ' + body, 'success');
+    } else if (body && (body.includes('Hello') || body.includes('hello'))) {
+      badge.className = 'worker-badge err'; badge.textContent = '✗ Hello World';
+      log('❌ Worker ha ancora il codice Hello World. Devi incollare il codice yupoo-proxy-worker.js nel Worker!', 'err');
+      log('Vai su dash.cloudflare.com → Workers → yupoo-proxy → Edit code → incolla il codice → Deploy', 'warn');
+    } else {
+      badge.className = 'worker-badge err'; badge.textContent = '✗ HTTP ' + r.status;
+      log('❌ Worker risposta: HTTP ' + r.status + ' — ' + (body||'').substring(0,120), 'err');
+    }
+  } catch(e) {
+    badge.className = 'worker-badge err'; badge.textContent = '✗ Errore';
+    log('❌ Worker non raggiungibile: ' + e.message, 'err');
+  }
+}
+
 function toggleWorkerHelp() {
   const collapsed = document.getElementById('worker-help-collapsed');
   const full      = document.getElementById('worker-help-full');
@@ -1261,14 +1316,15 @@ function toggleWorkerHelp() {
   collapsed.style.display = show ? 'none' : 'block';
 }
 
-// Restore saved worker URL on load
+// Restore saved worker URL on load + always update badge
 (function initWorkerUrl() {
   const saved = localStorage.getItem('yupoo_worker_url');
   if (saved) {
     document.getElementById('worker-url').value = saved;
     workerUrl = saved;
-    updateWorkerBadge();
   }
+  // Always update badge (even for pre-filled default value)
+  updateWorkerBadge();
 })();
 </script>
 </body>
