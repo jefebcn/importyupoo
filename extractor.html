@@ -84,9 +84,9 @@
 <div class="wrap">
 
   <header>
-    <div class="badge">Yupoo Extractor v8</div>
+    <div class="badge">Yupoo Extractor v9</div>
     <h1>Extract &<br/><span>Export Catalog</span></h1>
-    <p class="sub">Multi-strategia: API diretta Yupoo + Next.js data + fallback HTML.</p>
+    <p class="sub">Multi-strategia: API Yupoo + Next.js data + <strong style="color:var(--accent)">scraping HTML diretto</strong>.</p>
   </header>
 
   <div class="card">
@@ -177,6 +177,7 @@ let images = [], albumCount = 0, pageCount = 0, errCount = 0;
 let abortCtrl = null, stopped = false, extractMode = 'covers';
 let DEBUG = { raw: '', api: '', next: '', photos: '' };
 let siteBase = '', buildId = '', username = '';
+let cachedHtml = ''; // Stores HTML from initial page fetch for scraping fallback
 const seenUrls = new Set();
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -305,6 +306,7 @@ async function yupooApiAlbum(albumId, page) {
 async function getBuildId(pageUrl) {
   const html = await fetchHtml(pageUrl);
   pageCount++;
+  cachedHtml = html || ''; // Cache for HTML scraping fallback
 
   // Try to find __NEXT_DATA__
   const m = html.match(/<script[^>]+id=["']__NEXT_DATA__["'][^>]*>([\s\S]*?)<\/script>/i);
@@ -328,11 +330,26 @@ async function getBuildId(pageUrl) {
     } catch(e) { log('__NEXT_DATA__ parse fail: ' + e.message, 'warn'); }
   }
 
-  // __NEXT_DATA__ not found — store raw HTML for debug
+  // Try window state variables in script tags
+  const wsPatterns = [
+    /window\.__(?:STORE|STATE|DATA|YUPOO_STATE)__\s*=\s*(\{[\s\S]+?\});\s*(?:window|<\/script>)/,
+    /window\.postData\s*=\s*(\{[\s\S]+?\});\s*(?:window|var|let|const|<\/script>)/,
+  ];
+  for (const re of wsPatterns) {
+    const wm = html.match(re);
+    if (wm) {
+      try {
+        const parsed = JSON.parse(wm[1]);
+        DEBUG.next = JSON.stringify(parsed, null, 2).substring(0, 8000);
+        log('Window state trovato nell\'HTML!', 'success');
+        return null;
+      } catch {}
+    }
+  }
+
+  // __NEXT_DATA__ not found — store raw HTML for debug, cachedHtml is still available for scraping
   DEBUG.raw = '=== HTML ricevuto (nessun __NEXT_DATA__) ===\n' + html.substring(0, 4000);
-  openDebug('raw');
-  document.getElementById('proxy-note').style.display = 'block';
-  log('__NEXT_DATA__ non trovato nel proxy. Guarda il tab "Proxy raw".', 'warn');
+  log('__NEXT_DATA__ non trovato. Uso scraping HTML diretto come fallback.', 'warn');
   return null; // caller must handle null gracefully
 }
 
@@ -430,6 +447,69 @@ function getTotalPages(json) {
 function urlToPath(url) {
   try { return new URL(url).pathname.replace(/^\/|\/$/g, '') || 'index'; }
   catch { return 'index'; }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HTML SCRAPING HELPERS — used when APIs are unavailable
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Extract all photo.yupoo.com image URLs from raw HTML
+function parseHtmlPhotos(html) {
+  const urls = new Set();
+  // Match full photo.yupoo.com URLs
+  const re = /https?:\/\/photo\.yupoo\.com\/[^\s"'<>)\]]+\.(?:jpg|jpeg|png|gif|webp)(?:\?[^\s"'<>)]*)?/gi;
+  let m;
+  while ((m = re.exec(html)) !== null) {
+    let url = m[0].split('?')[0]; // Remove query params
+    if (document.getElementById('opt-hd').checked) {
+      url = toHD(url);
+    }
+    urls.add(url);
+  }
+  // Also match relative /photo/... paths with yupoo pattern
+  const re2 = /["']\/photo\/[a-z0-9_-]+\/[a-f0-9]{6,20}\/[^"']+\.(?:jpg|jpeg|png|gif|webp)["']/gi;
+  while ((m = re2.exec(html)) !== null) {
+    const path = m[0].replace(/["']/g, '');
+    urls.add('https://photo.yupoo.com' + path);
+  }
+  return urls;
+}
+
+// Extract album IDs from href="/albums/NNNNNN" links in HTML
+function parseHtmlAlbums(html) {
+  const albums = [];
+  const seen = new Set();
+  const re = /\/albums\/(\d+)/g;
+  let m;
+  while ((m = re.exec(html)) !== null) {
+    const id = m[1];
+    if (!seen.has(id)) {
+      seen.add(id);
+      // Try to find album name in surrounding HTML
+      const ctx = html.substring(Math.max(0, m.index - 200), m.index + 300);
+      const nameMatch = ctx.match(/(?:title|alt|data-name|data-title)=["']([^"']{2,80})["']/) ||
+                        ctx.match(/<(?:span|div|h\d|p)[^>]*>\s*([^<]{2,60})\s*<\/(?:span|div|h\d|p)>/);
+      const name = nameMatch ? nameMatch[1].trim() : `Album ${id}`;
+      albums.push({ id: parseInt(id), name });
+    }
+  }
+  return albums;
+}
+
+// Fetch an album page HTML and return its photo count and page links
+async function fetchAlbumHtmlPhotos(albumId, page) {
+  const url = `${siteBase}/albums/${albumId}${page > 1 ? '?p=' + page : ''}`;
+  const html = await fetchHtml(url);
+  const photos = parseHtmlPhotos(html);
+  // Detect total pages from pagination links like ?p=2, ?p=3...
+  let maxPage = 1;
+  const pageRe = /\?p=(\d+)/g;
+  let pm;
+  while ((pm = pageRe.exec(html)) !== null) {
+    const n = parseInt(pm[1]);
+    if (n > maxPage) maxPage = n;
+  }
+  return { photos, totalPages: maxPage };
 }
 
 function pushImg(url, albumId) {
@@ -551,6 +631,53 @@ async function runCoversMode(pageUrl) {
     openDebug('raw');
     document.getElementById('proxy-note').style.display = 'block';
   }
+
+  // ── Method 4: Direct HTML scraping — extract photo.yupoo.com URLs from raw HTML ──
+  if (images.length === 0 && cachedHtml) {
+    log('Strategia 4: scraping diretto HTML (photo.yupoo.com)...');
+    const directPhotos = parseHtmlPhotos(cachedHtml);
+    log(`Foto trovate nella pagina categoria: ${directPhotos.size}`);
+    for (const u of directPhotos) {
+      if (images.length >= lim) break;
+      pushImg(u, null);
+    }
+    if (images.length > 0) {
+      albumCount = Math.max(albumCount, 1); updStats();
+      log(`Scraping HTML: ${images.length} foto trovate!`, 'success');
+      return;
+    }
+
+    // No direct photos found — try fetching each album page for its cover
+    const htmlAlbums = parseHtmlAlbums(cachedHtml);
+    log(`Album trovati nell'HTML: ${htmlAlbums.length}`);
+    if (htmlAlbums.length > 0) {
+      for (let i = 0; i < htmlAlbums.length; i++) {
+        if (stopped || images.length >= lim) break;
+        const album = htmlAlbums[i];
+        setBar(Math.round(i / htmlAlbums.length * 100), `Copertina ${i+1}/${htmlAlbums.length}`);
+        try {
+          const { photos } = await fetchAlbumHtmlPhotos(album.id, 1);
+          if (photos.size > 0) {
+            pushImg([...photos][0], album.id); // 1 cover per album
+            albumCount++; updStats();
+          } else {
+            log(`Album ${album.id}: 0 foto`, 'warn');
+          }
+        } catch(e) {
+          if (e.name === 'AbortError') throw e;
+          errCount++; log(`Album ${album.id}: errore (${e.message})`, 'warn');
+        }
+      }
+      if (images.length > 0) {
+        log(`Scraping album covers: ${images.length} copertine`, 'success');
+        return;
+      }
+    }
+
+    log('Scraping HTML: 0 foto. Vedi Debug → Proxy raw.', 'err');
+    openDebug('raw');
+    document.getElementById('proxy-note').style.display = 'block';
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -597,7 +724,15 @@ async function runDeepMode(pageUrl) {
           try { const pd = await yupooApiAlbumList(catId, p); parseAlbums(pd, allAlbums); } catch {}
         }
       }
-    } catch(e) { log('Raccolta album fallita: ' + e.message, 'err'); return; }
+    } catch(e) { log('Raccolta album API nativa fallita: ' + e.message, 'warn'); }
+  }
+
+  // HTML scraping fallback for album discovery
+  if (allAlbums.length === 0 && cachedHtml) {
+    log('Raccolta album via scraping HTML...');
+    const htmlAlbums = parseHtmlAlbums(cachedHtml);
+    allAlbums.push(...htmlAlbums);
+    log(`Album trovati nell'HTML: ${allAlbums.length}`, allAlbums.length > 0 ? 'success' : 'warn');
   }
 
   const unique = [...new Map(allAlbums.map(a => [a.id, a])).values()];
@@ -609,15 +744,32 @@ async function runDeepMode(pageUrl) {
     setBar(12 + Math.round(i / unique.length * 87), `Album ${i+1}/${unique.length} — "${album.name}"`);
 
     let found = 0;
-    // Try _next/data then native API
-    for (const method of ['next', 'native']) {
+    // Try _next/data then native API then HTML scraping
+    for (const method of ['next', 'native', 'html']) {
       if (stopped) break;
       try {
         let json;
         if (method === 'next' && buildId) {
           json = await nextDataFetch(`albums/${album.id}`, { p: 1 });
-        } else {
+        } else if (method === 'native') {
           json = await yupooApiAlbum(album.id, 1);
+        } else if (method === 'html') {
+          // HTML scraping fallback
+          const { photos: ps1, totalPages: tp } = await fetchAlbumHtmlPhotos(album.id, 1);
+          const before = images.length;
+          for (const u of ps1) pushImg(u, album.id);
+          if (document.getElementById('opt-all').checked && tp > 1) {
+            for (let p = 2; p <= Math.min(tp, 100); p++) {
+              if (stopped || images.length >= lim) break;
+              try {
+                const { photos: psN } = await fetchAlbumHtmlPhotos(album.id, p);
+                for (const u of psN) pushImg(u, album.id);
+              } catch {}
+            }
+          }
+          found = images.length - before;
+          if (found > 0) break;
+          continue;
         }
         if (!json) continue;
 
@@ -666,7 +818,28 @@ async function runAlbumMode(pageUrl) {
     try { json = await yupooApiAlbum(albumId, 1); } catch {}
   }
 
-  if (!json) { log('Album non accessibile via API.', 'err'); return; }
+  if (!json) {
+    // Try HTML scraping fallback for single album
+    log('API fallita. Provo scraping HTML per album singolo...');
+    try {
+      const { photos, totalPages: tp } = await fetchAlbumHtmlPhotos(albumId, 1);
+      if (photos.size > 0) {
+        log(`HTML scraping: ${photos.size} foto pag.1, ${tp} pagine totali`);
+        for (const u of photos) pushImg(u, null);
+        if (tp > 1 && document.getElementById('opt-all').checked) {
+          for (let p = 2; p <= Math.min(tp, 100); p++) {
+            if (stopped || images.length >= lim) break;
+            const { photos: ps2 } = await fetchAlbumHtmlPhotos(albumId, p);
+            for (const u of ps2) pushImg(u, null);
+          }
+        }
+        albumCount = 1; updStats();
+        DEBUG.photos = [...photos].slice(0, 40).join('\n');
+        return;
+      }
+    } catch(e) { if (e.name === 'AbortError') throw e; }
+    log('Album non accessibile né via API né via HTML.', 'err'); return;
+  }
 
   DEBUG.api = JSON.stringify(json, null, 2).substring(0, 8000);
   const ps = parsePhotos(json, hd);
@@ -699,7 +872,7 @@ async function start() {
   let url; try { url = new URL(raw).href; } catch { alert('URL non valido.'); return; }
 
   images = []; seenUrls.clear();
-  albumCount = 0; pageCount = 0; errCount = 0; stopped = false; buildId = '';
+  albumCount = 0; pageCount = 0; errCount = 0; stopped = false; buildId = ''; cachedHtml = '';
   DEBUG = { raw: '', api: '', next: '', photos: '' };
   if (abortCtrl) abortCtrl.abort();
   abortCtrl = new AbortController();
