@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Yupoo Extractor v7</title>
+<title>Yupoo Extractor v8</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
@@ -55,7 +55,7 @@
   .s-title{font-family:'Space Mono',monospace;font-size:11px;text-transform:uppercase;letter-spacing:2px;color:var(--accent)}
   .bar-wrap{background:var(--surface);border:1px solid var(--border);border-radius:999px;height:4px;overflow:hidden;margin-bottom:14px}
   .bar-fill{height:100%;border-radius:999px;background:linear-gradient(90deg,var(--accent),var(--accent2));width:0%;transition:width .4s}
-  .log{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 16px;max-height:240px;overflow-y:auto;font-family:'Space Mono',monospace;font-size:11px;line-height:2;scrollbar-width:thin;scrollbar-color:var(--border) transparent}
+  .log{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 16px;max-height:260px;overflow-y:auto;font-family:'Space Mono',monospace;font-size:11px;line-height:2;scrollbar-width:thin;scrollbar-color:var(--border) transparent}
   .ll{display:flex;gap:10px}
   .ll .ts{color:var(--muted);flex-shrink:0}
   .ll.ok .msg{color:var(--ok)}.ll.err .msg{color:var(--err)}.ll.warn .msg{color:var(--warn)}
@@ -70,10 +70,13 @@
   .btn-stop{background:rgba(255,71,87,.12);border:1px solid rgba(255,71,87,.3);color:var(--err);font-family:'Syne',sans-serif;font-weight:600;font-size:12px;padding:7px 16px;border-radius:10px;cursor:pointer;display:none}
   .btn-stop:hover{background:rgba(255,71,87,.22)}
   #debug-area{display:none}
-  .debug-box{background:var(--surface);border:1px solid rgba(255,165,2,.2);border-radius:12px;padding:14px 16px;max-height:320px;overflow-y:auto;font-family:'Space Mono',monospace;font-size:10px;line-height:1.8;color:#aaa;word-break:break-all;white-space:pre-wrap}
+  .debug-box{background:var(--surface);border:1px solid rgba(255,165,2,.2);border-radius:12px;padding:14px 16px;max-height:360px;overflow-y:auto;font-family:'Space Mono',monospace;font-size:10px;line-height:1.8;color:#ccc;word-break:break-all;white-space:pre-wrap}
   .debug-tabs{display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap}
-  .debug-tab{font-family:'Space Mono',monospace;font-size:9px;text-transform:uppercase;letter-spacing:1px;padding:4px 10px;border-radius:6px;cursor:pointer;background:var(--surface);border:1px solid var(--border);color:var(--muted)}
+  .debug-tab{font-family:'Space Mono',monospace;font-size:9px;text-transform:uppercase;letter-spacing:1px;padding:4px 10px;border-radius:6px;cursor:pointer;background:var(--surface);border:1px solid var(--border);color:var(--muted);transition:all .15s}
   .debug-tab.on{border-color:rgba(255,165,2,.5);color:var(--warn)}
+  .proxy-note{margin-top:14px;padding:14px 18px;background:rgba(255,165,2,.06);border:1px solid rgba(255,165,2,.2);border-radius:12px;font-size:12px;color:var(--muted);line-height:1.8}
+  .proxy-note strong{color:var(--warn)}
+  .proxy-note code{background:rgba(255,255,255,.07);border-radius:4px;padding:1px 6px;font-size:11px}
 </style>
 </head>
 <body>
@@ -81,20 +84,20 @@
 <div class="wrap">
 
   <header>
-    <div class="badge">Yupoo Extractor v7</div>
+    <div class="badge">Yupoo Extractor v8</div>
     <h1>Extract &<br/><span>Export Catalog</span></h1>
-    <p class="sub">API <code>_next/data</code> di Yupoo — JSON pulito, zero scraping HTML.</p>
+    <p class="sub">Multi-strategia: API diretta Yupoo + Next.js data + fallback HTML.</p>
   </header>
 
   <div class="card">
     <div class="mode-row">
       <div class="mode-btn on" id="m-covers" onclick="setMode('covers')">
         🖼️ Cover Album
-        <span class="mode-desc">1 copertina per album — veloce.<br/>Ideale per catalogo rapido</span>
+        <span class="mode-desc">1 copertina per album — veloce</span>
       </div>
       <div class="mode-btn" id="m-deep" onclick="setMode('deep')">
         📦 Profondo (tutte le foto)
-        <span class="mode-desc">Tutte le foto di ogni album.<br/>Lento ma completo</span>
+        <span class="mode-desc">Tutte le foto di ogni album</span>
       </div>
     </div>
 
@@ -125,7 +128,7 @@
     </div>
     <div class="s-hdr">
       <span class="s-title" id="s-title">Elaborazione...</span>
-      <button class="btn-stop" id="stop-btn" onclick="stop()">&#9632; Ferma e salva</button>
+      <button class="btn-stop" id="stop-btn" onclick="stop()">■ Ferma e salva</button>
     </div>
     <div class="bar-wrap"><div class="bar-fill" id="bar"></div></div>
     <div class="log" id="log"></div>
@@ -137,396 +140,567 @@
   </div>
 
   <div class="card" id="debug-area">
-    <div style="color:var(--warn);font-family:'Space Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">&#9888; Debug — mandami screenshot se hai 0 immagini</div>
+    <div style="color:var(--warn);font-family:'Space Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">⚠ Debug Panel</div>
     <div class="debug-tabs">
-      <div class="debug-tab on" id="dtab-api"    onclick="showDebug('api')">API JSON</div>
-      <div class="debug-tab"    id="dtab-html"   onclick="showDebug('html')">HTML grezzo</div>
+      <div class="debug-tab on" id="dtab-raw"    onclick="showDebug('raw')">Proxy raw</div>
+      <div class="debug-tab"    id="dtab-api"    onclick="showDebug('api')">API risposta</div>
       <div class="debug-tab"    id="dtab-next"   onclick="showDebug('next')">__NEXT_DATA__</div>
       <div class="debug-tab"    id="dtab-photos" onclick="showDebug('photos')">URL trovate</div>
     </div>
-    <div class="debug-box" id="debug-box">(esegui un'estrazione per vedere i dati)</div>
+    <div class="debug-box" id="debug-box">(esegui un'estrazione)</div>
+
+    <div class="proxy-note" id="proxy-note" style="display:none">
+      <strong>Il proxy non sta restituendo la pagina Yupoo reale.</strong><br/>
+      Cosa vedi nel tab "Proxy raw"? Se vedi HTML di un captcha o errore, significa che il proxy è bloccato da Yupoo.<br/><br/>
+      <strong>Soluzioni:</strong><br/>
+      1. Apri <code>https://corsproxy.io/?https://huskyreps.x.yupoo.com/categories/5003229</code> nel browser e controlla cosa vedi.<br/>
+      2. Se bloccato, prova a usare questo tool con una VPN attiva.<br/>
+      3. Oppure usa l'estensione Chrome "Allow CORS" per abilitare fetch diretti.
+    </div>
   </div>
 
   <div class="info-box" id="info-box">
-    <strong>&#10003; Pronto!</strong> Esporta il <code>catalog.json</code> e caricalo su GitHub con <code>catalog-viewer.html</code>. Zero Firebase storage.
+    <strong>✅ Pronto!</strong> Esporta il <code>catalog.json</code> e caricalo su GitHub con <code>catalog-viewer.html</code>.
   </div>
 
   <div class="action-row" id="act-row">
-    <button class="btn" onclick="exportJSON()">&#128196; Esporta catalog.json</button>
-    <button class="btn-o" onclick="exportZip()">&#128230; Scarica ZIP</button>
+    <button class="btn" onclick="exportJSON()">📄 Esporta catalog.json</button>
+    <button class="btn-o" onclick="exportZip()">📦 Scarica ZIP</button>
   </div>
 
 </div>
 <script>
-// ============================================================
+// ─────────────────────────────────────────────────────────────────────────────
 // STATE
-// ============================================================
+// ─────────────────────────────────────────────────────────────────────────────
 let images = [], albumCount = 0, pageCount = 0, errCount = 0;
-let abortCtrl = null, stopped = false;
-let extractMode = 'covers';
-let DEBUG = { api: '', html: '', next: '', photos: '' };
+let abortCtrl = null, stopped = false, extractMode = 'covers';
+let DEBUG = { raw: '', api: '', next: '', photos: '' };
 let siteBase = '', buildId = '', username = '';
 const seenUrls = new Set();
 
-// ============================================================
-// PROXIES
-// ============================================================
-const PROXIES = [
-  u => `https://corsproxy.io/?${encodeURIComponent(u)}`,
-  u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
-  u => `https://thingproxy.freeboard.io/fetch/${u}`,
+// ─────────────────────────────────────────────────────────────────────────────
+// FETCH STRATEGIES
+// Strategy A: corsproxy.io  — most reliable, passes headers well
+// Strategy B: allorigins    — wraps in {contents:"..."}, need to unwrap
+// Strategy C: thingproxy    — last resort
+// Strategy D: direct fetch  — works if CORS allows it (rare for Yupoo)
+// ─────────────────────────────────────────────────────────────────────────────
+const STRATEGIES = [
+  async (url, sig) => {
+    const r = await fetch(`https://corsproxy.io/?${encodeURIComponent(url)}`, { signal: sig });
+    if (!r.ok) throw new Error('corsproxy HTTP ' + r.status);
+    return r.text();
+  },
+  async (url, sig) => {
+    const r = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`, { signal: sig });
+    if (!r.ok) throw new Error('allorigins HTTP ' + r.status);
+    const j = await r.json();
+    return j.contents || '';
+  },
+  async (url, sig) => {
+    const r = await fetch(`https://thingproxy.freeboard.io/fetch/${url}`, { signal: sig });
+    if (!r.ok) throw new Error('thingproxy HTTP ' + r.status);
+    return r.text();
+  },
+  async (url, sig) => {
+    // Direct — only works if server has permissive CORS (unlikely for Yupoo HTML)
+    const r = await fetch(url, { signal: sig, mode: 'cors' });
+    if (!r.ok) throw new Error('direct HTTP ' + r.status);
+    return r.text();
+  }
 ];
 
-async function fetchRaw(url, pi = 0) {
-  if (stopped) throw new DOMException('', 'AbortError');
-  if (pi >= PROXIES.length) throw new Error('Tutti i proxy falliti per: ' + url);
+// Try each strategy until one returns HTML that contains Yupoo content
+async function fetchHtml(url) {
+  const names = ['corsproxy.io', 'allorigins', 'thingproxy', 'direct'];
+  let lastErr = '';
+  for (let i = 0; i < STRATEGIES.length; i++) {
+    if (stopped) throw new DOMException('', 'AbortError');
+    try {
+      log(`Provo ${names[i]}...`);
+      const html = await STRATEGIES[i](url, abortCtrl.signal);
+
+      // Sanity check: does the response look like Yupoo content?
+      if (html.length < 100) throw new Error('risposta troppo corta');
+
+      // Check if it has any Yupoo fingerprint
+      const hasYupoo = html.includes('yupoo') || html.includes('NEXT_DATA') || html.includes('__next');
+      if (!hasYupoo) {
+        log(`${names[i]}: risposta senza contenuto Yupoo (${html.length} byte). Tipo: ${html.substring(0,80).replace(/\n/g,' ')}`, 'warn');
+        // Store the first failure for debug
+        if (!DEBUG.raw) DEBUG.raw = `=== ${names[i]} risposta (primi 3000 char) ===\n` + html.substring(0, 3000);
+        continue; // try next proxy
+      }
+
+      log(`${names[i]}: OK (${html.length} byte)`, 'success');
+      DEBUG.raw = `=== ${names[i]} OK ===\n` + html.substring(0, 3000);
+      return html;
+    } catch(e) {
+      if (e.name === 'AbortError') throw e;
+      lastErr = e.message;
+      log(`${names[i]}: fallito (${e.message})`, 'warn');
+    }
+  }
+
+  // All failed — show debug panel
+  openDebug('raw');
+  document.getElementById('proxy-note').style.display = 'block';
+  throw new Error('Tutti i proxy falliti. Ultimo errore: ' + lastErr);
+}
+
+// For JSON endpoints (like _next/data), try proxies until we get valid JSON
+async function fetchJson(url) {
+  const names = ['corsproxy.io', 'allorigins', 'thingproxy'];
+  for (let i = 0; i < 3; i++) {
+    if (stopped) throw new DOMException('', 'AbortError');
+    try {
+      let text;
+      if (i === 1) {
+        // allorigins wraps
+        const r = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`, { signal: abortCtrl.signal });
+        const j = await r.json();
+        text = j.contents || '';
+      } else {
+        const proxied = i === 0
+          ? `https://corsproxy.io/?${encodeURIComponent(url)}`
+          : `https://thingproxy.freeboard.io/fetch/${url}`;
+        const r = await fetch(proxied, { signal: abortCtrl.signal });
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        text = await r.text();
+      }
+      const json = JSON.parse(text);
+      pageCount++;
+      return json;
+    } catch(e) {
+      if (e.name === 'AbortError') throw e;
+      errCount++;
+    }
+  }
+  throw new Error('fetchJson fallito: ' + url);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// YUPOO NATIVE REST API
+// Yupoo exposes a public REST API (separate from Next.js):
+// GET /albums?uid={categoryId}&page=1&t=1   → album list with cover photos
+// GET /albums/{albumId}?page=1              → single album photos
+// This does NOT require a buildId!
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Try Yupoo's native API first (most reliable)
+async function yupooApiAlbumList(categoryId, page) {
+  const url = `${siteBase}/albums?uid=${categoryId}&page=${page}&t=${Date.now()}`;
+  return fetchJson(url);
+}
+
+async function yupooApiAlbum(albumId, page) {
+  const url = `${siteBase}/albums/${albumId}?page=${page}&t=${Date.now()}`;
+  return fetchJson(url);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GET buildId from HTML (for _next/data fallback)
+// ─────────────────────────────────────────────────────────────────────────────
+async function getBuildId(pageUrl) {
+  const html = await fetchHtml(pageUrl);
+  pageCount++;
+
+  // Try to find __NEXT_DATA__
+  const m = html.match(/<script[^>]+id=["']__NEXT_DATA__["'][^>]*>([\s\S]*?)<\/script>/i);
+  if (m) {
+    try {
+      const nd = JSON.parse(m[1]);
+      DEBUG.next = JSON.stringify(nd, null, 2).substring(0, 8000);
+      if (nd.buildId) {
+        log('buildId trovato: ' + nd.buildId, 'success');
+
+        // Bonus: grab any photos already in __NEXT_DATA__
+        const hd = document.getElementById('opt-hd').checked;
+        const bonus = parsePhotos(nd, hd);
+        if (bonus.size > 0) {
+          log(`Bonus da HTML: ${bonus.size} foto`);
+          for (const u of bonus) pushImg(u, null);
+          updStats();
+        }
+        return nd.buildId;
+      }
+    } catch(e) { log('__NEXT_DATA__ parse fail: ' + e.message, 'warn'); }
+  }
+
+  // __NEXT_DATA__ not found — store raw HTML for debug
+  DEBUG.raw = '=== HTML ricevuto (nessun __NEXT_DATA__) ===\n' + html.substring(0, 4000);
+  openDebug('raw');
+  document.getElementById('proxy-note').style.display = 'block';
+  log('__NEXT_DATA__ non trovato nel proxy. Guarda il tab "Proxy raw".', 'warn');
+  return null; // caller must handle null gracefully
+}
+
+// _next/data call
+async function nextDataFetch(path, params) {
+  if (!buildId) return null;
+  const qs = params ? '?' + new URLSearchParams(params).toString() : '';
+  const url = `${siteBase}/_next/data/${buildId}/${path}.json${qs}`;
   try {
-    const r = await fetch(PROXIES[pi](url), { signal: abortCtrl.signal });
-    if (!r.ok) throw new Error(`HTTP ${r.status}`);
-    return r.text();
+    const json = await fetchJson(url);
+    return json;
   } catch(e) {
-    if (e.name === 'AbortError') throw e;
-    return fetchRaw(url, pi + 1);
+    log('_next/data fallito: ' + e.message, 'warn');
+    return null;
   }
 }
 
-async function fetchJSON(url) {
-  const text = await fetchRaw(url);
-  try { return JSON.parse(text); }
-  catch { throw new Error('Risposta non JSON (primi 300 char): ' + text.substring(0, 300)); }
-}
-
-// ============================================================
-// STEP 1 — Get buildId by fetching main page HTML
-// ============================================================
-async function initSite(pageUrl) {
-  log('Recupero buildId dalla pagina...');
-  const html = await fetchRaw(pageUrl);
-  pageCount++;
-  DEBUG.html = html.substring(0, 6000);
-
-  const m = html.match(/<script[^>]+id=["']__NEXT_DATA__["'][^>]*>([\s\S]*?)<\/script>/i);
-  if (!m) throw new Error('__NEXT_DATA__ non trovato — il proxy potrebbe non funzionare su questo URL');
-
-  let nd;
-  try { nd = JSON.parse(m[1]); }
-  catch { throw new Error('__NEXT_DATA__ non parsabile'); }
-
-  DEBUG.next = JSON.stringify(nd, null, 2).substring(0, 8000);
-  buildId = nd.buildId;
-  if (!buildId) throw new Error('buildId mancante in __NEXT_DATA__');
-
-  log('buildId: ' + buildId, 'success');
-  return nd;
-}
-
-// ============================================================
-// STEP 2 — Fetch _next/data JSON endpoint (clean API)
-// ============================================================
-async function fetchNextData(path, params) {
-  const qs = params ? '?' + new URLSearchParams(params).toString() : '';
-  const url = `${siteBase}/_next/data/${buildId}/${path}.json${qs}`;
-  log('API: ' + url.replace(siteBase, ''));
-  const json = await fetchJSON(url);
-  pageCount++;
-  return json;
-}
-
-// ============================================================
-// PHOTO PARSING — recursively find photo objects in any JSON
-// ============================================================
-function parsePhotos(obj, hd, results, depth) {
-  if (!results) results = new Set();
+// ─────────────────────────────────────────────────────────────────────────────
+// PHOTO PARSING — works on any JSON shape
+// ─────────────────────────────────────────────────────────────────────────────
+function parsePhotos(obj, hd, out, depth) {
+  if (!out) out = new Set();
   if (!depth) depth = 0;
-  if (depth > 20 || !obj || typeof obj !== 'object') return results;
+  if (depth > 20 || !obj || typeof obj !== 'object') return out;
 
-  // Detect photo object by having a uid that looks like a Yupoo photo uid (hex)
-  const uid = obj.uid || obj.imageid || obj.imageId || obj.photo_id;
-  if (typeof uid === 'string' && /^[0-9a-f]{6,16}$/i.test(uid)) {
+  // Detect photo object by uid / imageid field
+  const uid = obj.uid || obj.imageid || obj.imageId || obj.photo_id || obj.photoId;
+  if (typeof uid === 'string' && /^[0-9a-f]{6,20}$/i.test(uid) && !obj.buildId) {
     const url = buildPhotoUrl(obj, uid, hd);
-    if (url) { results.add(url); return results; } // stop recursing into this node
+    if (url) { out.add(url); return out; }
+  }
+
+  // Detect photo by direct URL in "path" field
+  if (typeof obj.path === 'string' && obj.path.includes('photo.yupoo.com')) {
+    out.add(hd ? toHD(obj.path.startsWith('http') ? obj.path : 'https://photo.yupoo.com' + obj.path) : obj.path);
+    return out;
   }
 
   if (Array.isArray(obj)) {
-    for (const item of obj) parsePhotos(item, hd, results, depth + 1);
+    for (const item of obj) parsePhotos(item, hd, out, depth + 1);
   } else {
     for (const v of Object.values(obj)) {
-      if (v && typeof v === 'object') parsePhotos(v, hd, results, depth + 1);
+      if (v && typeof v === 'object') parsePhotos(v, hd, out, depth + 1);
     }
   }
-  return results;
+  return out;
 }
 
 function buildPhotoUrl(photo, uid, hd) {
-  // Priority 1: path field is a full URL
-  if (typeof photo.path === 'string' && photo.path.startsWith('http')) {
-    return hd ? toHD(photo.path) : photo.path;
+  if (typeof photo.path === 'string') {
+    const base = photo.path.startsWith('http') ? photo.path : 'https://photo.yupoo.com' + photo.path;
+    return hd ? toHD(base) : base;
   }
-  // Priority 2: path is a relative URL like /username/uid/medium.jpg
-  if (typeof photo.path === 'string' && photo.path.startsWith('/')) {
-    return hd ? toHD('https://photo.yupoo.com' + photo.path) : 'https://photo.yupoo.com' + photo.path;
-  }
-  // Priority 3: construct from uid + username
   if (uid && username) {
-    const size = hd ? 'large' : 'medium';
-    return `https://photo.yupoo.com/${username}/${uid}/${size}.jpg`;
+    return `https://photo.yupoo.com/${username}/${uid}/${hd ? 'large' : 'medium'}.jpg`;
   }
   return null;
 }
 
 function toHD(url) {
-  return url
-    .replace(/\/(small|thumb|tiny|medium)\./i, '/large.')
-    .replace(/\/fit_p_\d+_\d+\./i, '/large.');
+  return url.replace(/\/(small|thumb|tiny|medium)\./i, '/large.')
+            .replace(/\/fit_p_\d+_\d+\./i, '/large.');
 }
 
-// ============================================================
-// ALBUM PARSING
-// ============================================================
-function parseAlbums(obj, results, depth) {
-  if (!results) results = [];
+// ─────────────────────────────────────────────────────────────────────────────
+// ALBUM LIST PARSING
+// ─────────────────────────────────────────────────────────────────────────────
+function parseAlbums(obj, out, depth) {
+  if (!out) out = [];
   if (!depth) depth = 0;
-  if (depth > 15 || !obj || typeof obj !== 'object') return results;
+  if (depth > 15 || !obj || typeof obj !== 'object') return out;
 
-  if (!Array.isArray(obj) && typeof obj.id === 'number' && obj.id > 0 &&
-      (obj.name || obj.prettyName || obj.albumName || obj.title)) {
-    results.push({ id: obj.id, name: obj.name || obj.prettyName || obj.albumName || obj.title || String(obj.id) });
-    return results; // don't descend further into this album
+  if (!Array.isArray(obj) && typeof obj.id === 'number' && obj.id > 0
+      && (obj.name || obj.prettyName || obj.albumName || obj.title)) {
+    out.push({ id: obj.id, name: obj.name || obj.prettyName || obj.albumName || obj.title || String(obj.id) });
+    return out;
   }
-
-  if (Array.isArray(obj)) {
-    for (const item of obj) parseAlbums(item, results, depth + 1);
-  } else {
-    for (const v of Object.values(obj)) {
-      if (v && typeof v === 'object') parseAlbums(v, results, depth + 1);
-    }
-  }
-  return results;
+  if (Array.isArray(obj)) { for (const i of obj) parseAlbums(i, out, depth + 1); }
+  else { for (const v of Object.values(obj)) { if (v && typeof v === 'object') parseAlbums(v, out, depth + 1); } }
+  return out;
 }
 
-// ============================================================
-// TOTAL PAGES from any API JSON
-// ============================================================
 function getTotalPages(json) {
   const s = JSON.stringify(json);
-  // exact keys
   for (const k of ['totalPage','totalPages','total_page','pageCount','pages']) {
     const m = s.match(new RegExp('"' + k + '"\\s*:\\s*(\\d+)'));
     if (m && +m[1] > 0) return +m[1];
   }
-  // derive from total / pageSize
   const tot  = s.match(/"(?:total|totalAlbums|totalImages|count)"\s*:\s*(\d+)/);
   const size = s.match(/"(?:pageSize|perPage|limit|size)"\s*:\s*(\d+)/);
   if (tot && size && +size[1] > 0) return Math.ceil(+tot[1] / +size[1]);
   return 1;
 }
 
-// ============================================================
-// URL path helper
-// ============================================================
-function urlToPath(pageUrl) {
-  try {
-    const u = new URL(pageUrl);
-    return u.pathname.replace(/^\/|\/$/g, '') || 'index';
-  } catch { return 'index'; }
+function urlToPath(url) {
+  try { return new URL(url).pathname.replace(/^\/|\/$/g, '') || 'index'; }
+  catch { return 'index'; }
 }
 
-// ============================================================
-// Push image to global array
-// ============================================================
 function pushImg(url, albumId) {
   const limit = +document.getElementById('opt-limit').value || 10000;
   if (!url || seenUrls.has(url) || images.length >= limit) return false;
   seenUrls.add(url);
-  const entry = { id: images.length + 1, url, filename: `image_${String(images.length + 1).padStart(5,'0')}.jpg` };
-  if (albumId) entry.album = String(albumId);
-  images.push(entry);
+  const e = { id: images.length + 1, url, filename: `image_${String(images.length+1).padStart(5,'0')}.jpg` };
+  if (albumId) e.album = String(albumId);
+  images.push(e);
   if (images.length <= 80) addPrev(url);
   return true;
 }
 
-// ============================================================
+// ─────────────────────────────────────────────────────────────────────────────
+// EXTRACT CATEGORY ID FROM URL
+// ─────────────────────────────────────────────────────────────────────────────
+function getCategoryId(url) {
+  const m = url.match(/\/categories\/(\d+)/);
+  return m ? m[1] : null;
+}
+function getAlbumId(url) {
+  const m = url.match(/\/albums\/(\d+)/);
+  return m ? m[1] : null;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // MODE: COVERS
-// ============================================================
+// Tries 3 methods in order:
+//   1. _next/data API (requires buildId)
+//   2. Native Yupoo REST (/albums?uid=CATID&page=N)
+//   3. HTML scrape fallback
+// ─────────────────────────────────────────────────────────────────────────────
 async function runCoversMode(pageUrl) {
-  const hd = document.getElementById('opt-hd').checked;
+  const hd   = document.getElementById('opt-hd').checked;
+  const lim  = +document.getElementById('opt-limit').value || 10000;
+  const catId = getCategoryId(pageUrl);
   const catPath = urlToPath(pageUrl);
-  const limit = +document.getElementById('opt-limit').value || 10000;
 
-  let page1json;
-  try {
-    page1json = await fetchNextData(catPath, { page: 1 });
-    DEBUG.api = JSON.stringify(page1json, null, 2).substring(0, 8000);
-  } catch(e) {
-    log('API _next/data fallita: ' + e.message, 'err');
-    log('Uso fallback HTML __NEXT_DATA__...', 'warn');
-    await coversFallback(pageUrl, hd);
-    return;
-  }
+  // ── Method 1: _next/data ──────────────────────────────────────────────────
+  if (buildId) {
+    log('Strategia 1: _next/data API...');
+    const page1 = await nextDataFetch(catPath, { page: 1 });
+    if (page1) {
+      DEBUG.api = JSON.stringify(page1, null, 2).substring(0, 8000);
+      const ps = parsePhotos(page1, hd);
+      const al = parseAlbums(page1);
+      const tp = getTotalPages(page1);
+      log(`_next/data pag.1: ${ps.size} foto, ${al.length} album, ${tp} pagine`);
+      DEBUG.photos = [...ps].slice(0, 40).join('\n');
 
-  const totalPages = getTotalPages(page1json);
-  const ps1 = parsePhotos(page1json, hd);
-  const al1 = parseAlbums(page1json);
-  log(`Pag.1: ${ps1.size} foto, ${al1.length} album, ${totalPages} pagine totali`);
-  DEBUG.photos = [...ps1].slice(0, 40).join('\n');
-
-  for (const u of ps1) pushImg(u, null);
-  albumCount += Math.max(al1.length, 1);
-  updStats(); setBar(5, `Pag.1/${totalPages} — ${images.length} img`);
-
-  if (!document.getElementById('opt-all').checked) { log('Solo pag.1', 'warn'); return; }
-
-  for (let p = 2; p <= Math.min(totalPages, 500); p++) {
-    if (stopped || images.length >= limit) break;
-    try {
-      const pd = await fetchNextData(catPath, { page: p });
-      const ps = parsePhotos(pd, hd);
-      const al = parseAlbums(pd);
       for (const u of ps) pushImg(u, null);
       albumCount += Math.max(al.length, 1);
-      setBar(Math.round(p / totalPages * 100), `Pag.${p}/${totalPages} — ${images.length} img`);
-      if (p % 5 === 0) log(`Pag.${p}/${totalPages}: ${images.length} immagini totali`);
-    } catch(e) {
-      if (e.name === 'AbortError') throw e;
-      errCount++; log(`Pag.${p} errore: ${e.message}`, 'warn');
-    }
-    updStats();
-  }
-}
+      updStats(); setBar(5, `Pag.1/${tp} — ${images.length} img`);
 
-async function coversFallback(pageUrl, hd) {
-  // Use the already-fetched __NEXT_DATA__ from initSite
-  const nd = DEBUG.next;
-  if (!nd || nd.startsWith('(')) { log('Nessun dato disponibile', 'err'); return; }
-  try {
-    const parsed = JSON.parse(nd);
-    const ps = parsePhotos(parsed, hd);
-    for (const u of ps) pushImg(u, null);
-    albumCount++; updStats();
-    log(`Fallback HTML: ${ps.size} foto trovate`, ps.size > 0 ? 'success' : 'err');
-  } catch(e) { log('Fallback fallito: ' + e.message, 'err'); }
-}
-
-// ============================================================
-// MODE: DEEP
-// ============================================================
-async function runDeepMode(pageUrl) {
-  const hd = document.getElementById('opt-hd').checked;
-  const catPath = urlToPath(pageUrl);
-  const limit = +document.getElementById('opt-limit').value || 10000;
-
-  log('Raccolta album dalla categoria...');
-  let page1json;
-  try {
-    page1json = await fetchNextData(catPath, { page: 1 });
-    DEBUG.api = JSON.stringify(page1json, null, 2).substring(0, 5000);
-  } catch(e) { log('Errore categoria: ' + e.message, 'err'); return; }
-
-  const totalCatPages = getTotalPages(page1json);
-  const allAlbums = parseAlbums(page1json);
-  log(`Cat pag.1: ${allAlbums.length} album, ${totalCatPages} pagine cat`);
-
-  if (document.getElementById('opt-all').checked) {
-    for (let p = 2; p <= Math.min(totalCatPages, 500); p++) {
-      if (stopped) break;
-      try {
-        const pd = await fetchNextData(catPath, { page: p });
-        parseAlbums(pd, allAlbums);
-        setBar(Math.round(p / totalCatPages * 12), `Cat pag.${p}: ${allAlbums.length} album`);
-      } catch(e) { if (e.name === 'AbortError') throw e; errCount++; }
-    }
-  }
-
-  // Deduplicate by id
-  const unique = [...new Map(allAlbums.map(a => [a.id, a])).values()];
-  log(`Totale: ${unique.length} album unici. Avvio estrazione profonda...`, 'success');
-
-  for (let i = 0; i < unique.length; i++) {
-    if (stopped || images.length >= limit) break;
-    const album = unique[i];
-    const albumPath = `albums/${album.id}`;
-    setBar(12 + Math.round(i / unique.length * 87), `Album ${i+1}/${unique.length} — "${album.name}"`);
-
-    let foundInAlbum = 0;
-    try {
-      const albumJson = await fetchNextData(albumPath, { p: 1 });
-      const ps = parsePhotos(albumJson, hd);
-      const totalAlbPages = getTotalPages(albumJson);
-
-      if (totalAlbPages > 1 && document.getElementById('opt-all').checked) {
-        for (let p = 2; p <= Math.min(totalAlbPages, 100); p++) {
-          if (stopped) break;
-          try {
-            const pd = await fetchNextData(albumPath, { p });
-            parsePhotos(pd, hd, ps);
-          } catch(e) { if (e.name === 'AbortError') throw e; errCount++; }
+      if (document.getElementById('opt-all').checked) {
+        for (let p = 2; p <= Math.min(tp, 500); p++) {
+          if (stopped || images.length >= lim) break;
+          const pd = await nextDataFetch(catPath, { page: p });
+          if (!pd) { errCount++; continue; }
+          const ps2 = parsePhotos(pd, hd);
+          for (const u of ps2) pushImg(u, null);
+          albumCount += Math.max(parseAlbums(pd).length, 1);
+          setBar(Math.round(p/tp*100), `Pag.${p}/${tp} — ${images.length} img`);
+          updStats();
         }
       }
+      if (images.length > 0) return;
+      log('_next/data: 0 foto. Provo metodo 2...', 'warn');
+    }
+  }
 
-      const before = images.length;
-      for (const u of ps) pushImg(u, album.id);
-      foundInAlbum = images.length - before;
-      albumCount++;
+  // ── Method 2: Yupoo native REST API ──────────────────────────────────────
+  if (catId) {
+    log('Strategia 2: API nativa Yupoo (/albums?uid=...)...');
+    try {
+      const page1 = await yupooApiAlbumList(catId, 1);
+      DEBUG.api = JSON.stringify(page1, null, 2).substring(0, 8000);
+      const ps = parsePhotos(page1, hd);
+      const al = parseAlbums(page1);
+      const tp = getTotalPages(page1);
+      log(`API nativa pag.1: ${ps.size} foto, ${al.length} album, ${tp} pagine`);
+      for (const u of ps) pushImg(u, null);
+      albumCount += Math.max(al.length, 1);
+      updStats(); setBar(5, `Pag.1/${tp} — ${images.length} img`);
+
+      if (document.getElementById('opt-all').checked) {
+        for (let p = 2; p <= Math.min(tp, 500); p++) {
+          if (stopped || images.length >= lim) break;
+          try {
+            const pd = await yupooApiAlbumList(catId, p);
+            const ps2 = parsePhotos(pd, hd);
+            for (const u of ps2) pushImg(u, null);
+            albumCount += Math.max(parseAlbums(pd).length, 1);
+            setBar(Math.round(p/tp*100), `Pag.${p}/${tp} — ${images.length} img`);
+          } catch(e) { errCount++; }
+          updStats();
+        }
+      }
+      if (images.length > 0) return;
+      log('API nativa: 0 foto. Provo HTML fallback...', 'warn');
     } catch(e) {
       if (e.name === 'AbortError') throw e;
-      errCount++; log(`Album "${album.name}" errore: ${e.message}`, 'warn');
+      log('API nativa fallita: ' + e.message, 'warn');
+    }
+  }
+
+  // ── Method 3: HTML fallback (use __NEXT_DATA__ already fetched) ───────────
+  log('Strategia 3: fallback HTML __NEXT_DATA__...');
+  if (DEBUG.next && !DEBUG.next.includes('(vuoto)')) {
+    try {
+      const nd = JSON.parse(DEBUG.next);
+      const ps = parsePhotos(nd, hd);
+      for (const u of ps) pushImg(u, null);
+      albumCount++; updStats();
+      log('Fallback HTML: ' + ps.size + ' foto', ps.size > 0 ? 'success' : 'err');
+    } catch(e) { log('Fallback HTML fail: ' + e.message, 'err'); }
+  } else {
+    log('Nessun dato HTML disponibile. Vedi Debug → Proxy raw.', 'err');
+    openDebug('raw');
+    document.getElementById('proxy-note').style.display = 'block';
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MODE: DEEP
+// ─────────────────────────────────────────────────────────────────────────────
+async function runDeepMode(pageUrl) {
+  const hd   = document.getElementById('opt-hd').checked;
+  const lim  = +document.getElementById('opt-limit').value || 10000;
+  const catId = getCategoryId(pageUrl);
+  const catPath = urlToPath(pageUrl);
+
+  // Collect album list
+  log('Raccolta album...');
+  let allAlbums = [];
+
+  // Try _next/data first
+  if (buildId) {
+    const p1 = await nextDataFetch(catPath, { page: 1 });
+    if (p1) {
+      parseAlbums(p1, allAlbums);
+      const tp = getTotalPages(p1);
+      log(`Album trovati pag.1: ${allAlbums.length}, tot pagine cat: ${tp}`);
+      if (document.getElementById('opt-all').checked) {
+        for (let p = 2; p <= Math.min(tp, 500); p++) {
+          if (stopped) break;
+          const pd = await nextDataFetch(catPath, { page: p });
+          if (pd) parseAlbums(pd, allAlbums);
+          setBar(Math.round(p/tp*12), `Cat pag.${p}: ${allAlbums.length} album`);
+        }
+      }
+    }
+  }
+
+  // Fallback to native API
+  if (allAlbums.length === 0 && catId) {
+    log('Raccolta album via API nativa...');
+    try {
+      const p1 = await yupooApiAlbumList(catId, 1);
+      parseAlbums(p1, allAlbums);
+      const tp = getTotalPages(p1);
+      if (document.getElementById('opt-all').checked) {
+        for (let p = 2; p <= Math.min(tp, 500); p++) {
+          if (stopped) break;
+          try { const pd = await yupooApiAlbumList(catId, p); parseAlbums(pd, allAlbums); } catch {}
+        }
+      }
+    } catch(e) { log('Raccolta album fallita: ' + e.message, 'err'); return; }
+  }
+
+  const unique = [...new Map(allAlbums.map(a => [a.id, a])).values()];
+  log(`Totale: ${unique.length} album unici. Avvio deep...`, 'success');
+
+  for (let i = 0; i < unique.length; i++) {
+    if (stopped || images.length >= lim) break;
+    const album = unique[i];
+    setBar(12 + Math.round(i / unique.length * 87), `Album ${i+1}/${unique.length} — "${album.name}"`);
+
+    let found = 0;
+    // Try _next/data then native API
+    for (const method of ['next', 'native']) {
+      if (stopped) break;
+      try {
+        let json;
+        if (method === 'next' && buildId) {
+          json = await nextDataFetch(`albums/${album.id}`, { p: 1 });
+        } else {
+          json = await yupooApiAlbum(album.id, 1);
+        }
+        if (!json) continue;
+
+        const ps = parsePhotos(json, hd);
+        const tp = getTotalPages(json);
+        if (tp > 1 && document.getElementById('opt-all').checked) {
+          for (let p = 2; p <= Math.min(tp, 100); p++) {
+            if (stopped) break;
+            try {
+              const pd = method === 'next'
+                ? await nextDataFetch(`albums/${album.id}`, { p })
+                : await yupooApiAlbum(album.id, p);
+              if (pd) parsePhotos(pd, hd, ps);
+            } catch {}
+          }
+        }
+
+        const before = images.length;
+        for (const u of ps) pushImg(u, album.id);
+        found = images.length - before;
+        if (found > 0) break;
+      } catch(e) { if (e.name === 'AbortError') throw e; }
     }
 
-    if (foundInAlbum > 0) log(`"${album.name}": +${foundInAlbum} → tot ${images.length}`);
+    albumCount++;
+    if (found > 0) log(`"${album.name}": +${found} → tot ${images.length}`);
     else log(`"${album.name}": 0 foto`, 'warn');
     updStats();
   }
 }
 
-// ============================================================
+// ─────────────────────────────────────────────────────────────────────────────
 // MODE: SINGLE ALBUM
-// ============================================================
+// ─────────────────────────────────────────────────────────────────────────────
 async function runAlbumMode(pageUrl) {
-  const hd = document.getElementById('opt-hd').checked;
-  const limit = +document.getElementById('opt-limit').value || 10000;
-  const albumPath = urlToPath(pageUrl); // e.g. "albums/223456789"
+  const hd  = document.getElementById('opt-hd').checked;
+  const lim = +document.getElementById('opt-limit').value || 10000;
+  const albumId = getAlbumId(pageUrl);
+  const path = urlToPath(pageUrl);
 
-  log('Scansione album via API...');
-  try {
-    const json = await fetchNextData(albumPath, { p: 1 });
-    DEBUG.api = JSON.stringify(json, null, 2).substring(0, 8000);
+  log('Scansione album singolo...');
+  let json = null;
 
-    const ps = parsePhotos(json, hd);
-    const totalPages = getTotalPages(json);
-    log(`Album: ${totalPages} pagine, ${ps.size} foto pag.1`);
-
-    if (totalPages > 1 && document.getElementById('opt-all').checked) {
-      for (let p = 2; p <= Math.min(totalPages, 100); p++) {
-        if (stopped) break;
-        try {
-          const pd = await fetchNextData(albumPath, { p });
-          parsePhotos(pd, hd, ps);
-        } catch(e) { if (e.name === 'AbortError') throw e; errCount++; }
-      }
-    }
-
-    DEBUG.photos = [...ps].slice(0, 40).join('\n');
-    for (const u of [...ps].slice(0, limit)) pushImg(u, null);
-    albumCount = 1;
-  } catch(e) {
-    if (e.name === 'AbortError') throw e;
-    log('API album fallita: ' + e.message, 'err');
-    await coversFallback(pageUrl, hd);
+  if (buildId) json = await nextDataFetch(path, { p: 1 });
+  if (!json && albumId) {
+    try { json = await yupooApiAlbum(albumId, 1); } catch {}
   }
-  updStats();
+
+  if (!json) { log('Album non accessibile via API.', 'err'); return; }
+
+  DEBUG.api = JSON.stringify(json, null, 2).substring(0, 8000);
+  const ps = parsePhotos(json, hd);
+  const tp = getTotalPages(json);
+  log(`Album: ${tp} pagine, ${ps.size} foto pag.1`);
+
+  if (tp > 1 && document.getElementById('opt-all').checked) {
+    for (let p = 2; p <= Math.min(tp, 100); p++) {
+      if (stopped) break;
+      try {
+        const pd = buildId
+          ? await nextDataFetch(path, { p })
+          : await yupooApiAlbum(albumId, p);
+        if (pd) parsePhotos(pd, hd, ps);
+      } catch {}
+    }
+  }
+
+  DEBUG.photos = [...ps].slice(0, 40).join('\n');
+  for (const u of [...ps].slice(0, lim)) pushImg(u, null);
+  albumCount = 1; updStats();
 }
 
-// ============================================================
+// ─────────────────────────────────────────────────────────────────────────────
 // MAIN
-// ============================================================
+// ─────────────────────────────────────────────────────────────────────────────
 async function start() {
   const raw = document.getElementById('url-input').value.trim();
   if (!raw) { alert('Inserisci un link Yupoo.'); return; }
   let url; try { url = new URL(raw).href; } catch { alert('URL non valido.'); return; }
 
   images = []; seenUrls.clear();
-  albumCount = 0; pageCount = 0; errCount = 0; stopped = false;
-  DEBUG = { api: '', html: '', next: '', photos: '' };
+  albumCount = 0; pageCount = 0; errCount = 0; stopped = false; buildId = '';
+  DEBUG = { raw: '', api: '', next: '', photos: '' };
   if (abortCtrl) abortCtrl.abort();
   abortCtrl = new AbortController();
 
@@ -538,6 +712,7 @@ async function start() {
   document.getElementById('status-area').style.display  = 'block';
   document.getElementById('preview-area').style.display = 'none';
   document.getElementById('debug-area').style.display   = 'none';
+  document.getElementById('proxy-note').style.display   = 'none';
   document.getElementById('pgrid').innerHTML = '';
   document.getElementById('log').innerHTML   = '';
   document.getElementById('act-row').style.display  = 'none';
@@ -549,17 +724,8 @@ async function start() {
   log(`Shop: ${username} | Modalità: ${isAlbum ? 'ALBUM SINGOLO' : extractMode.toUpperCase()}`);
 
   try {
-    // Always init to get buildId (also grabs any photos already in __NEXT_DATA__)
-    const nd = await initSite(url);
-    const hd = document.getElementById('opt-hd').checked;
-
-    // Bonus: any photos in the HTML's __NEXT_DATA__ (e.g. covers on category page)
-    const bonusSet = parsePhotos(nd, hd);
-    if (bonusSet.size > 0) {
-      log(`Bonus: ${bonusSet.size} foto da __NEXT_DATA__ HTML`);
-      for (const u of bonusSet) pushImg(u, null);
-      updStats();
-    }
+    // Try to get buildId (non-fatal if fails)
+    buildId = await getBuildId(url) || '';
 
     if (isAlbum) {
       await runAlbumMode(url);
@@ -570,12 +736,12 @@ async function start() {
     }
 
     setBar(100, `✓ ${images.length} immagini`);
-    log(`Fine: ${images.length} immagini, ${albumCount} album, ${errCount} errori.`,
-      images.length > 0 ? 'success' : 'err');
+    log(`Fine: ${images.length} img, ${albumCount} album, ${errCount} err`, images.length > 0 ? 'success' : 'err');
 
     if (images.length === 0) {
-      log('0 immagini — apri Debug → "API JSON" e mandami lo screenshot', 'err');
-      openDebug('api');
+      log('0 immagini. Vedi Debug panel per capire il problema.', 'err');
+      openDebug('raw');
+      document.getElementById('proxy-note').style.display = 'block';
     } else {
       document.getElementById('pre-lbl').textContent = `Anteprima — ${images.length} immagini`;
       document.getElementById('info-box').style.display = 'block';
@@ -583,7 +749,7 @@ async function start() {
     }
   } catch(e) {
     if (e.name === 'AbortError') { log('Fermato.', 'warn'); }
-    else { log('Errore critico: ' + e.message, 'err'); setBar(0, 'Errore'); openDebug('next'); }
+    else { log('Errore: ' + e.message, 'err'); setBar(0, 'Errore'); openDebug('raw'); }
   } finally {
     document.getElementById('start-btn').disabled = false;
     document.getElementById('stop-btn').style.display = 'none';
@@ -601,23 +767,23 @@ function setMode(m) {
   document.getElementById('m-deep').classList.toggle('on', m === 'deep');
 }
 
-// ============================================================
+// ─────────────────────────────────────────────────────────────────────────────
 // DEBUG
-// ============================================================
+// ─────────────────────────────────────────────────────────────────────────────
 function openDebug(tab) {
   document.getElementById('debug-area').style.display = 'block';
-  showDebug(tab);
+  showDebug(tab || 'raw');
 }
 function showDebug(tab) {
-  ['api','html','next','photos'].forEach(t =>
+  ['raw','api','next','photos'].forEach(t =>
     document.getElementById('dtab-' + t).classList.toggle('on', t === tab));
   document.getElementById('debug-box').textContent =
-    DEBUG[tab] || '(vuoto — esegui prima un\'estrazione)';
+    DEBUG[tab] || '(vuoto — esegui un\'estrazione)';
 }
 
-// ============================================================
-// UI HELPERS
-// ============================================================
+// ─────────────────────────────────────────────────────────────────────────────
+// UI
+// ─────────────────────────────────────────────────────────────────────────────
 function log(msg, type) {
   if (!type) type = 'info';
   const c = document.getElementById('log');
@@ -646,45 +812,42 @@ function addPrev(url) {
   document.getElementById('preview-area').style.display = 'block';
 }
 
-// ============================================================
+// ─────────────────────────────────────────────────────────────────────────────
 // EXPORT
-// ============================================================
+// ─────────────────────────────────────────────────────────────────────────────
 function exportJSON() {
   if (!images.length) return;
   const raw = document.getElementById('url-input').value.trim();
-  const albumId = raw.split('/').filter(Boolean).pop() || 'catalog';
+  const id  = raw.split('/').filter(Boolean).pop() || 'catalog';
   const blob = new Blob([JSON.stringify({
-    _meta: { source: raw, album: albumId, total: images.length,
-             generated: new Date().toISOString(), extractor: 'v7-nextdata-api' },
+    _meta: { source: raw, album: id, total: images.length, generated: new Date().toISOString(), extractor: 'v8' },
     images
   }, null, 2)], { type: 'application/json' });
-  saveAs(blob, `catalog_${albumId}.json`);
-  log('&#10003; catalog_' + albumId + '.json — ' + (blob.size / 1024).toFixed(1) + ' KB', 'success');
+  saveAs(blob, `catalog_${id}.json`);
+  log('Salvato catalog_' + id + '.json — ' + (blob.size/1024).toFixed(1) + ' KB', 'success');
 }
 
 async function exportZip() {
   if (!images.length) return;
   document.getElementById('act-row').querySelectorAll('button').forEach(b => b.disabled = true);
-  log('ZIP: ' + images.length + ' img...'); setBar(0, 'Download...');
-  const zip = new JSZip();
-  const folder = zip.folder('yupoo_images');
+  log('ZIP ' + images.length + ' img...'); setBar(0, 'Download...');
+  const zip = new JSZip(), folder = zip.folder('yupoo_images');
   let done = 0;
+  const proxy0 = u => `https://corsproxy.io/?${encodeURIComponent(u)}`;
   for (let i = 0; i < images.length; i++) {
     const { url, filename } = images[i];
     try {
       let blob;
-      try { const r = await fetch(url, { mode: 'cors' }); if (!r.ok) throw 0; blob = await r.blob(); }
-      catch  { const r = await fetch(PROXIES[0](url));                         blob = await r.blob(); }
+      try { const r = await fetch(url, { mode:'cors' }); if (!r.ok) throw 0; blob = await r.blob(); }
+      catch  { const r = await fetch(proxy0(url));                           blob = await r.blob(); }
       folder.file(filename, blob); done++;
     } catch {}
-    setBar(Math.round((i + 1) / images.length * 90), `${i+1}/${images.length}...`);
+    setBar(Math.round((i+1)/images.length*90), `${i+1}/${images.length}...`);
   }
-  const c = await zip.generateAsync(
-    { type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } },
-    m => setBar(90 + m.percent * .1, 'ZIP ' + Math.round(m.percent) + '%...')
-  );
-  saveAs(c, 'yupoo_' + done + 'img.zip');
-  log('&#10003; ZIP: ' + done + ' img', 'success'); setBar(100, '&#10003;');
+  const c = await zip.generateAsync({ type:'blob', compression:'DEFLATE', compressionOptions:{ level:6 } },
+    m => setBar(90 + m.percent*.1, 'ZIP ' + Math.round(m.percent) + '%...'));
+  saveAs(c, `yupoo_${done}img.zip`);
+  log('ZIP pronto: ' + done + ' img', 'success'); setBar(100, '✓');
   document.getElementById('act-row').querySelectorAll('button').forEach(b => b.disabled = false);
 }
 
