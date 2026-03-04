@@ -182,6 +182,7 @@ async function load() {
     if (r.ok) { init(await r.json()); return; }
   } catch {}
   showUpload();
+}
 
 async function downloadZip() {
   if (!allItems.length) return;
@@ -229,14 +230,24 @@ async function downloadZip() {
 
 // Worker URL init
 (function() {
-  const saved = localStorage.getItem('yupoo_worker_url');
-  if (saved) {
-    workerUrl = saved;
-    const inp = document.getElementById('cv-worker-url');
-    if (inp) { inp.value = saved; inp.classList.add('ok'); }
-    const st = document.getElementById('cv-worker-status');
-    if (st) { st.className = 'ok'; st.textContent = '✓ Worker attivo'; }
+  // Read active worker URL: injected → localStorage → input default value
+  const injected = (typeof window.__WORKER_URL__ !== 'undefined') ? window.__WORKER_URL__ : '';
+  const saved = localStorage.getItem('yupoo_worker_url') || '';
+  const inp = document.getElementById('cv-worker-url');
+  const inputDefault = inp ? inp.value : '';
+  const active = injected || saved || inputDefault || '';
+  if (active) {
+    workerUrl = active;
+    if (inp) { inp.value = active; }
+    if (active && active.includes('workers.dev')) {
+      if (inp) inp.classList.add('ok');
+      const st = document.getElementById('cv-worker-status');
+      if (st) { st.className = 'ok'; st.textContent = '✓ Worker attivo'; }
+    }
+    localStorage.setItem('yupoo_worker_url', active);
   }
+  // Re-render images with active worker if catalog already loaded
+  if (typeof render === 'function' && allItems && allItems.length > 0) render();
 })();
 
 function cvWorkerChange() {
@@ -516,14 +527,24 @@ async function downloadZip() {
 
 // Worker URL init
 (function() {
-  const saved = localStorage.getItem('yupoo_worker_url');
-  if (saved) {
-    workerUrl = saved;
-    const inp = document.getElementById('cv-worker-url');
-    if (inp) { inp.value = saved; inp.classList.add('ok'); }
-    const st = document.getElementById('cv-worker-status');
-    if (st) { st.className = 'ok'; st.textContent = '✓ Worker attivo'; }
+  // Read active worker URL: injected → localStorage → input default value
+  const injected = (typeof window.__WORKER_URL__ !== 'undefined') ? window.__WORKER_URL__ : '';
+  const saved = localStorage.getItem('yupoo_worker_url') || '';
+  const inp = document.getElementById('cv-worker-url');
+  const inputDefault = inp ? inp.value : '';
+  const active = injected || saved || inputDefault || '';
+  if (active) {
+    workerUrl = active;
+    if (inp) { inp.value = active; }
+    if (active && active.includes('workers.dev')) {
+      if (inp) inp.classList.add('ok');
+      const st = document.getElementById('cv-worker-status');
+      if (st) { st.className = 'ok'; st.textContent = '✓ Worker attivo'; }
+    }
+    localStorage.setItem('yupoo_worker_url', active);
   }
+  // Re-render images with active worker if catalog already loaded
+  if (typeof render === 'function' && allItems && allItems.length > 0) render();
 })();
 
 function cvWorkerChange() {
@@ -542,5 +563,6 @@ function cvWorkerChange() {
   // Re-render with new proxy
   render();
 }
+</script>
 </body>
 </html>
