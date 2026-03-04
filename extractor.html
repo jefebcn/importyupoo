@@ -46,6 +46,24 @@
   .opt input[type=checkbox]{width:14px;height:14px;accent-color:var(--accent);cursor:pointer}
   .opt span{font-size:12px;color:var(--muted)}
   .num-input{width:80px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:5px 8px;color:var(--text);font-family:'Space Mono',monospace;font-size:11px;outline:none;text-align:center}
+  /* ── Input mode tabs ── */
+  .input-tabs{display:flex;gap:8px;margin-bottom:12px}
+  .itab{background:transparent;border:1px solid var(--border);border-radius:8px;padding:6px 16px;color:var(--muted);font-size:11px;font-family:'Space Mono',monospace;cursor:pointer;transition:all .2s}
+  .itab.active{background:var(--accent);border-color:var(--accent);color:#000;font-weight:700}
+  .itab:hover:not(.active){border-color:var(--accent);color:var(--accent)}
+
+  /* ── Batch textarea ── */
+  #batch-input{width:100%;min-height:110px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px;color:var(--text);font-family:'Space Mono',monospace;font-size:11px;resize:vertical;outline:none;box-sizing:border-box;transition:border-color .2s;line-height:1.6}
+  #batch-input:focus{border-color:var(--accent)}
+  .batch-controls{display:flex;align-items:center;justify-content:space-between;margin-top:10px}
+  .batch-count{font-family:'Space Mono',monospace;font-size:10px;color:var(--muted)}
+  #batch-progress{margin-top:10px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px;max-height:160px;overflow-y:auto}
+  #batch-log{font-family:'Space Mono',monospace;font-size:10px;line-height:1.7}
+  #batch-log .bl-ok{color:#00e5a0}
+  #batch-log .bl-err{color:var(--err)}
+  #batch-log .bl-cur{color:var(--accent)}
+  #batch-log .bl-info{color:var(--muted)}
+
   .worker-cfg{margin-top:14px;border:1px solid rgba(0,229,255,.2);border-radius:12px;padding:12px 16px;background:rgba(0,229,255,.03)}
   .worker-row{display:flex;align-items:center;gap:10px}
   .worker-icon{font-size:16px;flex-shrink:0}
@@ -117,12 +135,32 @@
       </div>
     </div>
 
-    <label class="lbl">Link Yupoo — Categoria o Album</label>
-    <div class="row">
-      <input type="text" id="url-input"
-        placeholder="https://huskyreps.x.yupoo.com/categories/5003229"
-        autocomplete="off" spellcheck="false"/>
-      <button class="btn" id="start-btn" onclick="start()">Estrai →</button>
+    <!-- Mode tabs -->
+    <div class="input-tabs">
+      <button class="itab active" id="tab-single" onclick="setInputMode('single')">🔗 Singolo</button>
+      <button class="itab" id="tab-batch" onclick="setInputMode('batch')">📋 Batch (più link)</button>
+    </div>
+
+    <!-- Single mode -->
+    <div id="single-area">
+      <div class="row">
+        <input type="text" id="url-input"
+          placeholder="https://huskyreps.x.yupoo.com/categories/5003229"
+          autocomplete="off" spellcheck="false"/>
+        <button class="btn" id="start-btn" onclick="start()">Estrai →</button>
+      </div>
+    </div>
+
+    <!-- Batch mode -->
+    <div id="batch-area" style="display:none">
+      <textarea id="batch-input" placeholder="Incolla uno o più link Yupoo, uno per riga:&#10;https://huskyreps.x.yupoo.com/categories/5003170&#10;https://huskyreps.x.yupoo.com/categories/5003229&#10;https://huskyreps.x.yupoo.com/albums/1234567" autocomplete="off" spellcheck="false"></textarea>
+      <div class="batch-controls">
+        <span id="batch-count" class="batch-count">0 link</span>
+        <button class="btn" id="batch-btn" onclick="startBatch()">🚀 Estrai &amp; ZIP tutto</button>
+      </div>
+      <div id="batch-progress" style="display:none">
+        <div id="batch-log"></div>
+      </div>
     </div>
     <div class="opts">
       <label class="opt"><input type="checkbox" id="opt-hd" checked/><span>HD</span></label>
@@ -1212,15 +1250,15 @@ async function exportZip() {
   // Quick test on first image — log exact URL for debugging
   const img0 = images[0];
   const orig0 = img0.originalUrl || img0.url;
-  log('URL da scaricare: ' + orig0.split('/').slice(-3).join('/'));
-  let firstResult;
+  log('Test download: ' + orig0.split('/').slice(-3).join('/'));
+  let firstBlob;
   try {
-    firstResult = await fetchImageBlob(img0.url, img0.originalUrl);
-    const variant = firstResult.usedUrl ? firstResult.usedUrl.split('/').pop() : '?';
-    log(`✅ Worker OK — ${(firstResult.size/1024).toFixed(0)}KB | variante: ${variant}`, 'success');
+    const src0 = workerUrl.replace(/\/$/, '') + '/?url=' + encodeURIComponent(orig0);
+    firstBlob = await imgToBlob(src0);
+    log(`✅ Worker OK — ${(firstBlob.size/1024).toFixed(0)}KB`, 'success');
   } catch(e) {
     log(`❌ Worker fallito: ${e.message}`, 'err');
-    log('URL completa: ' + orig0, 'warn');
+    log('URL: ' + orig0, 'warn');
     document.getElementById('act-row').querySelectorAll('button').forEach(b => b.disabled = false);
     setBar(0, 'Test fallito');
     return;
@@ -1229,12 +1267,13 @@ async function exportZip() {
   const zip = new JSZip();
   const folder = zip.folder('yupoo_images');
   let done = 0, failed = 0;
-  folder.file(images[0].filename, firstResult.blob); done++;
+  folder.file(images[0].filename, firstBlob); done++;
 
   for (let i = 1; i < images.length; i++) {
     const img = images[i];
+    const src = workerUrl.replace(/\/$/, '') + '/?url=' + encodeURIComponent(img.originalUrl || img.url);
     try {
-      const { blob } = await fetchImageBlob(img.url, img.originalUrl);
+      const blob = await imgToBlob(src);
       folder.file(img.filename, blob); done++;
     } catch(e) {
       failed++;
@@ -1262,6 +1301,174 @@ async function exportZip() {
 }
 
 document.getElementById('url-input').addEventListener('keydown', e => { if (e.key === 'Enter') start(); });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// INPUT MODE (single / batch)
+// ─────────────────────────────────────────────────────────────────────────────
+let inputMode = 'single';
+
+function setInputMode(mode) {
+  inputMode = mode;
+  document.getElementById('single-area').style.display = mode === 'single' ? '' : 'none';
+  document.getElementById('batch-area').style.display  = mode === 'batch'  ? '' : 'none';
+  document.getElementById('tab-single').classList.toggle('active', mode === 'single');
+  document.getElementById('tab-batch').classList.toggle('active', mode === 'batch');
+}
+
+// Count links as user types in batch textarea
+document.getElementById('batch-input').addEventListener('input', function() {
+  const links = parseBatchUrls(this.value);
+  const cnt = document.getElementById('batch-count');
+  cnt.textContent = links.length + (links.length === 1 ? ' link' : ' link');
+  cnt.style.color = links.length > 0 ? 'var(--accent)' : 'var(--muted)';
+});
+
+function parseBatchUrls(text) {
+  return text.split(/[\n,;\s]+/)
+    .map(s => s.trim())
+    .filter(s => s.startsWith('http') && s.includes('yupoo.com'));
+}
+
+function blogBatch(msg, cls) {
+  const d = document.getElementById('batch-log');
+  const line = document.createElement('div');
+  if (cls) line.className = cls;
+  line.textContent = msg;
+  d.appendChild(line);
+  d.scrollTop = d.scrollHeight;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// BATCH EXTRACT + ZIP
+// Processes multiple Yupoo URLs one by one, packages all images into one ZIP
+// with one subfolder per link, then triggers download.
+// ─────────────────────────────────────────────────────────────────────────────
+async function startBatch() {
+  const urls = parseBatchUrls(document.getElementById('batch-input').value);
+  if (!urls.length) { alert('Nessun link Yupoo valido trovato. Incolla uno per riga.'); return; }
+  if (!workerUrl) {
+    alert('Configura il Worker URL (campo ⚡) prima di usare il Batch.');
+    return;
+  }
+
+  const btn = document.getElementById('batch-btn');
+  btn.disabled = true;
+  const prog = document.getElementById('batch-progress');
+  prog.style.display = 'block';
+  document.getElementById('batch-log').innerHTML = '';
+
+  blogBatch(`📋 Batch avviato: ${urls.length} link da processare`, 'bl-info');
+
+  const zip = new JSZip();
+  let totalDone = 0, totalFailed = 0;
+
+  for (let i = 0; i < urls.length; i++) {
+    const url = urls[i];
+    const shortName = url.split('/').filter(Boolean).pop() || ('link_' + (i+1));
+    blogBatch(`\n[${i+1}/${urls.length}] 🔄 ${shortName} — estrazione...`, 'bl-cur');
+
+    // ── Extract images for this URL ──
+    let extractedImages = [];
+    try {
+      extractedImages = await extractUrl(url);
+      blogBatch(`  ✅ ${extractedImages.length} immagini trovate`, 'bl-ok');
+    } catch(e) {
+      blogBatch(`  ❌ Estrazione fallita: ${e.message}`, 'bl-err');
+      totalFailed++;
+      continue;
+    }
+
+    if (!extractedImages.length) {
+      blogBatch(`  ⚠ Nessuna immagine trovata, skip`, 'bl-err');
+      continue;
+    }
+
+    // ── Download images via canvas into ZIP subfolder ──
+    const folder = zip.folder(shortName);
+    let done = 0, failed = 0;
+    const shopH = new URL(url).hostname;
+
+    for (let j = 0; j < extractedImages.length; j++) {
+      const img = extractedImages[j];
+      const src = workerUrl.replace(/\/$/, '') + '/?url=' + encodeURIComponent(img.originalUrl || img.url);
+      try {
+        const blob = await imgToBlob(src);
+        folder.file(img.filename, blob);
+        done++;
+      } catch(e) {
+        failed++;
+      }
+      if ((j+1) % 5 === 0 || j === extractedImages.length - 1) {
+        blogBatch(`  📥 ${j+1}/${extractedImages.length} — ✓${done} ✗${failed}`, 'bl-info');
+      }
+    }
+    totalDone += done;
+    blogBatch(`  📦 ${shortName}: ${done} immagini scaricate${failed ? ', ' + failed + ' fallite' : ''}`, done > 0 ? 'bl-ok' : 'bl-err');
+  }
+
+  if (totalDone === 0) {
+    blogBatch('\n❌ Nessuna immagine scaricata in nessun link.', 'bl-err');
+    btn.disabled = false; return;
+  }
+
+  blogBatch(`\n📦 Creazione ZIP finale (${totalDone} immagini totali)...`, 'bl-cur');
+  const zipBlob = await zip.generateAsync(
+    { type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 4 } },
+    m => { if (m.percent % 20 < 1) blogBatch(`  ZIP: ${Math.round(m.percent)}%`, 'bl-info'); }
+  );
+
+  const ts = new Date().toISOString().slice(0,10);
+  saveAs(zipBlob, `yupoo_batch_${urls.length}links_${totalDone}img_${ts}.zip`);
+  blogBatch(`\n✅ ZIP scaricato! ${totalDone} immagini da ${urls.length} link.`, 'bl-ok');
+  btn.disabled = false;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// extractUrl — runs the full extraction pipeline for a single URL
+// Returns array of image objects {url, originalUrl, filename}
+// ─────────────────────────────────────────────────────────────────────────────
+async function extractUrl(rawUrl) {
+  const url = new URL(rawUrl).href;
+  const u   = new URL(url);
+  const uname = u.hostname.split('.')[0];
+  const sBase = u.protocol + '//' + u.hostname;
+  const isAlb = /\/albums\//.test(url);
+  const hd    = document.getElementById('opt-hd').checked;
+
+  // Reset per-extraction state
+  images = []; seenUrls.clear();
+  username = uname; siteBase = sBase; shopHost = u.hostname;
+  albumCount = 0; pageCount = 0; errCount = 0; cachedHtml = '';
+  buildId = await getBuildId(url).catch(() => '');
+
+  if (isAlb) {
+    await runAlbumMode(url);
+  } else if (extractMode === 'covers') {
+    await runCoversMode(url);
+  } else {
+    await runDeepMode(url);
+  }
+
+  return [...images]; // snapshot
+}
+
+// imgToBlob — canvas-based image capture (used by batch and standalone viewer)
+function imgToBlob(src) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    const timer = setTimeout(() => reject(new Error('timeout')), 20000);
+    img.onload = () => {
+      clearTimeout(timer);
+      const c = document.createElement('canvas');
+      c.width = img.naturalWidth; c.height = img.naturalHeight;
+      c.getContext('2d').drawImage(img, 0, 0);
+      c.toBlob(b => b ? resolve(b) : reject(new Error('toBlob failed')), 'image/jpeg', 0.92);
+    };
+    img.onerror = () => { clearTimeout(timer); reject(new Error('load failed')); };
+    img.src = src;
+  });
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // WORKER URL MANAGEMENT
