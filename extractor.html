@@ -3,1041 +3,347 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>LilloFind — Yupoo Downloader</title>
-<link rel="preconnect" href="https://fonts.googleapis.com"/>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet"/>
+<title>LilloFind — Catalogo Yupoo → CSV</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Bebas+Neue&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
 <style>
-  /* ── FONTS ── */
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
+:root{
+  --bg:#0a0a0a;--card:#111;--surface:#161616;--border:#222;--border2:#2a2a2a;
+  --accent:#c8ff00;--accent2:#ff4444;--accent3:#ff9900;--purple:#a78bfa;
+  --text:#f0f0f0;--text2:#888;--muted:#444;
+  --ok:#4caf50;--err:#f44336;--warn:#ff9800;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'Space Mono',monospace;font-size:12px;min-height:100vh;}
 
-  /* ── TOKENS ── */
-  :root {
-    --bg: #0a0a0f;
-    --card: #111118;
-    --surface: #16161e;
-    --surface2: #1c1c26;
-    --border: #2a2a3a;
-    --border2: #333345;
-    --accent: #a78bfa;       /* soft violet */
-    --accent2: #f472b6;      /* pink */
-    --accent3: #34d399;      /* emerald */
-    --text: #e2e2f0;
-    --text2: #9090b0;
-    --muted: #5a5a78;
-    --ok: #34d399;
-    --err: #f87171;
-    --warn: #fbbf24;
-  }
+header{background:var(--card);border-bottom:2px solid var(--accent);padding:12px 24px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;}
+.logo{font-family:'Bebas Neue';font-size:24px;letter-spacing:5px;color:var(--accent);}
+.logo em{color:#333;font-style:normal;margin:0 8px;}
+.logo small{font-family:'Space Mono';font-size:10px;color:var(--muted);letter-spacing:2px;display:block;margin-top:-4px;}
 
-  /* ── RESET ── */
-  *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: 'Inter', system-ui, sans-serif;
-    min-height: 100vh;
-    overflow-x: hidden;
-    font-size: 14px;
-    line-height: 1.6;
-  }
+/* CONFIG STRIP */
+.config-strip{background:#0a0f00;border-bottom:1px solid #1a2200;padding:8px 24px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
+.cfg-label{font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;}
+.cfg-input{background:#111;border:1px solid #2a2a2a;color:var(--accent);font-family:'Space Mono';font-size:12px;padding:4px 10px;outline:none;border-radius:2px;}
+.cfg-input:focus{border-color:var(--accent);}
+.cfg-input.wide{width:320px;color:var(--text2);}
+.cfg-input.wide.ok{border-color:var(--ok);color:var(--ok);}
+.cfg-select{background:#111;border:1px solid #2a2a2a;color:var(--text);font-family:'Space Mono';font-size:11px;padding:4px 8px;outline:none;border-radius:2px;cursor:pointer;}
+.cfg-sep{width:1px;height:24px;background:var(--border2);}
+.rate-val{color:var(--accent);font-size:13px;}
 
-  /* Subtle noise texture */
-  body::before {
-    content:'';
-    position:fixed; inset:0;
-    background: radial-gradient(ellipse 80% 50% at 20% -10%, rgba(167,139,250,.08) 0%, transparent 60%),
-                radial-gradient(ellipse 60% 40% at 80% 110%, rgba(244,114,182,.06) 0%, transparent 60%);
-    pointer-events:none; z-index:0;
-  }
+/* MAIN INPUT SECTION */
+.input-section{padding:20px 24px;background:var(--card);border-bottom:1px solid var(--border);}
+.section-label{font-size:9px;letter-spacing:3px;color:var(--muted);text-transform:uppercase;margin-bottom:10px;}
+.url-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+.url-input{flex:1;min-width:300px;background:var(--surface);border:1px solid var(--border2);color:var(--text);font-family:'Space Mono';font-size:12px;padding:10px 14px;outline:none;border-radius:3px;}
+.url-input:focus{border-color:var(--accent);}
+.url-input::placeholder{color:#333;}
 
-  /* ── LAYOUT ── */
-  .wrap {
-    position:relative; z-index:1;
-    max-width: 780px;
-    margin: 0 auto;
-    padding: 32px 20px 80px;
-  }
+/* BUTTONS */
+.btn{font-family:'Space Mono';font-size:10px;letter-spacing:2px;text-transform:uppercase;padding:9px 18px;border:none;cursor:pointer;border-radius:2px;transition:all .15s;white-space:nowrap;}
+.btn:disabled{opacity:.3;cursor:not-allowed;}
+.btn-primary{background:var(--accent);color:#000;font-weight:700;}
+.btn-primary:hover:not(:disabled){background:#d9ff33;}
+.btn-outline{background:transparent;border:1px solid var(--border2);color:var(--text2);}
+.btn-outline:hover:not(:disabled){border-color:var(--text2);color:var(--text);}
+.btn-green{background:transparent;border:1px solid var(--ok);color:var(--ok);}
+.btn-green:hover:not(:disabled){background:var(--ok);color:#000;}
+.btn-orange{background:transparent;border:1px solid var(--accent3);color:var(--accent3);}
+.btn-orange:hover:not(:disabled){background:var(--accent3);color:#000;}
+.btn-purple{background:transparent;border:1px solid var(--purple);color:var(--purple);}
+.btn-purple:hover:not(:disabled){background:var(--purple);color:#000;}
+.btn-red{background:transparent;border:1px solid var(--err);color:var(--err);}
+.btn-red:hover:not(:disabled){background:var(--err);color:#fff;}
 
-  /* ── HEADER ── */
-  .app-header {
-    text-align: center;
-    margin-bottom: 36px;
-  }
-  .app-logo {
-    display: inline-flex;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 6px;
-  }
-  .app-logo-icon {
-    width: 36px; height: 36px;
-    background: linear-gradient(135deg, var(--accent), var(--accent2));
-    border-radius: 10px;
-    display: grid; place-items: center;
-    font-size: 18px;
-  }
-  .app-title {
-    font-size: 22px;
-    font-weight: 700;
-    background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    letter-spacing: -.3px;
-  }
-  .app-subtitle {
-    font-size: 12px;
-    color: var(--muted);
-    letter-spacing: .5px;
-  }
+/* PROGRESS */
+.progress-section{padding:10px 24px;background:var(--surface);border-bottom:1px solid var(--border);display:none;}
+.progress-section.visible{display:block;}
+.progress-bar-wrap{height:4px;background:#1a1a1a;border-radius:2px;overflow:hidden;margin:8px 0;}
+.progress-bar-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent3));transition:width .3s;border-radius:2px;width:0%;}
+.progress-text{font-size:10px;color:var(--text2);letter-spacing:1px;}
 
-  /* ── CARD ── */
-  .card {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 24px;
-    margin-bottom: 16px;
-    position: relative;
-    overflow: hidden;
-  }
-  .card::before {
-    content: '';
-    position: absolute;
-    top: 0; left: 0; right: 0;
-    height: 1px;
-    background: linear-gradient(90deg, transparent, rgba(167,139,250,.4), transparent);
-  }
-  .card-title {
-    font-size: 11px;
-    font-weight: 600;
-    color: var(--muted);
-    letter-spacing: 1.2px;
-    text-transform: uppercase;
-    margin-bottom: 16px;
-  }
+/* LOG */
+.log-section{background:var(--surface);border-bottom:1px solid var(--border);max-height:90px;overflow-y:auto;font-size:10px;font-family:'Space Mono';padding:8px 24px;line-height:1.9;}
+.log-section .ok{color:var(--ok);}
+.log-section .err{color:var(--err);}
+.log-section .warn{color:var(--warn);}
+.log-section .info{color:var(--purple);}
 
-  /* ── MODE SELECTOR ── */
-  .mode-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
-    margin-bottom: 20px;
-  }
-  .mode-card {
-    background: var(--surface);
-    border: 1.5px solid var(--border);
-    border-radius: 12px;
-    padding: 14px 16px;
-    cursor: pointer;
-    transition: all .2s;
-    text-align: left;
-  }
-  .mode-card:hover { border-color: var(--accent); }
-  .mode-card.active {
-    background: rgba(167,139,250,.08);
-    border-color: var(--accent);
-  }
-  .mode-card-icon { font-size: 18px; margin-bottom: 6px; }
-  .mode-card-name {
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--text);
-    margin-bottom: 2px;
-  }
-  .mode-card.active .mode-card-name { color: var(--accent); }
-  .mode-card-desc { font-size: 11px; color: var(--muted); }
+/* STATS BAR */
+.stats-bar{background:var(--card);border-bottom:1px solid var(--border);padding:8px 24px;display:flex;gap:24px;align-items:center;flex-wrap:wrap;}
+.stat-item span{color:var(--muted);font-size:9px;letter-spacing:2px;}
+.stat-item strong{color:var(--accent);font-size:15px;font-family:'Bebas Neue';letter-spacing:1px;}
+.action-btns{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;}
 
-  /* ── INPUT TABS ── */
-  .input-tabs {
-    display: flex;
-    gap: 6px;
-    margin-bottom: 14px;
-    background: var(--surface);
-    padding: 4px;
-    border-radius: 10px;
-    width: fit-content;
-  }
-  .itab {
-    background: transparent;
-    border: none;
-    border-radius: 7px;
-    padding: 6px 16px;
-    color: var(--text2);
-    font-size: 12px;
-    font-weight: 500;
-    font-family: 'Inter', sans-serif;
-    cursor: pointer;
-    transition: all .2s;
-  }
-  .itab.active {
-    background: var(--card);
-    color: var(--accent);
-    box-shadow: 0 1px 4px rgba(0,0,0,.4);
-  }
-  .itab:hover:not(.active) { color: var(--text); }
+/* TABLE */
+.table-wrap{overflow-x:auto;}
+table{width:100%;border-collapse:collapse;font-size:11px;}
+thead th{background:#0a0f00;color:var(--accent);font-size:9px;letter-spacing:2px;padding:10px 10px;text-align:left;border-bottom:1px solid #1a2200;white-space:nowrap;position:sticky;top:0;z-index:5;}
+tbody tr:nth-child(odd){background:#0c0c0c;}
+tbody tr:nth-child(even){background:#0a0a0a;}
+tbody tr:hover{background:#0f1400;}
+tbody tr.uploading{background:#0f0a00;}
+tbody tr.uploaded{background:#001a00;}
+tbody tr.upload-err{background:#1a0000;}
+td{padding:7px 10px;border-bottom:1px solid #161616;vertical-align:middle;}
+td input{background:transparent;border:none;color:var(--text);font-family:'Space Mono';font-size:11px;width:100%;outline:none;}
+td input:focus{background:#141400;border-bottom:1px solid var(--accent);padding-bottom:1px;}
 
-  /* ── URL INPUT ── */
-  .lbl {
-    display: block;
-    font-size: 11px;
-    font-weight: 600;
-    color: var(--muted);
-    letter-spacing: .8px;
-    text-transform: uppercase;
-    margin-bottom: 8px;
-  }
-  .row { display: flex; gap: 8px; }
-  input[type=text], input[type=number] {
-    flex: 1;
-    background: var(--surface);
-    border: 1.5px solid var(--border);
-    border-radius: 10px;
-    padding: 11px 16px;
-    color: var(--text);
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 12px;
-    outline: none;
-    transition: border-color .2s, box-shadow .2s;
-  }
-  input[type=text]:focus, input[type=number]:focus {
-    border-color: var(--accent);
-    box-shadow: 0 0 0 3px rgba(167,139,250,.12);
-  }
-  input[type=number] { flex: 0; width: 90px; text-align: center; }
+.td-num{width:32px;color:var(--muted);text-align:center;}
+.td-img{width:64px;}
+.td-img img{width:54px;height:54px;object-fit:cover;border-radius:3px;border:1px solid var(--border);}
+.td-img .noimg{width:54px;height:54px;background:var(--surface);border:1px solid var(--border);border-radius:3px;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:18px;}
+.td-nome{min-width:160px;}
+.td-tipo{min-width:110px;}
+.td-brand{min-width:110px;}
+.td-taglie{min-width:100px;}
+.td-colori{min-width:130px;}
+.td-cny{width:70px;color:var(--accent3);text-align:right;font-weight:700;}
+.td-eur{width:80px;color:var(--accent);text-align:right;font-weight:700;}
+.td-url{min-width:180px;}
+.td-url input{font-size:10px;color:#44aa44;}
+.td-status{width:90px;text-align:center;}
+.td-del{width:30px;text-align:center;cursor:pointer;color:var(--muted);}
+.td-del:hover{color:var(--err);}
 
-  /* ── OPTIONS BAR ── */
-  .opts {
-    display: flex;
-    gap: 16px;
-    flex-wrap: wrap;
-    align-items: center;
-    margin-top: 12px;
-  }
-  .opt {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    cursor: pointer;
-    font-size: 12px;
-    color: var(--text2);
-  }
-  .opt input[type=checkbox] { accent-color: var(--accent); width: 14px; height: 14px; }
-  .opt:hover { color: var(--text); }
-  .num-input { width: 80px !important; }
+.status-badge{font-size:9px;letter-spacing:1px;padding:3px 8px;border-radius:10px;display:inline-block;}
+.status-badge.idle{background:#1a1a1a;color:var(--muted);}
+.status-badge.extracting{background:#1a1000;color:var(--accent3);}
+.status-badge.uploading{background:#0a0a1a;color:var(--purple);}
+.status-badge.done{background:#001a00;color:var(--ok);}
+.status-badge.error{background:#1a0000;color:var(--err);}
+.status-badge.skipped{background:#1a1a1a;color:#555;}
 
-  /* ── BUTTONS ── */
-  .btn {
-    background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%);
-    border: none;
-    border-radius: 10px;
-    padding: 11px 22px;
-    color: #fff;
-    font-weight: 600;
-    font-size: 13px;
-    font-family: 'Inter', sans-serif;
-    cursor: pointer;
-    transition: opacity .2s, transform .1s;
-    white-space: nowrap;
-    letter-spacing: .2px;
-  }
-  .btn:hover { opacity: .9; }
-  .btn:active { transform: scale(.98); }
-  .btn:disabled { opacity: .4; cursor: not-allowed; }
+/* EMPTY */
+.empty-state{padding:60px 24px;text-align:center;color:var(--muted);}
+.empty-state .big{font-size:56px;margin-bottom:16px;}
+.empty-state p{font-size:11px;letter-spacing:2px;line-height:2.2;}
+.empty-state code{color:var(--accent);font-family:'Space Mono';}
 
-  .btn-o {
-    background: transparent;
-    border: 1.5px solid var(--accent);
-    border-radius: 10px;
-    padding: 10px 22px;
-    color: var(--accent);
-    font-weight: 600;
-    font-size: 13px;
-    font-family: 'Inter', sans-serif;
-    cursor: pointer;
-    transition: all .2s;
-    white-space: nowrap;
-  }
-  .btn-o:hover { background: rgba(167,139,250,.1); }
-  .btn-o:disabled { opacity: .4; cursor: not-allowed; }
+/* SCROLLBAR */
+::-webkit-scrollbar{width:4px;height:4px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:#2a2a2a;border-radius:4px;}
 
-  .btn-sm {
-    background: var(--surface2);
-    border: 1px solid var(--border2);
-    border-radius: 8px;
-    padding: 7px 14px;
-    color: var(--text2);
-    font-size: 11px;
-    font-family: 'Inter', sans-serif;
-    cursor: pointer;
-    transition: all .2s;
-  }
-  .btn-sm:hover { border-color: var(--accent); color: var(--accent); }
-
-  /* ── STOP BUTTON ── */
-  #stop-btn {
-    display: none;
-    background: rgba(248,113,113,.12);
-    border: 1px solid var(--err);
-    border-radius: 8px;
-    padding: 7px 16px;
-    color: var(--err);
-    font-size: 12px;
-    font-family: 'Inter', sans-serif;
-    cursor: pointer;
-  }
-
-  /* ── WORKER CONFIG ── */
-  .worker-cfg {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 14px 16px;
-    margin-top: 16px;
-  }
-  .worker-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-  .worker-icon { font-size: 16px; flex-shrink: 0; }
-  .worker-badge {
-    font-size: 11px;
-    font-family: 'JetBrains Mono', monospace;
-    padding: 4px 10px;
-    border-radius: 20px;
-    border: 1px solid var(--border);
-    color: var(--muted);
-    white-space: nowrap;
-    flex-shrink: 0;
-  }
-  .worker-badge.ok { border-color: var(--ok); color: var(--ok); background: rgba(52,211,153,.06); }
-  .worker-badge.err { border-color: var(--err); color: var(--err); background: rgba(248,113,113,.06); }
-  .worker-help { margin-top: 10px; }
-  .worker-help-body {
-    font-size: 11px;
-    color: var(--text2);
-    line-height: 1.8;
-    margin-top: 8px;
-  }
-  .worker-help-body code {
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    padding: 1px 6px;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 10px;
-    color: var(--accent);
-  }
-  .toggle-link {
-    font-size: 11px;
-    color: var(--accent);
-    cursor: pointer;
-    text-decoration: none;
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    margin-top: 6px;
-  }
-  .toggle-link:hover { opacity: .8; }
-
-  /* ── STATS GRID ── */
-  .stats-grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 10px;
-  }
-  .stat-box {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 14px 10px;
-    text-align: center;
-  }
-  .stat-num {
-    font-size: 26px;
-    font-weight: 700;
-    color: var(--accent);
-    font-family: 'Inter', sans-serif;
-    line-height: 1;
-    margin-bottom: 4px;
-  }
-  .stat-lbl {
-    font-size: 9px;
-    font-weight: 600;
-    color: var(--muted);
-    letter-spacing: 1px;
-    text-transform: uppercase;
-  }
-
-  /* ── PROGRESS BAR ── */
-  .progress-wrap {
-    background: var(--surface);
-    border-radius: 6px;
-    height: 4px;
-    overflow: hidden;
-    margin: 14px 0 8px;
-  }
-  .progress-bar {
-    height: 100%;
-    background: linear-gradient(90deg, var(--accent), var(--accent2));
-    border-radius: 6px;
-    transition: width .4s ease;
-  }
-  .progress-label {
-    font-size: 11px;
-    color: var(--text2);
-    font-family: 'JetBrains Mono', monospace;
-    text-align: center;
-  }
-
-  /* ── LOG ── */
-  #log {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 12px;
-    max-height: 240px;
-    overflow-y: auto;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 11px;
-    line-height: 1.8;
-    margin-top: 14px;
-    scroll-behavior: smooth;
-  }
-  #log::-webkit-scrollbar { width: 4px; }
-  #log::-webkit-scrollbar-track { background: transparent; }
-  #log::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 4px; }
-  .log-line { display: flex; gap: 8px; }
-  .ts { color: var(--muted); flex-shrink: 0; font-size: 10px; padding-top: 1px; }
-  .msg { color: var(--text2); }
-  .msg.success { color: var(--ok); }
-  .msg.err { color: var(--err); }
-  .msg.warn { color: var(--warn); }
-
-  /* ── STATUS HEADER ── */
-  .status-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 16px;
-  }
-  .status-title {
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--text2);
-    text-transform: uppercase;
-    letter-spacing: .8px;
-  }
-
-  /* ── ACTION ROW ── */
-  .action-row {
-    display: none;
-    gap: 10px;
-    flex-wrap: wrap;
-    margin-top: 16px;
-  }
-  .action-row.visible { display: flex; }
-
-  /* ── INFO BOX ── */
-  .info-box {
-    display: none;
-    background: rgba(52,211,153,.06);
-    border: 1px solid rgba(52,211,153,.2);
-    border-radius: 10px;
-    padding: 12px 16px;
-    font-size: 12px;
-    color: var(--ok);
-    margin-top: 12px;
-  }
-  .info-box code {
-    background: rgba(52,211,153,.1);
-    border-radius: 4px;
-    padding: 1px 6px;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 11px;
-  }
-
-  /* ── PROXY NOTE ── */
-  .proxy-note {
-    display: none;
-    background: rgba(251,191,36,.06);
-    border: 1px solid rgba(251,191,36,.2);
-    border-radius: 10px;
-    padding: 12px 16px;
-    font-size: 11px;
-    color: var(--warn);
-    margin-top: 12px;
-    line-height: 1.7;
-  }
-
-  /* ── PREVIEW GRID ── */
-  .preview-area {
-    display: none;
-  }
-  .preview-label {
-    font-size: 11px;
-    font-weight: 600;
-    color: var(--muted);
-    letter-spacing: 1px;
-    text-transform: uppercase;
-    margin-bottom: 12px;
-  }
-  #pgrid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
-    gap: 6px;
-  }
-  .pg-item {
-    aspect-ratio: 1;
-    border-radius: 8px;
-    overflow: hidden;
-    background: var(--surface);
-    border: 1px solid var(--border);
-  }
-  .pg-item img {
-    width: 100%; height: 100%;
-    object-fit: cover;
-    display: block;
-    transition: opacity .3s;
-    opacity: 0;
-  }
-  .pg-item img.loaded { opacity: 1; }
-
-  /* ── DEBUG AREA ── */
-  .debug-area { display: none; }
-  .debug-tabs {
-    display: flex;
-    gap: 4px;
-    margin-bottom: 10px;
-    flex-wrap: wrap;
-  }
-  .dtab {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 4px 12px;
-    font-size: 10px;
-    color: var(--text2);
-    font-family: 'JetBrains Mono', monospace;
-    cursor: pointer;
-    transition: all .15s;
-  }
-  .dtab.active { border-color: var(--accent); color: var(--accent); }
-  pre {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 12px;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 10px;
-    color: var(--text2);
-    max-height: 200px;
-    overflow: auto;
-    white-space: pre-wrap;
-    word-break: break-all;
-  }
-
-  /* ── MULTI-LINK ROWS ── */
-  #link-rows { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; }
-  .link-row { display: flex; align-items: center; gap: 8px; }
-  .link-row input[type=text] { flex: 1; }
-  .link-row input.row-ok { border-color: var(--ok); }
-  .link-row input.row-err { border-color: var(--err); }
-  .link-row input.row-running {
-    border-color: var(--accent);
-    box-shadow: 0 0 0 3px rgba(167,139,250,.15);
-    animation: pulse .9s ease-in-out infinite alternate;
-  }
-  @keyframes pulse {
-    from { box-shadow: 0 0 0 3px rgba(167,139,250,.15); }
-    to   { box-shadow: 0 0 0 3px rgba(167,139,250,.02); }
-  }
-  .row-status { font-size: 14px; width: 20px; text-align: center; flex-shrink: 0; }
-  .btn-rm-row {
-    background: transparent;
-    border: 1px solid var(--border);
-    border-radius: 7px;
-    padding: 5px 9px;
-    color: var(--muted);
-    cursor: pointer;
-    font-size: 11px;
-    flex-shrink: 0;
-    transition: all .15s;
-  }
-  .btn-rm-row:hover { border-color: var(--err); color: var(--err); }
-  .btn-add-row {
-    background: transparent;
-    border: 1.5px dashed var(--border2);
-    border-radius: 10px;
-    padding: 9px;
-    color: var(--muted);
-    font-size: 12px;
-    cursor: pointer;
-    width: 100%;
-    font-family: 'Inter', sans-serif;
-    transition: all .2s;
-    margin-bottom: 12px;
-  }
-  .btn-add-row:hover { border-color: var(--accent); color: var(--accent); }
-  .batch-controls {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-top: 4px;
-  }
-  .batch-count { font-size: 11px; color: var(--muted); font-family: 'JetBrains Mono', monospace; }
-  #batch-progress {
-    margin-top: 12px;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 12px;
-    max-height: 200px;
-    overflow-y: auto;
-  }
-  #batch-progress::-webkit-scrollbar { width: 4px; }
-  #batch-progress::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 4px; }
-  #batch-log { font-family: 'JetBrains Mono', monospace; font-size: 11px; line-height: 1.8; }
-  #batch-log .bl-ok   { color: var(--ok); }
-  #batch-log .bl-err  { color: var(--err); }
-  #batch-log .bl-cur  { color: var(--accent); }
-  #batch-log .bl-info { color: var(--text2); }
-
-  /* ── TEST BUTTON ── */
-  .btn-test {
-    background: var(--surface2);
-    border: 1px solid var(--border2);
-    border-radius: 8px;
-    padding: 7px 12px;
-    color: var(--accent);
-    font-size: 11px;
-    font-family: 'Inter', sans-serif;
-    cursor: pointer;
-    white-space: nowrap;
-    flex-shrink: 0;
-    transition: all .2s;
-  }
-  .btn-test:hover { background: rgba(167,139,250,.1); border-color: var(--accent); }
-
-  /* ── SCROLLBAR GLOBAL ── */
-  ::-webkit-scrollbar { width: 5px; height: 5px; }
-  ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 4px; }
-
-  /* ── RESPONSIVE ── */
-  @media(max-width:600px) {
-    .stats-grid { grid-template-columns: repeat(2,1fr); }
-    .mode-grid  { grid-template-columns: 1fr; }
-    .action-row { flex-direction: column; }
-    .action-row .btn, .action-row .btn-o { width: 100%; text-align: center; }
-  }
+/* IMGBB INFO BOX */
+.info-box{background:#0a0a1a;border:1px solid #2a2a4a;border-radius:4px;padding:10px 14px;font-size:10px;color:var(--text2);line-height:1.9;margin-top:10px;}
+.info-box a{color:var(--purple);text-decoration:none;}
+.info-box a:hover{text-decoration:underline;}
+.info-box strong{color:var(--purple);}
 </style>
 </head>
 <body>
-<div class="orb orb1"></div><div class="orb orb2"></div>
-<div class="wrap">
 
-  <!-- APP HEADER -->
-  <div class="app-header">
-    <div class="app-logo">
-      <div class="app-logo-icon">⚡</div>
-      <span class="app-title">LilloFind Yupoo Downloader</span>
-    </div>
-    <div class="app-subtitle">Scarica immagini da qualsiasi shop Yupoo 🛍️</div>
+<header>
+  <div class="logo">LILLOFIND <em>//</em> YUPOO → CSV
+    <small>ESTRAZIONE CATALOGO · CONVERSIONE PREZZI · UPLOAD IMGBB · EXPORT CSV</small>
   </div>
-
-  <div class="card">
-    <div class="mode-grid">
-      <button class="mode-card active" id="m-covers" onclick="setMode('covers')">
-        <div class="mode-card-icon">🗂️</div>
-        <div class="mode-card-name">Cover Album</div>
-        <div class="mode-card-desc">1 copertina per album — veloce</div>
-      </button>
-      <button class="mode-card" id="m-deep" onclick="setMode('deep')">
-        <div class="mode-card-icon">🔮</div>
-        <div class="mode-card-name">Profondo</div>
-        <div class="mode-card-desc">Tutte le foto di ogni album</div>
-      </button>
-    </div>
-
-    <!-- Mode tabs -->
-    <div class="input-tabs">
-      <button class="itab active" id="tab-single" onclick="setInputMode('single')">🔗 Singolo</button>
-      <button class="itab" id="tab-batch" onclick="setInputMode('batch')">📋 Multi-link</button>
-    </div>
-
-    <!-- Single mode -->
-    <div id="single-area">
-      <div class="row">
-        <input type="text" id="url-input"
-          placeholder="https://huskyreps.x.yupoo.com/categories/5003229"
-          autocomplete="off" spellcheck="false"/>
-        <button class="btn" id="start-btn" onclick="start()">Estrai →</button>
-      </div>
-    </div>
-
-    <!-- Multi-link mode: individual rows, each like a single input -->
-    <div id="batch-area" style="display:none">
-      <div id="link-rows"></div>
-      <button class="btn-add-row" onclick="addLinkRow()">＋ Aggiungi link</button>
-      <div class="batch-controls">
-        <span id="batch-count" class="batch-count"></span>
-        <button class="btn" id="batch-btn" onclick="startBatch()">🚀 Estrai &amp; ZIP tutto</button>
-      </div>
-      <div id="batch-progress" style="display:none">
-        <div id="batch-log"></div>
-      </div>
-    </div>
-    <div class="opts">
-      <label class="opt"><input type="checkbox" id="opt-hd" checked/><span>HD</span></label>
-      <label class="opt"><input type="checkbox" id="opt-all" checked/><span>Tutte le pagine</span></label>
-      <label class="opt"><input type="checkbox" id="opt-pre" checked/><span>Anteprima</span></label>
-      <label class="opt">
-        <input type="number" id="opt-limit" class="num-input" value="10000" min="10" max="100000"/>
-        <span>max img</span>
-      </label>
-    </div>
-
-    <!-- Cloudflare Worker config -->
-    <div class="worker-cfg" id="worker-cfg">
-      <div class="worker-row">
-        <span class="worker-icon">⚡</span>
-        <button class="btn-test" onclick="testWorker()" title="Testa connessione Worker">🔍 Test</button>
-        <input type="text" id="worker-url" value="https://yupoo-proxy.conti9708.workers.dev" placeholder="https://yupoo-proxy.TUO-NOME.workers.dev  ← incolla il tuo Worker URL per abilitare il download ZIP" autocomplete="off" spellcheck="false" oninput="onWorkerUrlChange()"/>
-        <span class="worker-badge" id="worker-badge">–</span>
-      </div>
-      <div class="worker-help" id="worker-help-collapsed">
-        <span onclick="toggleWorkerHelp()" style="cursor:pointer;color:var(--accent)">▶ Come ottenere il Worker URL (gratis, 2 minuti)</span>
-      </div>
-      <div class="worker-help-full" id="worker-help-full" style="display:none">
-        <span onclick="toggleWorkerHelp()" style="cursor:pointer;color:var(--accent)">▼ Come ottenere il Worker URL (gratis, 2 minuti)</span>
-        <ol>
-          <li>Vai su <a href="https://dash.cloudflare.com" target="_blank">dash.cloudflare.com</a> → <b>Workers &amp; Pages</b> → <b>Create</b></li>
-          <li>Scegli <b>"Hello World"</b>, dai un nome (es. <code>yupoo-proxy</code>), clicca <b>Deploy</b></li>
-          <li>Clicca <b>Edit code</b>, cancella tutto, incolla il codice dal file <code>yupoo-proxy-worker.js</code></li>
-          <li>Clicca <b>Deploy</b>, copia l'URL (es. <code>https://yupoo-proxy.pippo.workers.dev</code>)</li>
-          <li>Incolla l'URL nel campo qui sopra — il download ZIP funzionerà</li>
-        </ol>
-      </div>
-    </div>
+  <div style="display:flex;gap:8px;">
+    <button class="btn btn-outline" onclick="loadExample()">ESEMPIO</button>
+    <button class="btn btn-outline" onclick="clearAll()">SVUOTA</button>
   </div>
+</header>
 
-  <div class="card" id="status-area">
-    <div class="stats-row">
-      <div class="stat"><div class="stat-val" id="st-albums">0</div><div class="stat-lbl">Album</div></div>
-      <div class="stat"><div class="stat-val" id="st-pages">0</div><div class="stat-lbl">Pagine</div></div>
-      <div class="stat"><div class="stat-val" id="st-imgs">0</div><div class="stat-lbl">Immagini</div></div>
-      <div class="stat"><div class="stat-val" id="st-err">0</div><div class="stat-lbl">Errori</div></div>
-    </div>
-    <div class="s-hdr">
-      <span class="s-title" id="s-title">Elaborazione...</span>
-      <button class="btn-stop" id="stop-btn" onclick="stop()">■ Ferma e salva</button>
-    </div>
-    <div class="bar-wrap"><div class="bar-fill" id="bar"></div></div>
-    <div class="log" id="log"></div>
-  </div>
-
-  <div class="card" id="preview-area">
-    <div class="lbl" id="pre-lbl">Anteprima</div>
-    <div class="pgrid" id="pgrid"></div>
-  </div>
-
-  <div class="card" id="debug-area">
-    <div style="color:var(--warn);font-family:'Space Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">⚠ Debug Panel</div>
-    <div class="debug-tabs">
-      <div class="debug-tab on" id="dtab-raw"    onclick="showDebug('raw')">Proxy raw</div>
-      <div class="debug-tab"    id="dtab-api"    onclick="showDebug('api')">API risposta</div>
-      <div class="debug-tab"    id="dtab-next"   onclick="showDebug('next')">__NEXT_DATA__</div>
-      <div class="debug-tab"    id="dtab-photos" onclick="showDebug('photos')">URL trovate</div>
-    </div>
-    <div class="debug-box" id="debug-box">(esegui un'estrazione)</div>
-
-    <div class="proxy-note" id="proxy-note" style="display:none">
-      <strong>Il proxy non sta restituendo la pagina Yupoo reale.</strong><br/>
-      Cosa vedi nel tab "Proxy raw"? Se vedi HTML di un captcha o errore, significa che il proxy è bloccato da Yupoo.<br/><br/>
-      <strong>Soluzioni:</strong><br/>
-      1. Apri <code>https://corsproxy.io/?https://huskyreps.x.yupoo.com/categories/5003229</code> nel browser e controlla cosa vedi.<br/>
-      2. Se bloccato, prova a usare questo tool con una VPN attiva.<br/>
-      3. Oppure usa l'estensione Chrome "Allow CORS" per abilitare fetch diretti.
-    </div>
-  </div>
-
-  <div class="info-box" id="info-box">
-    <strong>✅ Pronto!</strong> Esporta il <code>catalog.json</code> e caricalo su GitHub con <code>catalog-viewer.html</code>.
-  </div>
-
-  <div class="action-row" id="act-row">
-    <button class="btn" onclick="exportStandalone()">🌐 Esporta HTML autonomo</button>
-    <button class="btn" onclick="exportJSON()">📄 Esporta catalog.json</button>
-    <button class="btn-o" onclick="exportZip()">📦 Scarica ZIP</button>
-  </div>
-
+<!-- CONFIG STRIP -->
+<div class="config-strip">
+  <span class="cfg-label">CNY/EUR</span>
+  <input class="cfg-input" type="number" id="rate" value="0.129" step="0.001" min="0.001" style="width:85px" oninput="updateRateDisplay()">
+  <span class="rate-val" id="rate-display">¥1 = €0.129</span>
+  <div class="cfg-sep"></div>
+  <span class="cfg-label">MARKUP %</span>
+  <input class="cfg-input" type="number" id="markup" value="0" step="1" min="0" max="999" style="width:70px">
+  <div class="cfg-sep"></div>
+  <span class="cfg-label">ARROTONDA</span>
+  <select class="cfg-select" id="round-mode">
+    <option value="none">Nessuno</option>
+    <option value="0.99">X.99</option>
+    <option value="up">Intero ↑</option>
+  </select>
+  <div class="cfg-sep"></div>
+  <span class="cfg-label">⚡ WORKER</span>
+  <input class="cfg-input wide" type="text" id="worker-url" placeholder="https://yupoo-proxy.TUO-NOME.workers.dev" spellcheck="false" oninput="saveWorker()">
+  <div class="cfg-sep"></div>
+  <span class="cfg-label">📷 IMGBB KEY</span>
+  <input class="cfg-input" type="text" id="imgbb-key" placeholder="API key imgbb.com" style="width:160px" spellcheck="false" oninput="saveImgbb()">
+  <button class="btn btn-outline" style="padding:5px 10px;font-size:9px" onclick="window.open('https://api.imgbb.com/','_blank')">OTTIENI KEY ↗</button>
 </div>
-<script>
-// ─────────────────────────────────────────────────────────────────────────────
-// STATE
-// ─────────────────────────────────────────────────────────────────────────────
-let images = [], albumCount = 0, pageCount = 0, errCount = 0;
-let abortCtrl = null, stopped = false, extractMode = 'covers';
-let DEBUG = { raw: '', api: '', next: '', photos: '' };
-let siteBase = '', buildId = '', username = '', shopHost = '';
-let workerUrl = localStorage.getItem('yupoo_worker_url') || 'https://yupoo-proxy.conti9708.workers.dev';
-let cachedHtml = ''; // Stores HTML from initial page fetch for scraping fallback
-const seenUrls = new Set();
 
-// ─────────────────────────────────────────────────────────────────────────────
-// FETCH STRATEGIES
-// Strategy A: corsproxy.io  — most reliable, passes headers well
-// Strategy B: allorigins    — wraps in {contents:"..."}, need to unwrap
-// Strategy C: thingproxy    — last resort
-// Strategy D: direct fetch  — works if CORS allows it (rare for Yupoo)
-// ─────────────────────────────────────────────────────────────────────────────
-const STRATEGIES = [
+<!-- URL INPUT -->
+<div class="input-section">
+  <div class="section-label">01 — URL CATALOGO YUPOO (pagina categoria con tutti i prodotti)</div>
+  <div class="url-row">
+    <input class="url-input" type="text" id="cat-url"
+      placeholder="https://huskyreps.x.yupoo.com/categories/5003229  oppure  /albums/12345">
+    <button class="btn btn-primary" id="btn-extract" onclick="startExtraction()">⚡ ESTRAI CATALOGO</button>
+    <button class="btn btn-red" id="btn-stop" onclick="stopExtraction()" style="display:none">■ STOP</button>
+  </div>
+  <div class="info-box" style="margin-top:10px;">
+    <strong>Come funziona:</strong><br>
+    1. Incolla l'URL della pagina categoria Yupoo → il tool estrae tutti i prodotti con nome, immagine e prezzo<br>
+    2. I prezzi in ¥ vengono rilevati automaticamente dal nome album e convertiti in €<br>
+    3. Clicca <strong>↑ UPLOAD IMGBB</strong> per caricare tutte le immagini su imgbb e ottenere gli URL<br>
+    4. Esporta il <strong>CSV</strong> pronto per l'import · Oppure scarica le immagini in <strong>ZIP</strong><br>
+    <strong>imgbb:</strong> registrati gratis su <a href="https://imgbb.com" target="_blank">imgbb.com</a> → <a href="https://api.imgbb.com" target="_blank">api.imgbb.com</a> → genera API key
+  </div>
+</div>
+
+<!-- PROGRESS -->
+<div class="progress-section" id="progress-section">
+  <div class="progress-text" id="progress-text">Inizializzazione...</div>
+  <div class="progress-bar-wrap"><div class="progress-bar-fill" id="progress-fill"></div></div>
+</div>
+
+<!-- LOG -->
+<div class="log-section" id="log-section"></div>
+
+<!-- STATS + ACTIONS -->
+<div class="stats-bar" id="stats-bar" style="display:none">
+  <div class="stat-item"><span>PRODOTTI</span><br><strong id="st-total">0</strong></div>
+  <div class="stat-item"><span>IMMAGINI</span><br><strong id="st-imgs">0</strong></div>
+  <div class="stat-item"><span>PREZZI TROVATI</span><br><strong id="st-prices">0</strong></div>
+  <div class="stat-item"><span>CARICATI IMGBB</span><br><strong id="st-uploaded">0</strong></div>
+  <div class="stat-item"><span>PREZZO MEDIO €</span><br><strong id="st-avg">–</strong></div>
+  <div class="action-btns">
+    <button class="btn btn-purple" id="btn-upload" onclick="uploadAllImgbb()" disabled>↑ UPLOAD IMGBB</button>
+    <button class="btn btn-green" id="btn-csv" onclick="exportCSV()" disabled>↓ CSV</button>
+    <button class="btn btn-orange" id="btn-zip" onclick="downloadZip()" disabled>↓ ZIP IMMAGINI</button>
+  </div>
+</div>
+
+<!-- RESULTS TABLE -->
+<div id="results-area">
+  <div class="empty-state" id="empty-state">
+    <div class="big">🗂</div>
+    <p>
+      INCOLLA L'URL DELLA PAGINA CATALOGO YUPOO<br>
+      ES: <code>https://huskyreps.x.yupoo.com/categories/5003229</code><br><br>
+      IL TOOL ESTRARRÀ AUTOMATICAMENTE:<br>
+      NOME · PREZZO ¥ → € · IMMAGINE COPERTINA
+    </p>
+  </div>
+  <div class="table-wrap" id="table-wrap" style="display:none">
+    <table>
+      <thead><tr>
+        <th class="td-num">#</th>
+        <th class="td-img">IMG</th>
+        <th class="td-nome">NOME</th>
+        <th class="td-tipo">TIPO</th>
+        <th class="td-brand">BRAND</th>
+        <th class="td-taglie">TAGLIE</th>
+        <th class="td-colori">COLORI</th>
+        <th class="td-cny">¥ CNY</th>
+        <th class="td-eur">€ EUR</th>
+        <th class="td-url">URL IMMAGINE</th>
+        <th class="td-status">STATO</th>
+        <th class="td-del">✕</th>
+      </tr></thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════
+let products = [];      // {id, albumId, albumName, nome, tipo, brand, taglie, colori, cny, eur, final, coverUrl, imgbbUrl, status}
+let stopped = false;
+let abortCtrl = null;
+let workerUrl = localStorage.getItem('yupoo_worker_url') || '';
+let imgbbKey = localStorage.getItem('imgbb_key') || '';
+
+// Per-extraction Yupoo state
+let siteBase = '', username = '', shopHost = '', buildId = '';
+let seenUrls = new Set();
+
+// ═══════════════════════════════════════════════════════
+// YUPOO PROXY / FETCH ENGINE (from original extractor)
+// ═══════════════════════════════════════════════════════
+const PROXIES = [
   async (url, sig) => {
     const r = await fetch(`https://corsproxy.io/?${encodeURIComponent(url)}`, { signal: sig });
-    if (!r.ok) throw new Error('corsproxy HTTP ' + r.status);
+    if (!r.ok) throw new Error('corsproxy ' + r.status);
     return r.text();
   },
   async (url, sig) => {
     const r = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`, { signal: sig });
-    if (!r.ok) throw new Error('allorigins HTTP ' + r.status);
-    const j = await r.json();
-    return j.contents || '';
+    if (!r.ok) throw new Error('allorigins ' + r.status);
+    const j = await r.json(); return j.contents || '';
   },
   async (url, sig) => {
     const r = await fetch(`https://thingproxy.freeboard.io/fetch/${url}`, { signal: sig });
-    if (!r.ok) throw new Error('thingproxy HTTP ' + r.status);
-    return r.text();
-  },
-  async (url, sig) => {
-    // Direct — only works if server has permissive CORS (unlikely for Yupoo HTML)
-    const r = await fetch(url, { signal: sig, mode: 'cors' });
-    if (!r.ok) throw new Error('direct HTTP ' + r.status);
+    if (!r.ok) throw new Error('thingproxy ' + r.status);
     return r.text();
   }
 ];
 
-// Try each strategy until one returns HTML that contains Yupoo content
 async function fetchHtml(url) {
-  const names = ['corsproxy.io', 'allorigins', 'thingproxy', 'direct'];
-  let lastErr = '';
-  for (let i = 0; i < STRATEGIES.length; i++) {
-    if (stopped) throw new DOMException('', 'AbortError');
+  for (let i = 0; i < PROXIES.length; i++) {
     try {
-      log(`Provo ${names[i]}...`);
-      const html = await STRATEGIES[i](url, abortCtrl.signal);
-
-      // Sanity check: does the response look like Yupoo content?
-      if (html.length < 100) throw new Error('risposta troppo corta');
-
-      // Check if it has any Yupoo fingerprint
-      const hasYupoo = html.includes('yupoo') || html.includes('NEXT_DATA') || html.includes('__next');
-      if (!hasYupoo) {
-        log(`${names[i]}: risposta senza contenuto Yupoo (${html.length} byte). Tipo: ${html.substring(0,80).replace(/\n/g,' ')}`, 'warn');
-        // Store the first failure for debug
-        if (!DEBUG.raw) DEBUG.raw = `=== ${names[i]} risposta (primi 3000 char) ===\n` + html.substring(0, 3000);
-        continue; // try next proxy
-      }
-
-      log(`${names[i]}: OK (${html.length} byte)`, 'success');
-      DEBUG.raw = `=== ${names[i]} OK ===\n` + html.substring(0, 3000);
-      return html;
-    } catch(e) {
-      if (e.name === 'AbortError') throw e;
-      lastErr = e.message;
-      log(`${names[i]}: fallito (${e.message})`, 'warn');
-    }
+      const html = await PROXIES[i](url, abortCtrl.signal);
+      if (html.length > 200 && (html.includes('yupoo') || html.includes('NEXT_DATA') || html.includes('photo.yupoo')))
+        return html;
+    } catch(e) { if (e.name === 'AbortError') throw e; }
   }
-
-  // All failed — show debug panel
-  openDebug('raw');
-  document.getElementById('proxy-note').style.display = 'block';
-  throw new Error('Tutti i proxy falliti. Ultimo errore: ' + lastErr);
+  throw new Error('Tutti i proxy falliti per: ' + url);
 }
 
-// For JSON endpoints (like _next/data), try proxies until we get valid JSON
 async function fetchJson(url) {
-  const names = ['corsproxy.io', 'allorigins', 'thingproxy'];
   for (let i = 0; i < 3; i++) {
-    if (stopped) throw new DOMException('', 'AbortError');
     try {
       let text;
       if (i === 1) {
-        // allorigins wraps
         const r = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`, { signal: abortCtrl.signal });
-        const j = await r.json();
-        text = j.contents || '';
+        const j = await r.json(); text = j.contents || '';
       } else {
-        const proxied = i === 0
+        const proxy = i === 0
           ? `https://corsproxy.io/?${encodeURIComponent(url)}`
           : `https://thingproxy.freeboard.io/fetch/${url}`;
-        const r = await fetch(proxied, { signal: abortCtrl.signal });
+        const r = await fetch(proxy, { signal: abortCtrl.signal });
         if (!r.ok) throw new Error('HTTP ' + r.status);
         text = await r.text();
       }
-      const json = JSON.parse(text);
-      pageCount++;
-      return json;
-    } catch(e) {
-      if (e.name === 'AbortError') throw e;
-      errCount++;
-    }
+      return JSON.parse(text);
+    } catch(e) { if (e.name === 'AbortError') throw e; }
   }
-  throw new Error('fetchJson fallito: ' + url);
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// YUPOO NATIVE REST API
-// Yupoo exposes a public REST API (separate from Next.js):
-// GET /albums?uid={categoryId}&page=1&t=1   → album list with cover photos
-// GET /albums/{albumId}?page=1              → single album photos
-// This does NOT require a buildId!
-// ─────────────────────────────────────────────────────────────────────────────
-
-// Try Yupoo's native API first (most reliable)
-async function yupooApiAlbumList(categoryId, page) {
-  const url = `${siteBase}/albums?uid=${categoryId}&page=${page}&t=${Date.now()}`;
-  return fetchJson(url);
-}
-
-async function yupooApiAlbum(albumId, page) {
-  const url = `${siteBase}/albums/${albumId}?page=${page}&t=${Date.now()}`;
-  return fetchJson(url);
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// GET buildId from HTML (for _next/data fallback)
-// ─────────────────────────────────────────────────────────────────────────────
-async function getBuildId(pageUrl) {
-  const html = await fetchHtml(pageUrl);
-  pageCount++;
-  cachedHtml = html || ''; // Cache for HTML scraping fallback
-
-  // Try to find __NEXT_DATA__
-  const m = html.match(/<script[^>]+id=["']__NEXT_DATA__["'][^>]*>([\s\S]*?)<\/script>/i);
-  if (m) {
-    try {
-      const nd = JSON.parse(m[1]);
-      DEBUG.next = JSON.stringify(nd, null, 2).substring(0, 8000);
-      if (nd.buildId) {
-        log('buildId trovato: ' + nd.buildId, 'success');
-
-        // Bonus: grab any photos already in __NEXT_DATA__
-        const hd = document.getElementById('opt-hd').checked;
-        const bonus = parsePhotos(nd, hd);
-        if (bonus.size > 0) {
-          log(`Bonus da HTML: ${bonus.size} foto`);
-          for (const u of bonus) pushImg(u, null);
-          updStats();
-        }
-        return nd.buildId;
-      }
-    } catch(e) { log('__NEXT_DATA__ parse fail: ' + e.message, 'warn'); }
-  }
-
-  // Try window state variables in script tags
-  const wsPatterns = [
-    /window\.__(?:STORE|STATE|DATA|YUPOO_STATE)__\s*=\s*(\{[\s\S]+?\});\s*(?:window|<\/script>)/,
-    /window\.postData\s*=\s*(\{[\s\S]+?\});\s*(?:window|var|let|const|<\/script>)/,
-  ];
-  for (const re of wsPatterns) {
-    const wm = html.match(re);
-    if (wm) {
-      try {
-        const parsed = JSON.parse(wm[1]);
-        DEBUG.next = JSON.stringify(parsed, null, 2).substring(0, 8000);
-        log('Window state trovato nell\'HTML!', 'success');
-        return null;
-      } catch {}
-    }
-  }
-
-  // __NEXT_DATA__ not found — store raw HTML for debug, cachedHtml is still available for scraping
-  DEBUG.raw = '=== HTML ricevuto (nessun __NEXT_DATA__) ===\n' + html.substring(0, 4000);
-  log('__NEXT_DATA__ non trovato. Uso scraping HTML diretto come fallback.', 'warn');
-  return null; // caller must handle null gracefully
-}
-
-// _next/data call
-async function nextDataFetch(path, params) {
-  if (!buildId) return null;
-  const qs = params ? '?' + new URLSearchParams(params).toString() : '';
-  const url = `${siteBase}/_next/data/${buildId}/${path}.json${qs}`;
-  try {
-    const json = await fetchJson(url);
-    return json;
-  } catch(e) {
-    log('_next/data fallito: ' + e.message, 'warn');
-    return null;
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// PHOTO PARSING — works on any JSON shape
-// ─────────────────────────────────────────────────────────────────────────────
-function parsePhotos(obj, hd, out, depth) {
-  if (!out) out = new Set();
-  if (!depth) depth = 0;
-  if (depth > 20 || !obj || typeof obj !== 'object') return out;
-
-  // Detect photo object by uid / imageid field
-  const uid = obj.uid || obj.imageid || obj.imageId || obj.photo_id || obj.photoId;
-  if (typeof uid === 'string' && /^[0-9a-f]{6,20}$/i.test(uid) && !obj.buildId) {
-    const url = buildPhotoUrl(obj, uid, hd);
-    if (url) { out.add(url); return out; }
-  }
-
-  // Detect photo by direct URL in "path" field
-  if (typeof obj.path === 'string' && obj.path.includes('photo.yupoo.com')) {
-    out.add(hd ? toHD(obj.path.startsWith('http') ? obj.path : 'https://photo.yupoo.com' + obj.path) : obj.path);
-    return out;
-  }
-
-  if (Array.isArray(obj)) {
-    for (const item of obj) parsePhotos(item, hd, out, depth + 1);
-  } else {
-    for (const v of Object.values(obj)) {
-      if (v && typeof v === 'object') parsePhotos(v, hd, out, depth + 1);
-    }
-  }
-  return out;
-}
-
-function buildPhotoUrl(photo, uid, hd) {
-  if (typeof photo.path === 'string') {
-    const base = photo.path.startsWith('http') ? photo.path : 'https://photo.yupoo.com' + photo.path;
-    return hd ? toHD(base) : base;
-  }
-  if (uid && username) {
-    return `https://photo.yupoo.com/${username}/${uid}/${hd ? 'large' : 'medium'}.jpg`;
-  }
-  return null;
+  throw new Error('fetchJson fallito');
 }
 
 function toHD(url) {
-  // fit_p_900_900 is a universally available Yupoo size (large.jpg often doesn't exist)
   return url.replace(/\/(small|thumb|tiny|medium)\./i, '/fit_p_900_900.')
             .replace(/\/fit_p_\d+_\d+\./i, '/fit_p_900_900.');
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// ALBUM LIST PARSING
-// ─────────────────────────────────────────────────────────────────────────────
-function parseAlbums(obj, out, depth) {
+// ═══════════════════════════════════════════════════════
+// ALBUM PARSING — extracts {id, name, coverUrl} together
+// ═══════════════════════════════════════════════════════
+function extractCoverFromAlbumObj(obj) {
+  // look for photo path inside album object
+  const str = JSON.stringify(obj);
+  const m = str.match(/photo\.yupoo\.com\/[^\\"]+\.jpg/);
+  if (m) return toHD('https://' + m[0]);
+  // try uid-based construction
+  const uid = obj.uid || obj.coverId || obj.coverUid;
+  if (uid && username) return toHD(`https://photo.yupoo.com/${username}/${uid}/fit_p_900_900.jpg`);
+  return null;
+}
+
+function parseAlbumsWithCovers(obj, out, depth) {
   if (!out) out = [];
   if (!depth) depth = 0;
   if (depth > 15 || !obj || typeof obj !== 'object') return out;
 
   if (!Array.isArray(obj) && typeof obj.id === 'number' && obj.id > 0
       && (obj.name || obj.prettyName || obj.albumName || obj.title)) {
-    out.push({ id: obj.id, name: obj.name || obj.prettyName || obj.albumName || obj.title || String(obj.id) });
+    const name = obj.name || obj.prettyName || obj.albumName || obj.title || String(obj.id);
+    const cover = extractCoverFromAlbumObj(obj);
+    out.push({ id: obj.id, name, coverUrl: cover });
     return out;
   }
-  if (Array.isArray(obj)) { for (const i of obj) parseAlbums(i, out, depth + 1); }
-  else { for (const v of Object.values(obj)) { if (v && typeof v === 'object') parseAlbums(v, out, depth + 1); } }
+  if (Array.isArray(obj)) { for (const i of obj) parseAlbumsWithCovers(i, out, depth + 1); }
+  else { for (const v of Object.values(obj)) { if (v && typeof v === 'object') parseAlbumsWithCovers(v, out, depth + 1); } }
   return out;
 }
 
@@ -1053,1127 +359,536 @@ function getTotalPages(json) {
   return 1;
 }
 
-function urlToPath(url) {
-  try { return new URL(url).pathname.replace(/^\/|\/$/g, '') || 'index'; }
-  catch { return 'index'; }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// HTML SCRAPING HELPERS — used when APIs are unavailable
-// ─────────────────────────────────────────────────────────────────────────────
-
-// Extract product photo URLs from raw HTML
-// Pattern: photo.yupoo.com / {username} / {photoid} / {variant}.ext
-// EXCLUDES system paths: /icons/, /avatars/, /watermarks/, /default/
-function parseHtmlPhotos(html) {
-  const results = [];
-  const seenOrig = new Set();
-  const hd = document.getElementById('opt-hd').checked;
-
-  // Strict pattern: requires /USERNAME/PHOTOID/ — both must be alphanumeric
-  // USERNAME: 2-30 chars, PHOTOID: 5-20 hex/alphanum chars (Yupoo uses ~8 char IDs)
-  // This excludes /icons/, /avatars/, /watermarks/, /default/, /logo/ etc.
-  const SYSTEM_PATHS = /\/(?:icons?|avatars?|watermarks?|default|logo|static|assets|css|js)\//i;
-
-  const re = /https?:\/\/photo\.yupoo\.com\/([a-z0-9_]{2,30})\/([a-z0-9]{5,20})\/[^\s"'<>)\]?#]+\.(?:jpg|jpeg|png|gif|webp)/gi;
-  let m;
-  while ((m = re.exec(html)) !== null) {
-    const originalUrl = m[0].split('?')[0];
-    if (SYSTEM_PATHS.test(originalUrl)) continue; // skip system icons
-    if (seenOrig.has(originalUrl)) continue;
-    seenOrig.add(originalUrl);
-    const hdUrl = hd ? toHD(originalUrl) : originalUrl;
-    results.push({ url: hdUrl, originalUrl });
-  }
-  return results;
-}
-
-// Extract album IDs from href="/albums/NNNNNN" links in HTML
-function parseHtmlAlbums(html) {
+// Extract cover from HTML scraping
+function parseHtmlAlbumsWithCovers(html) {
   const albums = [];
   const seen = new Set();
-  const re = /\/albums\/(\d+)/g;
+  const SKIP = /\/(?:icons?|avatars?|watermarks?|default|logo)\//i;
+  const albumRe = /href=["']([^"']*\/albums\/(\d+)[^"']*)["']/g;
   let m;
-  while ((m = re.exec(html)) !== null) {
-    const id = m[1];
-    if (!seen.has(id)) {
-      seen.add(id);
-      // Try to find album name in surrounding HTML
-      const ctx = html.substring(Math.max(0, m.index - 200), m.index + 300);
-      const nameMatch = ctx.match(/(?:title|alt|data-name|data-title)=["']([^"']{2,80})["']/) ||
-                        ctx.match(/<(?:span|div|h\d|p)[^>]*>\s*([^<]{2,60})\s*<\/(?:span|div|h\d|p)>/);
-      const name = nameMatch ? nameMatch[1].trim() : `Album ${id}`;
-      albums.push({ id: parseInt(id), name });
-    }
+  while ((m = albumRe.exec(html)) !== null) {
+    const id = m[2];
+    if (seen.has(id)) continue;
+    seen.add(id);
+    const ctx = html.substring(Math.max(0, m.index - 400), m.index + 400);
+    // get name
+    const nameM = ctx.match(/(?:title|alt|data-name|data-title)=["']([^"']{2,80})["']/) ||
+                  ctx.match(/<(?:span|div|h\d|p)[^>]*>\s*([^<]{2,80})\s*<\/(?:span|div|h\d|p)>/);
+    const name = nameM ? nameM[1].trim() : '';
+    // get cover image
+    const imgM = ctx.match(/https?:\/\/photo\.yupoo\.com\/[a-z0-9_]+\/[a-z0-9]+\/[^\s"'<>]+\.jpg/i);
+    let coverUrl = null;
+    if (imgM && !SKIP.test(imgM[0])) coverUrl = toHD(imgM[0]);
+    albums.push({ id: parseInt(id), name, coverUrl });
   }
   return albums;
 }
 
-// Fetch an album page HTML and return its photo count and page links
-async function fetchAlbumHtmlPhotos(albumId, page) {
-  const url = `${siteBase}/albums/${albumId}${page > 1 ? '?p=' + page : ''}`;
-  const html = await fetchHtml(url);
-  const photos = parseHtmlPhotos(html); // already returns [{url, originalUrl}]
-  // Detect total pages from pagination links like ?p=2, ?p=3...
-  let maxPage = 1;
-  const pageRe = /\?p=(\d+)/g;
-  let pm;
-  while ((pm = pageRe.exec(html)) !== null) {
-    const n = parseInt(pm[1]);
-    if (n > maxPage) maxPage = n;
-  }
-  return { photos, totalPages: maxPage };
+// ═══════════════════════════════════════════════════════
+// PRICE & NAME PARSING
+// ═══════════════════════════════════════════════════════
+function parsePriceFromName(name) {
+  const m = name.match(/[¥￥Y]\s*~?\s*([\d]+(?:[.,]\d{1,2})?)/i) ||
+            name.match(/([\d]+(?:[.,]\d{1,2})?)\s*[¥￥]/i);
+  if (m) return parseFloat(m[1].replace(',', '.'));
+  return null;
 }
 
-function pushImg(url, albumId, originalUrl) {
-  const limit = +document.getElementById('opt-limit').value || 10000;
-  if (!url || seenUrls.has(url) || images.length >= limit) return false;
-  seenUrls.add(url);
-  const e = {
-    id: images.length + 1,
-    url,
-    filename: `image_${String(images.length+1).padStart(5,'0')}.jpg`,
-    originalUrl: originalUrl && originalUrl !== url ? originalUrl : undefined
-  };
-  if (albumId) e.album = String(albumId);
-  images.push(e);
-  if (images.length <= 80) addPrev(url);
-  return true;
+function cleanProductName(name) {
+  return name
+    .replace(/[¥￥Y]\s*~?\s*[\d]+(?:[.,]\d{1,2})?/gi, '')
+    .replace(/[\d]+(?:[.,]\d{1,2})?\s*[¥￥]/gi, '')
+    .replace(/\b(L🔥|C🔥|ST🔥|🔥|L👑|C👑|ST👑|👑|\(im\)|im\b)/gi, '')
+    .replace(/TOP\b/gi, '').replace(/\d{7,}/g, '')
+    .replace(/\s{2,}/g, ' ').trim();
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// EXTRACT CATEGORY ID FROM URL
-// ─────────────────────────────────────────────────────────────────────────────
-function getCategoryId(url) {
-  const m = url.match(/\/categories\/(\d+)/);
-  return m ? m[1] : null;
-}
-function getAlbumId(url) {
-  const m = url.match(/\/albums\/(\d+)/);
-  return m ? m[1] : null;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// MODE: COVERS
-// Tries 3 methods in order:
-//   1. _next/data API (requires buildId)
-//   2. Native Yupoo REST (/albums?uid=CATID&page=N)
-//   3. HTML scrape fallback
-// ─────────────────────────────────────────────────────────────────────────────
-async function runCoversMode(pageUrl, pStart, pEnd) {
-  const hd   = document.getElementById('opt-hd').checked;
-  const lim  = +document.getElementById('opt-limit').value || 10000;
-  const catId = getCategoryId(pageUrl);
-  const catPath = urlToPath(pageUrl);
-  pStart = pStart || 1; pEnd = pEnd || 9999;
-
-  // ── Method 1: _next/data ──────────────────────────────────────────────────
-  if (buildId) {
-    log('Strategia 1: _next/data API...');
-    const page1 = await nextDataFetch(catPath, { page: 1 });
-    if (page1) {
-      DEBUG.api = JSON.stringify(page1, null, 2).substring(0, 8000);
-      const tp = getTotalPages(page1);
-      const realStart = pStart; const realEnd = Math.min(pEnd, tp, 500);
-      log(`_next/data: ${tp} pagine — scarico pag.${realStart}-${realEnd}`);
-
-      // Fetch pages in range
-      for (let p = realStart; p <= realEnd; p++) {
-        if (stopped || images.length >= lim) break;
-        let pd;
-        if (p === 1 && realStart === 1) {
-          pd = page1; // already fetched
-        } else {
-          pd = await nextDataFetch(catPath, { page: p });
-          if (!pd) { errCount++; continue; }
-        }
-        const ps2 = parsePhotos(pd, hd);
-        for (const u of ps2) pushImg(u, null);
-        albumCount += Math.max(parseAlbums(pd).length, 1);
-        setBar(Math.round((p-realStart+1)/(realEnd-realStart+1)*100), `Pag.${p}/${realEnd} — ${images.length} img`);
-        updStats();
-      }
-      DEBUG.photos = images.slice(0, 40).map(i=>i.url).join('\n');
-      if (images.length > 0) return;
-      log('_next/data: 0 foto. Provo metodo 2...', 'warn');
-    }
-  }
-
-  // ── Method 2: Yupoo native REST API ──────────────────────────────────────
-  if (catId) {
-    log('Strategia 2: API nativa Yupoo (/albums?uid=...)...');
-    try {
-      const page1 = await yupooApiAlbumList(catId, 1);
-      DEBUG.api = JSON.stringify(page1, null, 2).substring(0, 8000);
-      const tp = getTotalPages(page1);
-      const rStart2 = pStart; const rEnd2 = Math.min(pEnd, tp, 500);
-      log(`API nativa: ${tp} pagine — scarico pag.${rStart2}-${rEnd2}`);
-
-      for (let p = rStart2; p <= rEnd2; p++) {
-        if (stopped || images.length >= lim) break;
-        try {
-          const pd = p === 1 && rStart2 === 1 ? page1 : await yupooApiAlbumList(catId, p);
-          const ps2 = parsePhotos(pd, hd);
-          for (const u of ps2) pushImg(u, null);
-          albumCount += Math.max(parseAlbums(pd).length, 1);
-          setBar(Math.round((p-rStart2+1)/(rEnd2-rStart2+1)*100), `Pag.${p}/${rEnd2} — ${images.length} img`);
-        } catch(e) { errCount++; }
-        updStats();
-      }
-      if (images.length > 0) return;
-      log('API nativa: 0 foto. Provo HTML fallback...', 'warn');
-    } catch(e) {
-      if (e.name === 'AbortError') throw e;
-      log('API nativa fallita: ' + e.message, 'warn');
-    }
-  }
-
-  // ── Method 3: HTML fallback (use __NEXT_DATA__ already fetched) ───────────
-  log('Strategia 3: fallback HTML __NEXT_DATA__...');
-  if (DEBUG.next && !DEBUG.next.includes('(vuoto)')) {
-    try {
-      const nd = JSON.parse(DEBUG.next);
-      const ps = parsePhotos(nd, hd);
-      for (const u of ps) pushImg(u, null);
-      albumCount++; updStats();
-      log('Fallback HTML: ' + ps.size + ' foto', ps.size > 0 ? 'success' : 'err');
-    } catch(e) { log('Fallback HTML fail: ' + e.message, 'err'); }
-  } else {
-    log('Nessun dato HTML disponibile. Provo scraping diretto...', 'warn');
-  }
-
-  // ── Method 4: Direct HTML scraping — extract photo.yupoo.com URLs from raw HTML ──
-  if (images.length === 0 && cachedHtml) {
-    log('Strategia 4: scraping diretto HTML (photo.yupoo.com)...');
-    const directPhotos = parseHtmlPhotos(cachedHtml);
-    log(`Foto trovate nella pagina categoria: ${directPhotos.length}`);
-    for (const { url, originalUrl } of directPhotos) {
-      if (images.length >= lim) break;
-      pushImg(url, null, originalUrl);
-    }
-    if (images.length > 0) {
-      albumCount = Math.max(albumCount, 1); updStats();
-      log(`Scraping HTML: ${images.length} foto trovate!`, 'success');
-      return;
-    }
-
-    // No direct photos found — try fetching each album page for its cover
-    const htmlAlbums = parseHtmlAlbums(cachedHtml);
-    log(`Album trovati nell'HTML: ${htmlAlbums.length}`);
-    if (htmlAlbums.length > 0) {
-      for (let i = 0; i < htmlAlbums.length; i++) {
-        if (stopped || images.length >= lim) break;
-        const album = htmlAlbums[i];
-        setBar(Math.round(i / htmlAlbums.length * 100), `Copertina ${i+1}/${htmlAlbums.length}`);
-        try {
-          const { photos } = await fetchAlbumHtmlPhotos(album.id, 1);
-          if (photos.length > 0) {
-            const { url, originalUrl } = photos[0]; // 1 cover per album
-            pushImg(url, album.id, originalUrl);
-            albumCount++; updStats();
-          } else {
-            log(`Album ${album.id}: 0 foto`, 'warn');
-          }
-        } catch(e) {
-          if (e.name === 'AbortError') throw e;
-          errCount++; log(`Album ${album.id}: errore (${e.message})`, 'warn');
-        }
-      }
-      if (images.length > 0) {
-        log(`Scraping album covers: ${images.length} copertine`, 'success');
-        return;
-      }
-    }
-
-    log('Scraping HTML: 0 foto. Vedi Debug → Proxy raw.', 'err');
-    openDebug('raw');
-    document.getElementById('proxy-note').style.display = 'block';
-  }
+function guessType(name) {
+  const n = name.toUpperCase();
+  if (/T-?SHIRT|TSHIRT/.test(n)) return 'T-shirt';
+  if (/POLO/.test(n)) return 'Polo';
+  if (/HOODIE|HOODED/.test(n)) return 'Felpa con cappuccio';
+  if (/SWEATER|CREWNECK|FELPA/.test(n)) return 'Felpa';
+  if (/JACKET|BOMBER/.test(n)) return 'Giacca';
+  if (/PUFFER|PIUMINO/.test(n)) return 'Piumino';
+  if (/TROUSER|PANT/.test(n)) return 'Pantaloni';
+  if (/SHORT|PANTALONCIN/.test(n)) return 'Pantaloncini';
+  if (/LONG.?SLEEVE|LONGSLEEVE/.test(n)) return 'Maglia manica lunga';
+  if (/BAG|BORSA/.test(n)) return 'Borsa';
+  if (/BACKPACK|ZAINO/.test(n)) return 'Zaino';
+  if (/CAP|HAT|BEANIE/.test(n)) return 'Cappello';
+  if (/SNEAKER|SHOE|SCARPE/.test(n)) return 'Sneakers';
+  return '';
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// MODE: DEEP
-// ─────────────────────────────────────────────────────────────────────────────
-async function runDeepMode(pageUrl) {
-  const hd   = document.getElementById('opt-hd').checked;
-  const lim  = +document.getElementById('opt-limit').value || 10000;
-  const catId = getCategoryId(pageUrl);
-  const catPath = urlToPath(pageUrl);
-
-  // Collect album list
-  log('Raccolta album...');
-  let allAlbums = [];
-
-  // Try _next/data first
-  if (buildId) {
-    const p1 = await nextDataFetch(catPath, { page: 1 });
-    if (p1) {
-      parseAlbums(p1, allAlbums);
-      const tp = getTotalPages(p1);
-      log(`Album trovati pag.1: ${allAlbums.length}, tot pagine cat: ${tp}`);
-      if (document.getElementById('opt-all').checked) {
-        for (let p = 2; p <= Math.min(tp, 500); p++) {
-          if (stopped) break;
-          const pd = await nextDataFetch(catPath, { page: p });
-          if (pd) parseAlbums(pd, allAlbums);
-          setBar(Math.round(p/tp*12), `Cat pag.${p}: ${allAlbums.length} album`);
-        }
-      }
-    }
-  }
-
-  // Fallback to native API
-  if (allAlbums.length === 0 && catId) {
-    log('Raccolta album via API nativa...');
-    try {
-      const p1 = await yupooApiAlbumList(catId, 1);
-      parseAlbums(p1, allAlbums);
-      const tp = getTotalPages(p1);
-      if (document.getElementById('opt-all').checked) {
-        for (let p = 2; p <= Math.min(tp, 500); p++) {
-          if (stopped) break;
-          try { const pd = await yupooApiAlbumList(catId, p); parseAlbums(pd, allAlbums); } catch {}
-        }
-      }
-    } catch(e) { log('Raccolta album API nativa fallita: ' + e.message, 'warn'); }
-  }
-
-  // HTML scraping fallback for album discovery
-  if (allAlbums.length === 0 && cachedHtml) {
-    log('Raccolta album via scraping HTML...');
-    const htmlAlbums = parseHtmlAlbums(cachedHtml);
-    allAlbums.push(...htmlAlbums);
-    log(`Album trovati nell'HTML: ${allAlbums.length}`, allAlbums.length > 0 ? 'success' : 'warn');
-  }
-
-  const unique = [...new Map(allAlbums.map(a => [a.id, a])).values()];
-  log(`Totale: ${unique.length} album unici. Avvio deep...`, 'success');
-
-  for (let i = 0; i < unique.length; i++) {
-    if (stopped || images.length >= lim) break;
-    const album = unique[i];
-    setBar(12 + Math.round(i / unique.length * 87), `Album ${i+1}/${unique.length} — "${album.name}"`);
-
-    let found = 0;
-    // Try _next/data then native API then HTML scraping
-    for (const method of ['next', 'native', 'html']) {
-      if (stopped) break;
-      try {
-        let json;
-        if (method === 'next' && buildId) {
-          json = await nextDataFetch(`albums/${album.id}`, { p: 1 });
-        } else if (method === 'native') {
-          json = await yupooApiAlbum(album.id, 1);
-        } else if (method === 'html') {
-          // HTML scraping fallback
-          const { photos: ps1, totalPages: tp } = await fetchAlbumHtmlPhotos(album.id, 1);
-          const before = images.length;
-          for (const { url, originalUrl } of ps1) pushImg(url, album.id, originalUrl);
-          if (document.getElementById('opt-all').checked && tp > 1) {
-            for (let p = 2; p <= Math.min(tp, 100); p++) {
-              if (stopped || images.length >= lim) break;
-              try {
-                const { photos: psN } = await fetchAlbumHtmlPhotos(album.id, p);
-                for (const { url, originalUrl } of psN) pushImg(url, album.id, originalUrl);
-              } catch {}
-            }
-          }
-          found = images.length - before;
-          if (found > 0) break;
-          continue;
-        }
-        if (!json) continue;
-
-        const ps = parsePhotos(json, hd);
-        const tp = getTotalPages(json);
-        if (tp > 1 && document.getElementById('opt-all').checked) {
-          for (let p = 2; p <= Math.min(tp, 100); p++) {
-            if (stopped) break;
-            try {
-              const pd = method === 'next'
-                ? await nextDataFetch(`albums/${album.id}`, { p })
-                : await yupooApiAlbum(album.id, p);
-              if (pd) parsePhotos(pd, hd, ps);
-            } catch {}
-          }
-        }
-
-        const before = images.length;
-        for (const u of ps) pushImg(u, album.id);
-        found = images.length - before;
-        if (found > 0) break;
-      } catch(e) { if (e.name === 'AbortError') throw e; }
-    }
-
-    albumCount++;
-    if (found > 0) log(`"${album.name}": +${found} → tot ${images.length}`);
-    else log(`"${album.name}": 0 foto`, 'warn');
-    updStats();
-  }
+function calcFinal(cny) {
+  const rate = parseFloat(document.getElementById('rate').value) || 0.129;
+  const markup = parseFloat(document.getElementById('markup').value) || 0;
+  const eur = cny * rate * (1 + markup / 100);
+  const mode = document.getElementById('round-mode').value;
+  if (mode === '0.99') return Math.floor(eur) + 0.99;
+  if (mode === 'up') return Math.ceil(eur);
+  return Math.round(eur * 100) / 100;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// MODE: SINGLE ALBUM
-// ─────────────────────────────────────────────────────────────────────────────
-async function runAlbumMode(pageUrl) {
-  const hd  = document.getElementById('opt-hd').checked;
-  const lim = +document.getElementById('opt-limit').value || 10000;
-  const albumId = getAlbumId(pageUrl);
-  const path = urlToPath(pageUrl);
+// ═══════════════════════════════════════════════════════
+// MAIN EXTRACTION PIPELINE
+// ═══════════════════════════════════════════════════════
+async function startExtraction() {
+  const rawUrl = document.getElementById('cat-url').value.trim();
+  if (!rawUrl) { alert('Inserisci prima un URL Yupoo!'); return; }
 
-  log('Scansione album singolo...');
-  let json = null;
+  let url;
+  try { url = new URL(rawUrl).href; }
+  catch { alert('URL non valido.'); return; }
 
-  if (buildId) json = await nextDataFetch(path, { p: 1 });
-  if (!json && albumId) {
-    try { json = await yupooApiAlbum(albumId, 1); } catch {}
-  }
-
-  if (!json) {
-    // Try HTML scraping fallback for single album
-    log('API fallita. Provo scraping HTML per album singolo...');
-    try {
-      const { photos, totalPages: tp } = await fetchAlbumHtmlPhotos(albumId, 1);
-      if (photos.length > 0) {
-        log(`HTML scraping: ${photos.length} foto pag.1, ${tp} pagine totali`);
-        for (const { url, originalUrl } of photos) pushImg(url, null, originalUrl);
-        if (tp > 1 && document.getElementById('opt-all').checked) {
-          for (let p = 2; p <= Math.min(tp, 100); p++) {
-            if (stopped || images.length >= lim) break;
-            const { photos: ps2 } = await fetchAlbumHtmlPhotos(albumId, p);
-            for (const { url, originalUrl } of ps2) pushImg(url, null, originalUrl);
-          }
-        }
-        albumCount = 1; updStats();
-        DEBUG.photos = photos.slice(0, 40).map(p => p.url).join('\n');
-        return;
-      }
-    } catch(e) { if (e.name === 'AbortError') throw e; }
-    log('Album non accessibile né via API né via HTML.', 'err'); return;
-  }
-
-  DEBUG.api = JSON.stringify(json, null, 2).substring(0, 8000);
-  const ps = parsePhotos(json, hd);
-  const tp = getTotalPages(json);
-  log(`Album: ${tp} pagine, ${ps.size} foto pag.1`);
-
-  if (tp > 1 && document.getElementById('opt-all').checked) {
-    for (let p = 2; p <= Math.min(tp, 100); p++) {
-      if (stopped) break;
-      try {
-        const pd = buildId
-          ? await nextDataFetch(path, { p })
-          : await yupooApiAlbum(albumId, p);
-        if (pd) parsePhotos(pd, hd, ps);
-      } catch {}
-    }
-  }
-
-  DEBUG.photos = [...ps].slice(0, 40).join('\n');
-  for (const u of [...ps].slice(0, lim)) pushImg(u, null);
-  albumCount = 1; updStats();
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// MAIN
-// ─────────────────────────────────────────────────────────────────────────────
-async function start() {
-  const raw = document.getElementById('url-input').value.trim();
-  if (!raw) { alert('Inserisci un link Yupoo.'); return; }
-  let url; try { url = new URL(raw).href; } catch { alert('URL non valido.'); return; }
-
-  images = []; seenUrls.clear();
-  albumCount = 0; pageCount = 0; errCount = 0; stopped = false; buildId = ''; cachedHtml = '';
-  DEBUG = { raw: '', api: '', next: '', photos: '' };
+  // Reset state
+  stopped = false; products = []; seenUrls.clear();
   if (abortCtrl) abortCtrl.abort();
   abortCtrl = new AbortController();
 
   const u = new URL(url);
   username = u.hostname.split('.')[0];
-  siteBase = `${u.protocol}//${u.hostname}`;
-  shopHost = u.hostname; // e.g. huskyreps.x.yupoo.com — used for Referer spoofing
+  siteBase = u.protocol + '//' + u.hostname;
+  shopHost = u.hostname;
+
+  document.getElementById('btn-extract').disabled = true;
+  document.getElementById('btn-stop').style.display = 'inline-block';
+  document.getElementById('progress-section').classList.add('visible');
+  document.getElementById('stats-bar').style.display = 'flex';
+  document.getElementById('empty-state').style.display = 'none';
+  document.getElementById('table-wrap').style.display = 'block';
+  setProgress(0, 'Connessione a Yupoo...');
+  clearLog();
+
   const isAlbum = /\/albums\//.test(url);
-
-  document.getElementById('status-area').style.display  = 'block';
-  document.getElementById('preview-area').style.display = 'none';
-  document.getElementById('debug-area').style.display   = 'none';
-  document.getElementById('proxy-note').style.display   = 'none';
-  document.getElementById('pgrid').innerHTML = '';
-  document.getElementById('log').innerHTML   = '';
-  document.getElementById('act-row').classList.remove('visible');
-  document.getElementById('info-box').style.display = 'none';
-  document.getElementById('start-btn').disabled = true;
-  document.getElementById('stop-btn').style.display = 'block';
-  updStats(); setBar(2, 'Connessione...');
-
-  log(`Shop: ${username} | Modalità: ${isAlbum ? 'ALBUM SINGOLO' : extractMode.toUpperCase()}`);
+  const catIdM = url.match(/\/categories\/(\d+)/);
+  const catId = catIdM ? catIdM[1] : null;
 
   try {
-    // Try to get buildId (non-fatal if fails)
-    buildId = await getBuildId(url) || '';
+    let allAlbums = [];
 
     if (isAlbum) {
-      await runAlbumMode(url);
-    } else if (extractMode === 'covers') {
-      await runCoversMode(url);
+      // Single album mode
+      log('Modalità: album singolo');
+      allAlbums = [{ id: parseInt(url.match(/\/albums\/(\d+)/)[1]), name: 'Album', coverUrl: null }];
     } else {
-      await runDeepMode(url);
+      log('Modalità: catalogo categoria — raccolta album...');
+      allAlbums = await extractAllAlbums(url, catId);
     }
 
-    setBar(100, `✓ ${images.length} immagini`);
-    log(`Fine: ${images.length} img, ${albumCount} album, ${errCount} err`, images.length > 0 ? 'success' : 'err');
-
-    if (images.length === 0) {
-      log('0 immagini. Vedi Debug panel per capire il problema.', 'err');
-      openDebug('raw');
-      document.getElementById('proxy-note').style.display = 'block';
-    } else {
-      document.getElementById('debug-area').style.display  = 'none'; // hide any debug opened mid-flow
-      document.getElementById('proxy-note').style.display  = 'none';
-      document.getElementById('pre-lbl').textContent = `Anteprima — ${images.length} immagini`;
-      document.getElementById('info-box').style.display = 'block';
-      document.getElementById('act-row').style.display  = 'flex';
-    }
-  } catch(e) {
-    if (e.name === 'AbortError') { log('Fermato.', 'warn'); }
-    else { log('Errore: ' + e.message, 'err'); setBar(0, 'Errore'); openDebug('raw'); }
-  } finally {
-    document.getElementById('start-btn').disabled = false;
-    document.getElementById('stop-btn').style.display = 'none';
-    if (images.length > 0 && stopped) {
-      document.getElementById('info-box').style.display = 'block';
-      document.getElementById('act-row').style.display  = 'flex';
-    }
-  }
-}
-
-function stop() { stopped = true; if (abortCtrl) abortCtrl.abort(); log('Fermato.', 'warn'); }
-function setMode(m) {
-  extractMode = m;
-  document.getElementById('m-covers').className = m==='covers' ? 'mode-card active' : 'mode-card';
-  document.getElementById('m-deep').className   = m==='deep'    ? 'mode-card active' : 'mode-card';
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// DEBUG
-// ─────────────────────────────────────────────────────────────────────────────
-function openDebug(tab) {
-  document.getElementById('debug-area').style.display = 'block';
-  showDebug(tab || 'raw');
-}
-function showDebug(tab) {
-  ['raw','api','next','photos'].forEach(t =>
-    document.getElementById('dtab-' + t).classList.toggle('on', t === tab));
-  document.getElementById('debug-box').textContent =
-    DEBUG[tab] || '(vuoto — esegui un\'estrazione)';
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// UI
-// ─────────────────────────────────────────────────────────────────────────────
-function log(msg, type) {
-  if (!type) type = 'info';
-  const c = document.getElementById('log');
-  const d = document.createElement('div');
-  d.className = 'll ' + (type === 'success' ? 'ok' : type);
-  const ts = new Date().toLocaleTimeString('it-IT', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
-  d.innerHTML = '<span class="ts">' + ts + '</span><span class="msg">' + msg + '</span>';
-  c.appendChild(d); c.scrollTop = c.scrollHeight;
-}
-function setBar(p, lbl) {
-  document.getElementById('bar').style.width = Math.min(p, 100) + '%';
-  if (lbl) document.getElementById('s-title').textContent = lbl;
-}
-function updStats() {
-  document.getElementById('st-albums').textContent = albumCount;
-  document.getElementById('st-pages').textContent  = pageCount;
-  document.getElementById('st-imgs').textContent   = images.length;
-  document.getElementById('st-err').textContent    = errCount;
-}
-function addPrev(url) {
-  if (!document.getElementById('opt-pre').checked) return;
-  const img = document.createElement('img');
-  img.className = 'pimg'; img.referrerPolicy = 'no-referrer';
-  img.src = url; img.onerror = () => img.remove();
-  document.getElementById('pgrid').appendChild(img);
-  document.getElementById('preview-area').style.display = 'block';
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// EXPORT
-// ─────────────────────────────────────────────────────────────────────────────
-
-// The catalog-viewer HTML template (baked in at build time)
-const VIEWER_TEMPLATE_B64 = "PCFET0NUWVBFIGh0bWw+CjxodG1sIGxhbmc9Iml0Ij4KPGhlYWQ+CjxtZXRhIGNoYXJzZXQ9IlVURi04Ii8+CjxtZXRhIG5hbWU9InZpZXdwb3J0IiBjb250ZW50PSJ3aWR0aD1kZXZpY2Utd2lkdGgsIGluaXRpYWwtc2NhbGU9MS4wIi8+CjxtZXRhIG5hbWU9InJlZmVycmVyIiBjb250ZW50PSJuby1yZWZlcnJlciIvPgo8dGl0bGU+Q2F0YWxvZ28gUHJvZG90dGk8L3RpdGxlPgo8bGluayByZWw9InByZWNvbm5lY3QiIGhyZWY9Imh0dHBzOi8vZm9udHMuZ29vZ2xlYXBpcy5jb20iLz4KPGxpbmsgaHJlZj0iaHR0cHM6Ly9mb250cy5nb29nbGVhcGlzLmNvbS9jc3MyP2ZhbWlseT1ETStTZXJpZitEaXNwbGF5Oml0YWxAMDsxJmZhbWlseT1ETStTYW5zOndnaHRAMzAwOzQwMDs1MDA7NjAwJmRpc3BsYXk9c3dhcCIgcmVsPSJzdHlsZXNoZWV0Ii8+CjxzdHlsZT4KICA6cm9vdHstLWJnOiNmN2Y0ZWY7LS1zdXJmYWNlOiNmZmY7LS1ib3JkZXI6I2U4ZTNkYTstLXRleHQ6IzFhMTkxNjstLW11dGVkOiM4YTg1ODA7LS1hY2NlbnQ6I2M4YTk2ZTstLXNoYWRvdzowIDJweCAxNnB4IHJnYmEoMCwwLDAsLjA3KTstLXNoYWRvdy1oOjAgOHB4IDQwcHggcmdiYSgwLDAsMCwuMTMpfQogICp7bWFyZ2luOjA7cGFkZGluZzowO2JveC1zaXppbmc6Ym9yZGVyLWJveH0KICBib2R5e2JhY2tncm91bmQ6dmFyKC0tYmcpO2NvbG9yOnZhcigtLXRleHQpO2ZvbnQtZmFtaWx5OidETSBTYW5zJyxzYW5zLXNlcmlmO21pbi1oZWlnaHQ6MTAwdmh9CgogIC50b3BiYXJ7cG9zaXRpb246c3RpY2t5O3RvcDowO3otaW5kZXg6MTAwO2JhY2tncm91bmQ6cmdiYSgyNDcsMjQ0LDIzOSwuOSk7YmFja2Ryb3AtZmlsdGVyOmJsdXIoMTZweCk7Ym9yZGVyLWJvdHRvbToxcHggc29saWQgdmFyKC0tYm9yZGVyKTtwYWRkaW5nOjAgMzJweDtkaXNwbGF5OmZsZXg7YWxpZ24taXRlbXM6Y2VudGVyO2p1c3RpZnktY29udGVudDpzcGFjZS1iZXR3ZWVuO2hlaWdodDo1NnB4fQogIC5sb2dve2ZvbnQtZmFtaWx5OidETSBTZXJpZiBEaXNwbGF5JyxzZXJpZjtmb250LXNpemU6MjBweDtsZXR0ZXItc3BhY2luZzotLjVweH0KICAudG9wYmFyLWluZm97Zm9udC1zaXplOjEycHg7Y29sb3I6dmFyKC0tbXV0ZWQpO2ZvbnQtd2VpZ2h0OjUwMH0KICAvKiBwcm94eSBzdGF0dXMgcGlsbCAqLwogIC5wcm94eS1waWxse2ZvbnQtc2l6ZToxMHB4O2ZvbnQtd2VpZ2h0OjYwMDtwYWRkaW5nOjRweCAxMHB4O2JvcmRlci1yYWRpdXM6OTk5cHg7Ym9yZGVyOjFweCBzb2xpZDtkaXNwbGF5Om5vbmV9CiAgLnByb3h5LXBpbGwub257ZGlzcGxheTppbmxpbmUtYmxvY2s7YmFja2dyb3VuZDpyZ2JhKDIwMCwxNjksMTEwLC4xKTtib3JkZXItY29sb3I6cmdiYSgyMDAsMTY5LDExMCwuNCk7Y29sb3I6dmFyKC0tYWNjZW50KX0KCiAgLmhlcm97cGFkZGluZzo0NHB4IDMycHggMjhweDttYXgtd2lkdGg6MTIwMHB4O21hcmdpbjowIGF1dG87ZGlzcGxheTpmbGV4O2FsaWduLWl0ZW1zOmZsZXgtZW5kO2p1c3RpZnktY29udGVudDpzcGFjZS1iZXR3ZWVuO2dhcDoyNHB4O2ZsZXgtd3JhcDp3cmFwfQogIC5oZXJvIGgxe2ZvbnQtZmFtaWx5OidETSBTZXJpZiBEaXNwbGF5JyxzZXJpZjtmb250LXNpemU6Y2xhbXAoMzRweCw1dncsNjRweCk7Zm9udC13ZWlnaHQ6NDAwO2xpbmUtaGVpZ2h0OjE7bGV0dGVyLXNwYWNpbmc6LTJweH0KICAuaGVybyBoMSBlbXtmb250LXN0eWxlOml0YWxpYztjb2xvcjp2YXIoLS1hY2NlbnQpfQogIC5oZXJvLW1ldGF7dGV4dC1hbGlnbjpyaWdodH0KICAuaGVyby1udW17Zm9udC1zaXplOjQ2cHg7Zm9udC13ZWlnaHQ6MzAwO2NvbG9yOnZhcigtLW11dGVkKTtsaW5lLWhlaWdodDoxfQogIC5oZXJvLXN1Yntmb250LXNpemU6MTFweDtmb250LXdlaWdodDo1MDA7dGV4dC10cmFuc2Zvcm06dXBwZXJjYXNlO2xldHRlci1zcGFjaW5nOjJweDtjb2xvcjp2YXIoLS1tdXRlZCk7bWFyZ2luLXRvcDo0cHh9CgogIC5jb250cm9sc3ttYXgtd2lkdGg6MTIwMHB4O21hcmdpbjowIGF1dG87cGFkZGluZzowIDMycHggMjJweDtkaXNwbGF5OmZsZXg7YWxpZ24taXRlbXM6Y2VudGVyO2dhcDoxMHB4O2ZsZXgtd3JhcDp3cmFwfQogIC5zZWFyY2gtd3JhcHtwb3NpdGlvbjpyZWxhdGl2ZTtmbGV4OjE7bWluLXdpZHRoOjE4MHB4O21heC13aWR0aDozMDBweH0KICAuc2VhcmNoLXdyYXAgaW5wdXR7d2lkdGg6MTAwJTtiYWNrZ3JvdW5kOnZhcigtLXN1cmZhY2UpO2JvcmRlcjoxcHggc29saWQgdmFyKC0tYm9yZGVyKTtib3JkZXItcmFkaXVzOjEycHg7cGFkZGluZzoxMHB4IDE0cHggMTBweCAzNnB4O2ZvbnQtZmFtaWx5OidETSBTYW5zJyxzYW5zLXNlcmlmO2ZvbnQtc2l6ZToxM3B4O2NvbG9yOnZhcigtLXRleHQpO291dGxpbmU6bm9uZTt0cmFuc2l0aW9uOmJvcmRlci1jb2xvciAuMnN9CiAgLnNlYXJjaC13cmFwIGlucHV0OmZvY3Vze2JvcmRlci1jb2xvcjp2YXIoLS1hY2NlbnQpfQogIC5zaXtwb3NpdGlvbjphYnNvbHV0ZTtsZWZ0OjExcHg7dG9wOjUwJTt0cmFuc2Zvcm06dHJhbnNsYXRlWSgtNTAlKTtjb2xvcjp2YXIoLS1tdXRlZCk7Zm9udC1zaXplOjE0cHh9CiAgLmxheS1idG57d2lkdGg6MzZweDtoZWlnaHQ6MzZweDtib3JkZXItcmFkaXVzOjlweDtib3JkZXI6MXB4IHNvbGlkIHZhcigtLWJvcmRlcik7YmFja2dyb3VuZDp2YXIoLS1zdXJmYWNlKTtjdXJzb3I6cG9pbnRlcjtkaXNwbGF5OmZsZXg7YWxpZ24taXRlbXM6Y2VudGVyO2p1c3RpZnktY29udGVudDpjZW50ZXI7Zm9udC1zaXplOjE0cHg7Y29sb3I6dmFyKC0tbXV0ZWQpO3RyYW5zaXRpb246YWxsIC4yc30KICAubGF5LWJ0bi5vbntib3JkZXItY29sb3I6dmFyKC0tYWNjZW50KTtjb2xvcjp2YXIoLS1hY2NlbnQpO2JhY2tncm91bmQ6cmdiYSgyMDAsMTY5LDExMCwuMDgpfQogIC5zb3J0LXNlbHtiYWNrZ3JvdW5kOnZhcigtLXN1cmZhY2UpO2JvcmRlcjoxcHggc29saWQgdmFyKC0tYm9yZGVyKTtib3JkZXItcmFkaXVzOjlweDtwYWRkaW5nOjlweCAxMnB4O2ZvbnQtZmFtaWx5OidETSBTYW5zJyxzYW5zLXNlcmlmO2ZvbnQtc2l6ZToxMnB4O2NvbG9yOnZhcigtLXRleHQpO291dGxpbmU6bm9uZTtjdXJzb3I6cG9pbnRlcn0KCiAgLmdyaWQtd3JhcHttYXgtd2lkdGg6MTIwMHB4O21hcmdpbjowIGF1dG87cGFkZGluZzowIDMycHggODBweH0KICAjZ3JpZHtkaXNwbGF5OmdyaWQ7Z3JpZC10ZW1wbGF0ZS1jb2x1bW5zOnJlcGVhdChhdXRvLWZpbGwsbWlubWF4KDIyMHB4LDFmcikpO2dhcDoxOHB4fQogICNncmlkLmxpc3R7Z3JpZC10ZW1wbGF0ZS1jb2x1bW5zOjFmcjtnYXA6MTBweH0KCiAgLml0ZW17YmFja2dyb3VuZDp2YXIoLS1zdXJmYWNlKTtib3JkZXI6MXB4IHNvbGlkIHZhcigtLWJvcmRlcik7Ym9yZGVyLXJhZGl1czoxNnB4O292ZXJmbG93OmhpZGRlbjtjdXJzb3I6cG9pbnRlcjt0cmFuc2l0aW9uOnRyYW5zZm9ybSAuMjVzLGJveC1zaGFkb3cgLjI1czthbmltYXRpb246ZmFkZVVwIC4zNXMgZWFzZSBib3RofQogIEBrZXlmcmFtZXMgZmFkZVVwe2Zyb217b3BhY2l0eTowO3RyYW5zZm9ybTp0cmFuc2xhdGVZKDEwcHgpfXRve29wYWNpdHk6MTt0cmFuc2Zvcm06bm9uZX19CiAgLml0ZW06aG92ZXJ7dHJhbnNmb3JtOnRyYW5zbGF0ZVkoLTRweCk7Ym94LXNoYWRvdzp2YXIoLS1zaGFkb3ctaCl9CgogIC5pbWctd3JhcHtwb3NpdGlvbjpyZWxhdGl2ZTtvdmVyZmxvdzpoaWRkZW47YXNwZWN0LXJhdGlvOjE7YmFja2dyb3VuZDojZWRlOWUyfQogIC8qIExvYWRpbmcgc3Bpbm5lciBpbnNpZGUgZWFjaCBjYXJkICovCiAgLmltZy13cmFwOjpiZWZvcmV7Y29udGVudDonJztwb3NpdGlvbjphYnNvbHV0ZTtpbnNldDowO2Rpc3BsYXk6ZmxleDthbGlnbi1pdGVtczpjZW50ZXI7anVzdGlmeS1jb250ZW50OmNlbnRlcn0KICAuaW1nLXdyYXAubG9hZGluZzo6YWZ0ZXJ7Y29udGVudDonJztwb3NpdGlvbjphYnNvbHV0ZTt0b3A6NTAlO2xlZnQ6NTAlO3RyYW5zZm9ybTp0cmFuc2xhdGUoLTUwJSwtNTAlKTt3aWR0aDoyNHB4O2hlaWdodDoyNHB4O2JvcmRlci1yYWRpdXM6NTAlO2JvcmRlcjoycHggc29saWQgI2Q4ZDRjZTtib3JkZXItdG9wLWNvbG9yOnZhcigtLWFjY2VudCk7YW5pbWF0aW9uOnNwaW4gLjdzIGxpbmVhciBpbmZpbml0ZX0KICBAa2V5ZnJhbWVzIHNwaW57dG97dHJhbnNmb3JtOnRyYW5zbGF0ZSgtNTAlLC01MCUpIHJvdGF0ZSgzNjBkZWcpfX0KICAuaW1nLXdyYXAuZXJyb3I6OmFmdGVye2NvbnRlbnQ6J+KclSc7cG9zaXRpb246YWJzb2x1dGU7dG9wOjUwJTtsZWZ0OjUwJTt0cmFuc2Zvcm06dHJhbnNsYXRlKC01MCUsLTUwJSk7Y29sb3I6I2NjYztmb250LXNpemU6MjBweDthbmltYXRpb246bm9uZX0KCiAgLmltZy13cmFwIGltZ3t3aWR0aDoxMDAlO2hlaWdodDoxMDAlO29iamVjdC1maXQ6Y292ZXI7dHJhbnNpdGlvbjp0cmFuc2Zvcm0gLjRzLCBvcGFjaXR5IC4zcztkaXNwbGF5OmJsb2NrO29wYWNpdHk6MH0KICAuaW1nLXdyYXAgaW1nLmxvYWRlZHtvcGFjaXR5OjF9CiAgLml0ZW06aG92ZXIgLmltZy13cmFwIGltZ3t0cmFuc2Zvcm06c2NhbGUoMS4wNSl9CgogIC5pbWctb3ZlcmxheXtwb3NpdGlvbjphYnNvbHV0ZTtpbnNldDowO2JhY2tncm91bmQ6cmdiYSgwLDAsMCwwKTtkaXNwbGF5OmZsZXg7YWxpZ24taXRlbXM6Y2VudGVyO2p1c3RpZnktY29udGVudDpjZW50ZXI7Z2FwOjhweDt0cmFuc2l0aW9uOmJhY2tncm91bmQgLjI1c30KICAuaXRlbTpob3ZlciAuaW1nLW92ZXJsYXl7YmFja2dyb3VuZDpyZ2JhKDAsMCwwLC4zKX0KICAub3YtYnRue2JhY2tncm91bmQ6cmdiYSgyNTUsMjU1LDI1NSwuOTUpO2JvcmRlcjpub25lO2JvcmRlci1yYWRpdXM6OXB4O3BhZGRpbmc6OHB4IDE0cHg7Zm9udC1zaXplOjExcHg7Zm9udC13ZWlnaHQ6NjAwO2N1cnNvcjpwb2ludGVyO29wYWNpdHk6MDt0cmFuc2Zvcm06dHJhbnNsYXRlWSg2cHgpO3RyYW5zaXRpb246b3BhY2l0eSAuMnMsdHJhbnNmb3JtIC4ycztjb2xvcjp2YXIoLS10ZXh0KX0KICAuaXRlbTpob3ZlciAub3YtYnRue29wYWNpdHk6MTt0cmFuc2Zvcm06bm9uZX0KICAub3YtYnRuOm50aC1jaGlsZCgyKXt0cmFuc2l0aW9uLWRlbGF5Oi4wNHN9CgogIC5pdGVtLWluZm97cGFkZGluZzoxMnB4IDE0cHh9CiAgLml0ZW0taWR7Zm9udC1zaXplOjEwcHg7Zm9udC13ZWlnaHQ6NjAwO3RleHQtdHJhbnNmb3JtOnVwcGVyY2FzZTtsZXR0ZXItc3BhY2luZzoxLjVweDtjb2xvcjp2YXIoLS1tdXRlZCk7bWFyZ2luLWJvdHRvbTozcHh9CiAgLml0ZW0tbmFtZXtmb250LXNpemU6MTNweDtmb250LXdlaWdodDo1MDB9CgogICNncmlkLmxpc3QgLml0ZW17ZGlzcGxheTpmbGV4O2ZsZXgtZGlyZWN0aW9uOnJvdzthbGlnbi1pdGVtczpjZW50ZXI7Ym9yZGVyLXJhZGl1czoxMnB4fQogICNncmlkLmxpc3QgLmltZy13cmFwe3dpZHRoOjcycHg7aGVpZ2h0OjcycHg7YXNwZWN0LXJhdGlvOnVuc2V0O2ZsZXgtc2hyaW5rOjA7Ym9yZGVyLXJhZGl1czoxMHB4IDAgMCAxMHB4fQogICNncmlkLmxpc3QgLml0ZW0taW5mb3tmbGV4OjE7cGFkZGluZzowIDE4cHg7ZGlzcGxheTpmbGV4O2FsaWduLWl0ZW1zOmNlbnRlcjtnYXA6MjBweH0KICAjZ3JpZC5saXN0IC5pdGVtLW5hbWV7ZmxleDoxfQoKICAvKiBMaWdodGJveCAqLwogIC5sYntkaXNwbGF5Om5vbmU7cG9zaXRpb246Zml4ZWQ7aW5zZXQ6MDt6LWluZGV4OjIwMDtiYWNrZ3JvdW5kOnJnYmEoOCw2LDQsLjk1KTthbGlnbi1pdGVtczpjZW50ZXI7anVzdGlmeS1jb250ZW50OmNlbnRlcn0KICAubGIub3BlbntkaXNwbGF5OmZsZXh9CiAgLmxiLWltZ3ttYXgtd2lkdGg6OTB2dzttYXgtaGVpZ2h0Ojg2dmg7b2JqZWN0LWZpdDpjb250YWluO2JvcmRlci1yYWRpdXM6MTBweDtkaXNwbGF5OmJsb2NrfQogIC5sYi1jbG9zZXtwb3NpdGlvbjpmaXhlZDt0b3A6MThweDtyaWdodDoyMnB4O2JhY2tncm91bmQ6cmdiYSgyNTUsMjU1LDI1NSwuMSk7Ym9yZGVyOjFweCBzb2xpZCByZ2JhKDI1NSwyNTUsMjU1LC4xNSk7Ym9yZGVyLXJhZGl1czo5cHg7cGFkZGluZzo3cHggMTRweDtjb2xvcjojZmZmO2ZvbnQtc2l6ZToxMnB4O2N1cnNvcjpwb2ludGVyO2ZvbnQtZmFtaWx5OidETSBTYW5zJyxzYW5zLXNlcmlmO3RyYW5zaXRpb246YmFja2dyb3VuZCAuMnN9CiAgLmxiLWNsb3NlOmhvdmVye2JhY2tncm91bmQ6cmdiYSgyNTUsMjU1LDI1NSwuMil9CiAgLmxiLW5hdntwb3NpdGlvbjpmaXhlZDt0b3A6NTAlO3RyYW5zZm9ybTp0cmFuc2xhdGVZKC01MCUpO2JhY2tncm91bmQ6cmdiYSgyNTUsMjU1LDI1NSwuMSk7Ym9yZGVyOjFweCBzb2xpZCByZ2JhKDI1NSwyNTUsMjU1LC4xNSk7Ym9yZGVyLXJhZGl1czo5cHg7cGFkZGluZzoxNHB4IDE2cHg7Y29sb3I6I2ZmZjtmb250LXNpemU6MThweDtjdXJzb3I6cG9pbnRlcjt0cmFuc2l0aW9uOmJhY2tncm91bmQgLjJzfQogIC5sYi1uYXY6aG92ZXJ7YmFja2dyb3VuZDpyZ2JhKDI1NSwyNTUsMjU1LC4yKX0KICAubGItcHJldntsZWZ0OjE4cHh9LmxiLW5leHR7cmlnaHQ6MThweH0KICAubGItYmFye3Bvc2l0aW9uOmZpeGVkO2JvdHRvbToyNHB4O2xlZnQ6NTAlO3RyYW5zZm9ybTp0cmFuc2xhdGVYKC01MCUpO2JhY2tncm91bmQ6cmdiYSgyNTUsMjU1LDI1NSwuMDgpO2JhY2tkcm9wLWZpbHRlcjpibHVyKDEycHgpO2JvcmRlcjoxcHggc29saWQgcmdiYSgyNTUsMjU1LDI1NSwuMTIpO2JvcmRlci1yYWRpdXM6OTk5cHg7cGFkZGluZzo4cHggMjBweDtjb2xvcjpyZ2JhKDI1NSwyNTUsMjU1LC43KTtmb250LXNpemU6MTJweDtkaXNwbGF5OmZsZXg7Z2FwOjE0cHg7YWxpZ24taXRlbXM6Y2VudGVyfQogIC5sYi1kbHtiYWNrZ3JvdW5kOnZhcigtLWFjY2VudCk7Y29sb3I6I2ZmZjtib3JkZXI6bm9uZTtib3JkZXItcmFkaXVzOjdweDtwYWRkaW5nOjVweCAxMnB4O2ZvbnQtc2l6ZToxMXB4O2ZvbnQtd2VpZ2h0OjYwMDtjdXJzb3I6cG9pbnRlcjt0cmFuc2l0aW9uOm9wYWNpdHkgLjJzfQogIC5sYi1kbDpob3ZlcntvcGFjaXR5Oi44NX0KCiAgLmxvYWRpbmctc3RhdGV7dGV4dC1hbGlnbjpjZW50ZXI7cGFkZGluZzo4MHB4IDMycHg7Y29sb3I6dmFyKC0tbXV0ZWQpfQogIC5zcGlubmVye3dpZHRoOjMycHg7aGVpZ2h0OjMycHg7Ym9yZGVyLXJhZGl1czo1MCU7Ym9yZGVyOjJweCBzb2xpZCB2YXIoLS1ib3JkZXIpO2JvcmRlci10b3AtY29sb3I6dmFyKC0tYWNjZW50KTthbmltYXRpb246c3BpbiAuOHMgbGluZWFyIGluZmluaXRlO21hcmdpbjowIGF1dG8gMTZweH0KCiAgLndvcmtlci1iYXJ7YmFja2dyb3VuZDpyZ2JhKDAsMjI5LDI1NSwuMDUpO2JvcmRlci1ib3R0b206MXB4IHNvbGlkIHJnYmEoMCwyMjksMjU1LC4xMik7cGFkZGluZzo4cHggMzJweDtkaXNwbGF5OmZsZXg7YWxpZ24taXRlbXM6Y2VudGVyO2dhcDoxMHB4O2ZvbnQtc2l6ZToxMXB4fQoud29ya2VyLWJhciBpbnB1dHtmbGV4OjE7bWF4LXdpZHRoOjQ4MHB4O2JhY2tncm91bmQ6dHJhbnNwYXJlbnQ7Ym9yZGVyOjFweCBzb2xpZCByZ2JhKDAsMjI5LDI1NSwuMjUpO2JvcmRlci1yYWRpdXM6N3B4O3BhZGRpbmc6NXB4IDEwcHg7Y29sb3I6I2NjYztmb250LXNpemU6MTFweDtvdXRsaW5lOm5vbmV9Ci53b3JrZXItYmFyIGlucHV0Lm9re2JvcmRlci1jb2xvcjojMDBlNWEwO2NvbG9yOiMwMGU1YTB9Ci53b3JrZXItYmFyIHNwYW4ub2t7Y29sb3I6IzAwZTVhMH0KLndvcmtlci1iYXIgc3Bhbi5ub3tjb2xvcjojODg4fQoudXBsb2FkLXpvbmV7Ym9yZGVyOjJweCBkYXNoZWQgdmFyKC0tYm9yZGVyKTtib3JkZXItcmFkaXVzOjIwcHg7cGFkZGluZzo1NnB4IDMycHg7dGV4dC1hbGlnbjpjZW50ZXI7bWFyZ2luOjIwcHg7dHJhbnNpdGlvbjpib3JkZXItY29sb3IgLjJzO2N1cnNvcjpwb2ludGVyfQogIC51cGxvYWQtem9uZTpob3ZlciwudXBsb2FkLXpvbmUuZHJhZ3tib3JkZXItY29sb3I6dmFyKC0tYWNjZW50KX0KICAudXBsb2FkLXpvbmUgaDN7Zm9udC1mYW1pbHk6J0RNIFNlcmlmIERpc3BsYXknLHNlcmlmO2ZvbnQtc2l6ZToyMnB4O2ZvbnQtd2VpZ2h0OjQwMDttYXJnaW4tYm90dG9tOjhweDttYXJnaW4tdG9wOjEycHh9CiAgLnVwbG9hZC16b25lIHB7Zm9udC1zaXplOjEzcHg7Y29sb3I6dmFyKC0tbXV0ZWQpO2xpbmUtaGVpZ2h0OjEuN30KICAudXBsb2FkLXpvbmUgaW5wdXR7ZGlzcGxheTpub25lfQogIC51cC1idG57ZGlzcGxheTppbmxpbmUtYmxvY2s7bWFyZ2luLXRvcDoxOHB4O2JhY2tncm91bmQ6dmFyKC0tYWNjZW50KTtjb2xvcjojZmZmO2JvcmRlcjpub25lO2JvcmRlci1yYWRpdXM6OXB4O3BhZGRpbmc6MTFweCAyNnB4O2ZvbnQtZmFtaWx5OidETSBTYW5zJyxzYW5zLXNlcmlmO2ZvbnQtd2VpZ2h0OjYwMDtmb250LXNpemU6MTNweDtjdXJzb3I6cG9pbnRlcn0KCiAgQG1lZGlhKG1heC13aWR0aDo2NDBweCl7CiAgICAuaGVyb3tmbGV4LWRpcmVjdGlvbjpjb2x1bW47YWxpZ24taXRlbXM6ZmxleC1zdGFydDtwYWRkaW5nOjI4cHggMTZweCAxNnB4fQogICAgLmhlcm8tbWV0YXt0ZXh0LWFsaWduOmxlZnR9CiAgICAjZ3JpZHtncmlkLXRlbXBsYXRlLWNvbHVtbnM6cmVwZWF0KDIsMWZyKTtnYXA6MTBweH0KICAgIC50b3BiYXIsLmdyaWQtd3JhcCwuY29udHJvbHN7cGFkZGluZy1sZWZ0OjE2cHg7cGFkZGluZy1yaWdodDoxNnB4fQogIH0KPC9zdHlsZT4KPC9oZWFkPgo8Ym9keT4KCjxkaXYgY2xhc3M9Indvcmtlci1iYXIiIGlkPSJ3YmFyIj4KICA8c3Bhbj7imqE8L3NwYW4+CiAgPGlucHV0IHR5cGU9InRleHQiIGlkPSJjdi13b3JrZXItdXJsIiB2YWx1ZT0iaHR0cHM6Ly95dXBvby1wcm94eS5jb250aTk3MDgud29ya2Vycy5kZXYiIHBsYWNlaG9sZGVyPSJJbmNvbGxhIFdvcmtlciBVUkwgcGVyIHZpc3VhbGl6emFyZSBlIHNjYXJpY2FyZSBsZSBpbW1hZ2luaS4uLiIgYXV0b2NvbXBsZXRlPSJvZmYiIG9uaW5wdXQ9ImN2V29ya2VyQ2hhbmdlKCkiLz4KICA8c3BhbiBpZD0iY3Ytd29ya2VyLXN0YXR1cyIgY2xhc3M9Im5vIj7igJMgbm9uIGNvbmZpZ3VyYXRvPC9zcGFuPgo8L2Rpdj4KPGRpdiBjbGFzcz0idG9wYmFyIj4KICA8ZGl2IGNsYXNzPSJsb2dvIiBpZD0iY2F0LXRpdGxlIj5DYXRhbG9nbzwvZGl2PgogIDxkaXYgY2xhc3M9InRvcGJhci1pbmZvIiBpZD0idG9wLWluZm8iPkNhcmljYW1lbnRvLi4uPC9kaXY+CiAgPGJ1dHRvbiBpZD0iemlwLWJ0biIgb25jbGljaz0iZG93bmxvYWRaaXAoKSIgc3R5bGU9ImRpc3BsYXk6bm9uZTtiYWNrZ3JvdW5kOnJnYmEoMCwwLDAsLjA3KTtib3JkZXI6MXB4IHNvbGlkIHJnYmEoMCwwLDAsLjE1KTtib3JkZXItcmFkaXVzOjhweDtwYWRkaW5nOjZweCAxNHB4O2NvbG9yOiMzMzM7Zm9udC1zaXplOjEycHg7Y3Vyc29yOnBvaW50ZXI7d2hpdGUtc3BhY2U6bm93cmFwO2ZvbnQtd2VpZ2h0OjYwMCI+8J+TpiBTY2FyaWNhIFpJUDwvYnV0dG9uPgogIDxzcGFuIGNsYXNzPSJwcm94eS1waWxsIG9uIiBpZD0icHJveHktcGlsbCI+8J+UhCB2aWEgcHJveHk8L3NwYW4+CjwvZGl2PgoKPGRpdiBjbGFzcz0iaGVybyI+CiAgPGgxIGlkPSJoZXJvLWgiPkNvbGxlemlvbmU8YnIvPjxlbT5Qcm9kb3R0aTwvZW0+PC9oMT4KICA8ZGl2IGNsYXNzPSJoZXJvLW1ldGEiPgogICAgPGRpdiBjbGFzcz0iaGVyby1udW0iIGlkPSJoZXJvLW4iPuKAlDwvZGl2PgogICAgPGRpdiBjbGFzcz0iaGVyby1zdWIiPkFydGljb2xpPC9kaXY+CiAgPC9kaXY+CjwvZGl2PgoKPGRpdiBjbGFzcz0iY29udHJvbHMiPgogIDxkaXYgY2xhc3M9InNlYXJjaC13cmFwIj4KICAgIDxzcGFuIGNsYXNzPSJzaSI+8J+UjTwvc3Bhbj4KICAgIDxpbnB1dCB0eXBlPSJ0ZXh0IiBpZD0ic2VhcmNoIiBwbGFjZWhvbGRlcj0iQ2VyY2EgI251bWVyby4uLiIgb25pbnB1dD0iZmlsdGVyKCkiLz4KICA8L2Rpdj4KICA8YnV0dG9uIGNsYXNzPSJsYXktYnRuIG9uIiBpZD0iYnRuLWciIG9uY2xpY2s9InNldExheW91dCgnZ3JpZCcpIj7iip48L2J1dHRvbj4KICA8YnV0dG9uIGNsYXNzPSJsYXktYnRuIiBpZD0iYnRuLWwiIG9uY2xpY2s9InNldExheW91dCgnbGlzdCcpIj7imLA8L2J1dHRvbj4KICA8c2VsZWN0IGNsYXNzPSJzb3J0LXNlbCIgb25jaGFuZ2U9InJlbmRlcigpIj4KICAgIDxvcHRpb24gdmFsdWU9ImRlZmF1bHQiPk9yZGluZSBvcmlnaW5hbGU8L29wdGlvbj4KICAgIDxvcHRpb24gdmFsdWU9ImFzYyI+SUQgY3Jlc2NlbnRlPC9vcHRpb24+CiAgICA8b3B0aW9uIHZhbHVlPSJkZXNjIj5JRCBkZWNyZXNjZW50ZTwvb3B0aW9uPgogIDwvc2VsZWN0Pgo8L2Rpdj4KCjxkaXYgY2xhc3M9ImdyaWQtd3JhcCI+CiAgPGRpdiBpZD0iZ3JpZCI+PGRpdiBjbGFzcz0ibG9hZGluZy1zdGF0ZSI+PGRpdiBjbGFzcz0ic3Bpbm5lciI+PC9kaXY+PHA+Q2FyaWNhbWVudG8uLi48L3A+PC9kaXY+PC9kaXY+CjwvZGl2PgoKPGRpdiBjbGFzcz0ibGIiIGlkPSJsYiIgb25jbGljaz0ibGJCZyhldmVudCkiPgogIDxidXR0b24gY2xhc3M9ImxiLWNsb3NlIiBvbmNsaWNrPSJjbG9zZUxiKCkiPuKclSBDaGl1ZGk8L2J1dHRvbj4KICA8YnV0dG9uIGNsYXNzPSJsYi1uYXYgbGItcHJldiIgb25jbGljaz0ibGJHbygtMSkiPuKAuTwvYnV0dG9uPgogIDxpbWcgaWQ9ImxiLWltZyIgY2xhc3M9ImxiLWltZyIgc3JjPSIiIGFsdD0iIiByZWZlcnJlcnBvbGljeT0ibm8tcmVmZXJyZXIiLz4KICA8YnV0dG9uIGNsYXNzPSJsYi1uYXYgbGItbmV4dCIgb25jbGljaz0ibGJHbygxKSI+4oC6PC9idXR0b24+CiAgPGRpdiBjbGFzcz0ibGItYmFyIj4KICAgIDxzcGFuIGlkPSJsYi1pbmZvIj4xIC8gMTwvc3Bhbj4KICAgIDxidXR0b24gY2xhc3M9ImxiLWRsIiBvbmNsaWNrPSJkbEltZygpIj7irIcgU2NhcmljYTwvYnV0dG9uPgogIDwvZGl2Pgo8L2Rpdj4KCjxzY3JpcHQ+CmxldCBhbGxJdGVtcyA9IFtdLCBmaWx0ZXJlZCA9IFtdLCBsYklkeCA9IDA7CmxldCBzaG9wSG9zdCA9ICcnOwpsZXQgd29ya2VyVXJsID0gbG9jYWxTdG9yYWdlLmdldEl0ZW0oJ3l1cG9vX3dvcmtlcl91cmwnKSB8fCAnaHR0cHM6Ly95dXBvby1wcm94eS5jb250aTk3MDgud29ya2Vycy5kZXYnOwoKLy8g4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSACi8vIFBST1hZIHZpYSBDbG91ZGZsYXJlIFdvcmtlciDigJQgdGhlIE9OTFkgcmVsaWFibGUgbWV0aG9kIGZvciBZdXBvbyBpbWFnZXMKLy8gV29ya2VyIHNldHMgUmVmZXJlcjogaHR0cHM6Ly91c2VybmFtZS54Lnl1cG9vLmNvbS8gc2VydmVyLXNpZGUKLy8g4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSACmZ1bmN0aW9uIHdvcmtlckltZ1NyYyh1cmwpIHsKICBpZiAod29ya2VyVXJsKSB7CiAgICBjb25zdCBiYXNlID0gd29ya2VyVXJsLnJlcGxhY2UoL1wvJC8sICcnKTsKICAgIHJldHVybiBgJHtiYXNlfS8/dXJsPSR7ZW5jb2RlVVJJQ29tcG9uZW50KHVybCl9YDsKICB9CiAgcmV0dXJuIHVybDsgLy8gZGlyZWN0ICh3b24ndCB3b3JrIGZvciBob3RsaW5rLXByb3RlY3RlZCBpbWFnZXMsIGJ1dCBsZXQgaW1nIHRhZyB0cnkpCn0KCi8vIOKUgOKUgCBMb2FkIGNhdGFsb2cg4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSACmFzeW5jIGZ1bmN0aW9uIGxvYWQoKSB7CiAgLy8gRU1CRURERUQ6IGlmIHN0YW5kYWxvbmUgZXhwb3J0LCBjYXRhbG9nIGlzIGJha2VkIGluCiAgaWYgKHdpbmRvdy5fX0NBVEFMT0dfXykgeyBpbml0KHdpbmRvdy5fX0NBVEFMT0dfXyk7IHJldHVybjsgfQogIHRyeSB7CiAgICBjb25zdCByID0gYXdhaXQgZmV0Y2goJy4vY2F0YWxvZy5qc29uJywgeyBjYWNoZTogJ25vLWNhY2hlJyB9KTsKICAgIGlmIChyLm9rKSB7IGluaXQoYXdhaXQgci5qc29uKCkpOyByZXR1cm47IH0KICB9IGNhdGNoIHt9CiAgc2hvd1VwbG9hZCgpOwp9Cgphc3luYyBmdW5jdGlvbiBkb3dubG9hZFppcCgpIHsKICBpZiAoIWFsbEl0ZW1zLmxlbmd0aCkgcmV0dXJuOwogIGlmICghd29ya2VyVXJsKSB7IGFsZXJ0KCdDb25maWd1cmEgaWwgV29ya2VyIFVSTCBuZWxsYSBiYXJyYSBpbiBhbHRvJyk7IHJldHVybjsgfQogIGlmICh0eXBlb2YgSlNaaXAgPT09ICd1bmRlZmluZWQnKSB7IGFsZXJ0KCdKU1ppcCBub24gZGlzcG9uaWJpbGUnKTsgcmV0dXJuOyB9CgogIGNvbnN0IGJ0biA9IGRvY3VtZW50LmdldEVsZW1lbnRCeUlkKCd6aXAtYnRuJyk7CiAgYnRuLnRleHRDb250ZW50ID0gJ+KPsyAwLycgKyBhbGxJdGVtcy5sZW5ndGg7CiAgYnRuLmRpc2FibGVkID0gdHJ1ZTsKCiAgY29uc3QgemlwID0gbmV3IEpTWmlwKCk7CiAgbGV0IGRvbmUgPSAwLCBmYWlsZWQgPSAwOwoKICBmb3IgKGxldCBpID0gMDsgaSA8IGFsbEl0ZW1zLmxlbmd0aDsgaSsrKSB7CiAgICBjb25zdCBpdCA9IGFsbEl0ZW1zW2ldOwogICAgY29uc3Qgc3JjID0gd29ya2VySW1nU3JjKGl0Lm9yaWdpbmFsVXJsIHx8IGl0LnVybCk7CiAgICB0cnkgewogICAgICBjb25zdCBibG9iID0gYXdhaXQgaW1nVG9CbG9iKHNyYyk7CiAgICAgIHppcC5maWxlKGl0LmZpbGVuYW1lLCBibG9iKTsKICAgICAgZG9uZSsrOwogICAgfSBjYXRjaChlKSB7CiAgICAgIGZhaWxlZCsrOwogICAgfQogICAgYnRuLnRleHRDb250ZW50ID0gJ+KPsyAnICsgKGkrMSkgKyAnLycgKyBhbGxJdGVtcy5sZW5ndGg7CiAgfQoKICBpZiAoZG9uZSA9PT0gMCkgewogICAgYnRuLnRleHRDb250ZW50ID0gJ+KdjCBGYWxsaXRvJzsKICAgIGJ0bi5kaXNhYmxlZCA9IGZhbHNlOwogICAgYWxlcnQoJ05lc3N1bmEgaW1tYWdpbmUgc2NhcmljYXRhLiBBc3NpY3VyYXRpIGNoZSBsZSBpbW1hZ2luaSBzaWFubyB2aXNpYmlsaSBuZWwgdmlld2VyLicpOwogICAgcmV0dXJuOwogIH0KCiAgYnRuLnRleHRDb250ZW50ID0gJ/Cfk6YgQ3JlYXppb25lIFpJUC4uLic7CiAgY29uc3QgYmxvYiA9IGF3YWl0IHppcC5nZW5lcmF0ZUFzeW5jKHsgdHlwZTogJ2Jsb2InLCBjb21wcmVzc2lvbjogJ0RFRkxBVEUnLCBjb21wcmVzc2lvbk9wdGlvbnM6IHsgbGV2ZWw6IDQgfSB9KTsKICBjb25zdCBhID0gZG9jdW1lbnQuY3JlYXRlRWxlbWVudCgnYScpOwogIGEuaHJlZiA9IFVSTC5jcmVhdGVPYmplY3RVUkwoYmxvYik7CiAgYS5kb3dubG9hZCA9ICdjYXRhbG9nb18nICsgKGFsbEl0ZW1zWzBdPy5maWxlbmFtZT8uc3BsaXQoJ18nKVswXSB8fCAneXVwb28nKSArICdfJyArIGRvbmUgKyAnaW1nLnppcCc7CiAgYS5jbGljaygpOwogIHNldFRpbWVvdXQoKCkgPT4gVVJMLnJldm9rZU9iamVjdFVSTChhLmhyZWYpLCAxMDAwMCk7CgogIGJ0bi50ZXh0Q29udGVudCA9ICfinIUgJyArIGRvbmUgKyAnIHNjYXJpY2F0ZScgKyAoZmFpbGVkID8gJywgJyArIGZhaWxlZCArICcgZmFsbGl0ZScgOiAnJyk7CiAgYnRuLmRpc2FibGVkID0gZmFsc2U7Cn0KCi8vIFdvcmtlciBVUkwgaW5pdAooZnVuY3Rpb24oKSB7CiAgLy8gUmVhZCBhY3RpdmUgd29ya2VyIFVSTDogaW5qZWN0ZWQg4oaSIGxvY2FsU3RvcmFnZSDihpIgaW5wdXQgZGVmYXVsdCB2YWx1ZQogIGNvbnN0IGluamVjdGVkID0gKHR5cGVvZiB3aW5kb3cuX19XT1JLRVJfVVJMX18gIT09ICd1bmRlZmluZWQnKSA/IHdpbmRvdy5fX1dPUktFUl9VUkxfXyA6ICcnOwogIGNvbnN0IHNhdmVkID0gbG9jYWxTdG9yYWdlLmdldEl0ZW0oJ3l1cG9vX3dvcmtlcl91cmwnKSB8fCAnJzsKICBjb25zdCBpbnAgPSBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgnY3Ytd29ya2VyLXVybCcpOwogIGNvbnN0IGlucHV0RGVmYXVsdCA9IGlucCA/IGlucC52YWx1ZSA6ICcnOwogIGNvbnN0IGFjdGl2ZSA9IGluamVjdGVkIHx8IHNhdmVkIHx8IGlucHV0RGVmYXVsdCB8fCAnJzsKICBpZiAoYWN0aXZlKSB7CiAgICB3b3JrZXJVcmwgPSBhY3RpdmU7CiAgICBpZiAoaW5wKSB7IGlucC52YWx1ZSA9IGFjdGl2ZTsgfQogICAgaWYgKGFjdGl2ZSAmJiBhY3RpdmUuaW5jbHVkZXMoJ3dvcmtlcnMuZGV2JykpIHsKICAgICAgaWYgKGlucCkgaW5wLmNsYXNzTGlzdC5hZGQoJ29rJyk7CiAgICAgIGNvbnN0IHN0ID0gZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ2N2LXdvcmtlci1zdGF0dXMnKTsKICAgICAgaWYgKHN0KSB7IHN0LmNsYXNzTmFtZSA9ICdvayc7IHN0LnRleHRDb250ZW50ID0gJ+KckyBXb3JrZXIgYXR0aXZvJzsgfQogICAgfQogICAgbG9jYWxTdG9yYWdlLnNldEl0ZW0oJ3l1cG9vX3dvcmtlcl91cmwnLCBhY3RpdmUpOwogIH0KICAvLyBSZS1yZW5kZXIgaW1hZ2VzIHdpdGggYWN0aXZlIHdvcmtlciBpZiBjYXRhbG9nIGFscmVhZHkgbG9hZGVkCiAgaWYgKHR5cGVvZiByZW5kZXIgPT09ICdmdW5jdGlvbicgJiYgYWxsSXRlbXMgJiYgYWxsSXRlbXMubGVuZ3RoID4gMCkgcmVuZGVyKCk7Cn0pKCk7CgpmdW5jdGlvbiBjdldvcmtlckNoYW5nZSgpIHsKICBjb25zdCB2ID0gZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ2N2LXdvcmtlci11cmwnKS52YWx1ZS50cmltKCk7CiAgd29ya2VyVXJsID0gdjsKICBpZiAodikgbG9jYWxTdG9yYWdlLnNldEl0ZW0oJ3l1cG9vX3dvcmtlcl91cmwnLCB2KTsgZWxzZSBsb2NhbFN0b3JhZ2UucmVtb3ZlSXRlbSgneXVwb29fd29ya2VyX3VybCcpOwogIGNvbnN0IGlucCA9IGRvY3VtZW50LmdldEVsZW1lbnRCeUlkKCdjdi13b3JrZXItdXJsJyk7CiAgY29uc3Qgc3QgID0gZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ2N2LXdvcmtlci1zdGF0dXMnKTsKICBpZiAodiAmJiB2LmluY2x1ZGVzKCd3b3JrZXJzLmRldicpKSB7CiAgICBpbnAuY2xhc3NMaXN0LmFkZCgnb2snKTsKICAgIHN0LmNsYXNzTmFtZSA9ICdvayc7IHN0LnRleHRDb250ZW50ID0gJ+KckyBXb3JrZXIgYXR0aXZvJzsKICB9IGVsc2UgewogICAgaW5wLmNsYXNzTGlzdC5yZW1vdmUoJ29rJyk7CiAgICBzdC5jbGFzc05hbWUgPSAnbm8nOyBzdC50ZXh0Q29udGVudCA9ICfigJMgbm9uIGNvbmZpZ3VyYXRvJzsKICB9CiAgLy8gUmUtcmVuZGVyIHdpdGggbmV3IHByb3h5CiAgcmVuZGVyKCk7Cn0KfQoKZnVuY3Rpb24gaW5pdChkYXRhKSB7CiAgY29uc3QgemIgPSBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgnemlwLWJ0bicpOwogIGlmICh6YikgemIuc3R5bGUuZGlzcGxheSA9ICcnOwogIGxldCBpdGVtcyA9IFtdOwogIGlmIChBcnJheS5pc0FycmF5KGRhdGEpKSB7CiAgICBpdGVtcyA9IGRhdGEubWFwKCh1LCBpKSA9PiAoeyBpZDogaSsxLCB1cmw6IHUsIGZpbGVuYW1lOiBgaW1hZ2VfJHtTdHJpbmcoaSsxKS5wYWRTdGFydCg1LCcwJyl9LmpwZ2AgfSkpOwogIH0gZWxzZSBpZiAoZGF0YS5pbWFnZXMpIHsKICAgIGl0ZW1zID0gZGF0YS5pbWFnZXM7CiAgfSBlbHNlIGlmIChkYXRhLnVybHMpIHsKICAgIGl0ZW1zID0gZGF0YS51cmxzLm1hcCgodSwgaSkgPT4gKHsgaWQ6IGkrMSwgdXJsOiB1LCBmaWxlbmFtZTogYGltYWdlXyR7U3RyaW5nKGkrMSkucGFkU3RhcnQoNSwnMCcpfS5qcGdgIH0pKTsKICB9CgogIC8vIEV4dHJhY3Qgc2hvcEhvc3QgZm9yIFJlZmVyZXIgc3Bvb2ZpbmcKICBjb25zdCBtZXRhID0gZGF0YS5fbWV0YSB8fCB7fTsKICBzaG9wSG9zdCA9IG1ldGEuc2hvcEhvc3QgfHwgJyc7CiAgaWYgKCFzaG9wSG9zdCAmJiBtZXRhLnNvdXJjZSkgewogICAgdHJ5IHsgc2hvcEhvc3QgPSBuZXcgVVJMKG1ldGEuc291cmNlKS5ob3N0bmFtZTsgfSBjYXRjaCB7fQogIH0KICBpZiAoIXNob3BIb3N0ICYmIGl0ZW1zWzBdPy51cmwpIHsKICAgIC8vIERlcml2ZSBzaG9wIHN1YmRvbWFpbiBmcm9tIGltYWdlIFVSTCBwYXR0ZXJuOiBwaG90by55dXBvby5jb20vVVNFUk5BTUUvLi4uCiAgICBjb25zdCBtID0gaXRlbXNbMF0udXJsLm1hdGNoKC9waG90b1wueXVwb29cLmNvbVwvKFteL10rKVwvLyk7CiAgICBpZiAobSkgc2hvcEhvc3QgPSBtWzFdICsgJy54Lnl1cG9vLmNvbSc7CiAgfQoKICBhbGxJdGVtcyA9IGl0ZW1zOyBmaWx0ZXJlZCA9IFsuLi5pdGVtc107CiAgY29uc3QgbmFtZSA9IG1ldGEuYWxidW0gfHwgJ0NhdGFsb2dvJzsKICBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgnY2F0LXRpdGxlJykudGV4dENvbnRlbnQgPSBuYW1lOwogIGRvY3VtZW50LmdldEVsZW1lbnRCeUlkKCdoZXJvLWgnKS5pbm5lckhUTUwgPSBgQ29sbGV6aW9uZTxici8+PGVtPiR7bmFtZX08L2VtPmA7CiAgZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ2hlcm8tbicpLnRleHRDb250ZW50ID0gaXRlbXMubGVuZ3RoOwogIGRvY3VtZW50LmdldEVsZW1lbnRCeUlkKCd0b3AtaW5mbycpLnRleHRDb250ZW50ID0gYCR7aXRlbXMubGVuZ3RofSBhcnRpY29saWA7CiAgZG9jdW1lbnQudGl0bGUgPSBuYW1lOwoKICBjb25zdCBwaWxsID0gZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ3Byb3h5LXBpbGwnKTsKICBpZiAoc2hvcEhvc3QpIHsKICAgIHBpbGwuc3R5bGUuZGlzcGxheSA9ICdpbmxpbmUtYmxvY2snOwogICAgcGlsbC50ZXh0Q29udGVudCA9IGDwn5SEIHdzcnYubmwrcmVmYDsKICB9CiAgcmVuZGVyKCk7Cn0KCi8vIOKUgOKUgCBSZW5kZXIg4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSACmZ1bmN0aW9uIHJlbmRlcigpIHsKICBpZiAoIWFsbEl0ZW1zLmxlbmd0aCkgcmV0dXJuOwogIGNvbnN0IHNvcnQgPSBkb2N1bWVudC5xdWVyeVNlbGVjdG9yKCcuc29ydC1zZWwnKS52YWx1ZTsKICBsZXQgaXRlbXMgPSBbLi4uZmlsdGVyZWRdOwogIGlmIChzb3J0ID09PSAnYXNjJykgIGl0ZW1zLnNvcnQoKGEsIGIpID0+IGEuaWQgLSBiLmlkKTsKICBpZiAoc29ydCA9PT0gJ2Rlc2MnKSBpdGVtcy5zb3J0KChhLCBiKSA9PiBiLmlkIC0gYS5pZCk7CgogIGNvbnN0IGcgPSBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgnZ3JpZCcpOwogIGlmICghaXRlbXMubGVuZ3RoKSB7CiAgICBnLmlubmVySFRNTCA9IGA8ZGl2IHN0eWxlPSJwYWRkaW5nOjYwcHg7dGV4dC1hbGlnbjpjZW50ZXI7Y29sb3I6dmFyKC0tbXV0ZWQpIj5OZXNzdW4gcmlzdWx0YXRvPC9kaXY+YDsKICAgIHJldHVybjsKICB9CgogIGcuaW5uZXJIVE1MID0gaXRlbXMubWFwKChpdGVtLCBpKSA9PiB7CiAgICBjb25zdCBvcmlnVXJsID0gaXRlbS5vcmlnaW5hbFVybCB8fCBpdGVtLnVybDsKICAgIGNvbnN0IG9yaWdVcmwyID0gaXRlbS5vcmlnaW5hbFVybCB8fCBpdGVtLnVybDsKICAgIGNvbnN0IGZpcnN0U3JjID0gd29ya2VySW1nU3JjKG9yaWdVcmwyKTsKICAgIHJldHVybiBgCiAgICA8ZGl2IGNsYXNzPSJpdGVtIiBzdHlsZT0iYW5pbWF0aW9uLWRlbGF5OiR7TWF0aC5taW4oaSouMDIsLjQpfXMiIG9uY2xpY2s9Im9wZW5MYigke2l0ZW0uaWQtMX0pIj4KICAgICAgPGRpdiBjbGFzcz0iaW1nLXdyYXAgbG9hZGluZyIgaWQ9IndyYXAtJHtpdGVtLmlkfSI+CiAgICAgICAgPGltZwogICAgICAgICAgc3JjPSIke2ZpcnN0U3JjfSIKICAgICAgICAgIGFsdD0iUHJvZG90dG8gJHtpdGVtLmlkfSIKICAgICAgICAgIGxvYWRpbmc9ImxhenkiCiAgICAgICAgICBjcm9zc29yaWdpbj0iYW5vbnltb3VzIgogICAgICAgICAgcmVmZXJyZXJwb2xpY3k9Im5vLXJlZmVycmVyIgogICAgICAgICAgZGF0YS1oZD0iJHtpdGVtLnVybH0iCiAgICAgICAgICBkYXRhLW9yaWc9IiR7b3JpZ1VybH0iCiAgICAgICAgICBkYXRhLXJldHJpZXM9IjAiCiAgICAgICAgICBvbmxvYWQ9ImltZ0xvYWRlZCh0aGlzLCR7aXRlbS5pZH0pIgogICAgICAgICAgb25lcnJvcj0iaW1nRXJyb3IodGhpcywke2l0ZW0uaWR9KSIKICAgICAgICAvPgogICAgICAgIDxkaXYgY2xhc3M9ImltZy1vdmVybGF5Ij4KICAgICAgICAgIDxidXR0b24gY2xhc3M9Im92LWJ0biIgb25jbGljaz0iZXZlbnQuc3RvcFByb3BhZ2F0aW9uKCk7b3BlbkxiKCR7aXRlbS5pZC0xfSkiPvCfkYEgVmVkaTwvYnV0dG9uPgogICAgICAgICAgPGJ1dHRvbiBjbGFzcz0ib3YtYnRuIiBvbmNsaWNrPSJldmVudC5zdG9wUHJvcGFnYXRpb24oKTtkb3dubG9hZFNpbmdsZSgke2l0ZW0uaWQtMX0pIj7irIc8L2J1dHRvbj4KICAgICAgICA8L2Rpdj4KICAgICAgPC9kaXY+CiAgICAgIDxkaXYgY2xhc3M9Iml0ZW0taW5mbyI+CiAgICAgICAgPGRpdiBjbGFzcz0iaXRlbS1pZCI+IyR7U3RyaW5nKGl0ZW0uaWQpLnBhZFN0YXJ0KDQsJzAnKX08L2Rpdj4KICAgICAgICA8ZGl2IGNsYXNzPSJpdGVtLW5hbWUiPiR7aXRlbS5maWxlbmFtZS5yZXBsYWNlKC9cLlteLl0rJC8sJycpfTwvZGl2PgogICAgICA8L2Rpdj4KICAgIDwvZGl2PmA7CiAgfSkuam9pbignJyk7Cn0KCmZ1bmN0aW9uIGltZ0xvYWRlZChpbWcsIGlkKSB7CiAgaW1nLmNsYXNzTGlzdC5hZGQoJ2xvYWRlZCcpOwogIGNvbnN0IHdyYXAgPSBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgnd3JhcC0nICsgaWQpOwogIGlmICh3cmFwKSB7IHdyYXAuY2xhc3NMaXN0LnJlbW92ZSgnbG9hZGluZycsJ2Vycm9yJyk7IH0KfQoKZnVuY3Rpb24gaW1nRXJyb3IoaW1nLCBpZCkgewogIGNvbnN0IHdyYXAgPSBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgnd3JhcC0nICsgaWQpOwogIGxldCByZXRyaWVzID0gcGFyc2VJbnQoaW1nLmRhdGFzZXQucmV0cmllcyB8fCAnMCcpICsgMTsKICBpbWcuZGF0YXNldC5yZXRyaWVzID0gcmV0cmllczsKCiAgLy8gRmFsbGJhY2sgY2hhaW46IG9yaWcgdmlhIHdvcmtlciDihpIgSEQgdmlhIHdvcmtlciDihpIgZGlyZWN0IG9yaWcg4oaSIGVycm9yCiAgY29uc3Qgb3JpZyA9IGltZy5kYXRhc2V0Lm9yaWc7CiAgY29uc3QgaGQgICA9IGltZy5kYXRhc2V0LmhkOwogIGlmIChyZXRyaWVzID09PSAxICYmIGhkICE9PSBvcmlnICYmIHdvcmtlclVybCkgewogICAgaW1nLnNyYyA9IHdvcmtlckltZ1NyYyhoZCk7IC8vIHRyeSBIRCB2aWEgd29ya2VyCiAgfSBlbHNlIGlmIChyZXRyaWVzID09PSAyKSB7CiAgICBpbWcuc3JjID0gb3JpZzsgLy8gZGlyZWN0IChtYXkgd29yayB3aXRob3V0IGhvdGxpbmsgY2hlY2sgb24gc29tZSBpbWFnZXMpCiAgfSBlbHNlIHsKICAgIGlmICh3cmFwKSB7IHdyYXAuY2xhc3NMaXN0LnJlbW92ZSgnbG9hZGluZycpOyB3cmFwLmNsYXNzTGlzdC5hZGQoJ2Vycm9yJyk7IH0KICB9Cn0KCmZ1bmN0aW9uIGZpbHRlcigpIHsKICBjb25zdCBxID0gZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ3NlYXJjaCcpLnZhbHVlLnRvTG93ZXJDYXNlKCk7CiAgZmlsdGVyZWQgPSBhbGxJdGVtcy5maWx0ZXIoeCA9PiAhcSB8fCBTdHJpbmcoeC5pZCkuaW5jbHVkZXMocSkgfHwgeC5maWxlbmFtZS50b0xvd2VyQ2FzZSgpLmluY2x1ZGVzKHEpKTsKICByZW5kZXIoKTsKfQoKZnVuY3Rpb24gc2V0TGF5b3V0KG0pIHsKICBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgnZ3JpZCcpLmNsYXNzTGlzdC50b2dnbGUoJ2xpc3QnLCBtID09PSAnbGlzdCcpOwogIGRvY3VtZW50LmdldEVsZW1lbnRCeUlkKCdidG4tZycpLmNsYXNzTGlzdC50b2dnbGUoJ29uJywgbSA9PT0gJ2dyaWQnKTsKICBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgnYnRuLWwnKS5jbGFzc0xpc3QudG9nZ2xlKCdvbicsIG0gPT09ICdsaXN0Jyk7Cn0KCi8vIOKUgOKUgCBMaWdodGJveCDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIAKZnVuY3Rpb24gb3BlbkxiKGkpIHsgbGJJZHggPSBpOyB1cGRhdGVMYigpOyBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgnbGInKS5jbGFzc0xpc3QuYWRkKCdvcGVuJyk7IGRvY3VtZW50LmJvZHkuc3R5bGUub3ZlcmZsb3cgPSAnaGlkZGVuJzsgfQpmdW5jdGlvbiBjbG9zZUxiKCkgeyBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgnbGInKS5jbGFzc0xpc3QucmVtb3ZlKCdvcGVuJyk7IGRvY3VtZW50LmJvZHkuc3R5bGUub3ZlcmZsb3cgPSAnJzsgfQpmdW5jdGlvbiBsYkJnKGUpIHsgaWYgKGUudGFyZ2V0ID09PSBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgnbGInKSkgY2xvc2VMYigpOyB9CmZ1bmN0aW9uIGxiR28oZCkgeyBsYklkeCA9IChsYklkeCArIGQgKyBhbGxJdGVtcy5sZW5ndGgpICUgYWxsSXRlbXMubGVuZ3RoOyB1cGRhdGVMYigpOyB9CgpmdW5jdGlvbiB1cGRhdGVMYigpIHsKICBjb25zdCBpdCA9IGFsbEl0ZW1zW2xiSWR4XTsKICBjb25zdCBsYkltZyA9IGRvY3VtZW50LmdldEVsZW1lbnRCeUlkKCdsYi1pbWcnKTsKICBjb25zdCBvcmlnVXJsID0gaXQub3JpZ2luYWxVcmwgfHwgaXQudXJsOwogIGNvbnN0IHJlZiA9IHNob3BIb3N0IHx8ICd5dXBvby5jb20nOwogIGNvbnN0IG9yaWdVcmxMYiA9IGl0Lm9yaWdpbmFsVXJsIHx8IGl0LnVybDsKICBjb25zdCBmaXJzdFNyYyA9IHdvcmtlckltZ1NyYyhvcmlnVXJsTGIpOwoKICBsYkltZy5kYXRhc2V0LmhkID0gaXQudXJsOwogIGxiSW1nLmRhdGFzZXQub3JpZyA9IG9yaWdVcmw7CiAgbGJJbWcuZGF0YXNldC5yZXRyaWVzID0gJzAnOwogIGxiSW1nLnNyYyA9IGZpcnN0U3JjOwogIGxiSW1nLnJlZmVycmVyUG9saWN5ID0gJ25vLXJlZmVycmVyJzsKICBsYkltZy5vbmVycm9yID0gKCkgPT4gewogICAgY29uc3QgciA9IHBhcnNlSW50KGxiSW1nLmRhdGFzZXQucmV0cmllcyB8fCAnMCcpICsgMTsKICAgIGxiSW1nLmRhdGFzZXQucmV0cmllcyA9IHI7CiAgICBjb25zdCBwcm94aWVzID0gYnVpbGRQcm94aWVzKGxiSW1nLmRhdGFzZXQuaGQsIGxiSW1nLmRhdGFzZXQub3JpZyk7CiAgICBpZiAociA8IHByb3hpZXMubGVuZ3RoKSBsYkltZy5zcmMgPSBwcm94aWVzW3JdOwogIH07CiAgZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ2xiLWluZm8nKS50ZXh0Q29udGVudCA9IGAke2xiSWR4KzF9IC8gJHthbGxJdGVtcy5sZW5ndGh9IOKAlCAjJHtTdHJpbmcoaXQuaWQpLnBhZFN0YXJ0KDQsJzAnKX1gOwp9CgovLyDilIDilIAgRG93bmxvYWQgc2luZ2xlIGltYWdlIHZpYSBmZXRjaCtibG9iIChieXBhc3NlcyBob3RsaW5rIHByb3RlY3Rpb24pIOKUgOKUgAovLyBMb2FkIGFuIGltYWdlIHZpYSBjYW52YXMgKHN1cHBvcnRzIGNyb3NzT3JpZ2luIGZvciBDT1JTLWVuYWJsZWQgc291cmNlcykKZnVuY3Rpb24gaW1nVG9CbG9iKHNyYykgewogIHJldHVybiBuZXcgUHJvbWlzZSgocmVzb2x2ZSwgcmVqZWN0KSA9PiB7CiAgICBjb25zdCBpbWcgPSBuZXcgSW1hZ2UoKTsKICAgIGltZy5jcm9zc09yaWdpbiA9ICdhbm9ueW1vdXMnOwogICAgaW1nLm9ubG9hZCA9ICgpID0+IHsKICAgICAgY29uc3QgYyA9IGRvY3VtZW50LmNyZWF0ZUVsZW1lbnQoJ2NhbnZhcycpOwogICAgICBjLndpZHRoID0gaW1nLm5hdHVyYWxXaWR0aDsgYy5oZWlnaHQgPSBpbWcubmF0dXJhbEhlaWdodDsKICAgICAgYy5nZXRDb250ZXh0KCcyZCcpLmRyYXdJbWFnZShpbWcsIDAsIDApOwogICAgICBjLnRvQmxvYihiID0+IGIgPyByZXNvbHZlKGIpIDogcmVqZWN0KG5ldyBFcnJvcigndG9CbG9iIGZhaWxlZCcpKSwgJ2ltYWdlL2pwZWcnLCAwLjkyKTsKICAgIH07CiAgICBpbWcub25lcnJvciA9ICgpID0+IHJlamVjdChuZXcgRXJyb3IoJ0ltYWdlIGxvYWQgZmFpbGVkJykpOwogICAgaW1nLnNyYyA9IHNyYzsKICB9KTsKfQoKYXN5bmMgZnVuY3Rpb24gZG93bmxvYWRTaW5nbGUoaWR4KSB7CiAgY29uc3QgaXQgPSBhbGxJdGVtc1tpZHhdOwogIGNvbnN0IHNyYyA9IHdvcmtlckltZ1NyYyhpdC5vcmlnaW5hbFVybCB8fCBpdC51cmwpOwogIHRyeSB7CiAgICBjb25zdCBibG9iID0gYXdhaXQgaW1nVG9CbG9iKHNyYyk7CiAgICBjb25zdCBhID0gZG9jdW1lbnQuY3JlYXRlRWxlbWVudCgnYScpOwogICAgYS5ocmVmID0gVVJMLmNyZWF0ZU9iamVjdFVSTChibG9iKTsKICAgIGEuZG93bmxvYWQgPSBpdC5maWxlbmFtZTsKICAgIGEuY2xpY2soKTsKICAgIHNldFRpbWVvdXQoKCkgPT4gVVJMLnJldm9rZU9iamVjdFVSTChhLmhyZWYpLCA1MDAwKTsKICB9IGNhdGNoIHsKICAgIHdpbmRvdy5vcGVuKHNyYywgJ19ibGFuaycpOwogIH0KfQoKZnVuY3Rpb24gZGxJbWcoKSB7IGRvd25sb2FkU2luZ2xlKGxiSWR4KTsgfQoKZG9jdW1lbnQuYWRkRXZlbnRMaXN0ZW5lcigna2V5ZG93bicsIGUgPT4gewogIGlmICghZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ2xiJykuY2xhc3NMaXN0LmNvbnRhaW5zKCdvcGVuJykpIHJldHVybjsKICBpZiAoZS5rZXkgPT09ICdBcnJvd0xlZnQnKSBsYkdvKC0xKTsKICBpZiAoZS5rZXkgPT09ICdBcnJvd1JpZ2h0JykgbGJHbygxKTsKICBpZiAoZS5rZXkgPT09ICdFc2NhcGUnKSBjbG9zZUxiKCk7Cn0pOwoKLy8g4pSA4pSAIFVwbG9hZCBmYWxsYmFjayDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIAKZnVuY3Rpb24gc2hvd1VwbG9hZCgpIHsKICBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgndG9wLWluZm8nKS50ZXh0Q29udGVudCA9ICdOZXNzdW4gY2F0YWxvZ28nOwogIGRvY3VtZW50LmdldEVsZW1lbnRCeUlkKCdoZXJvLW4nKS50ZXh0Q29udGVudCA9ICcwJzsKICBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgnZ3JpZCcpLmlubmVySFRNTCA9IGAKICAgIDxkaXYgY2xhc3M9InVwbG9hZC16b25lIiBvbmRyYWdvdmVyPSJldmVudC5wcmV2ZW50RGVmYXVsdCgpO3RoaXMuY2xhc3NMaXN0LmFkZCgnZHJhZycpIiBvbmRyYWdsZWF2ZT0idGhpcy5jbGFzc0xpc3QucmVtb3ZlKCdkcmFnJykiIG9uZHJvcD0ib25Ecm9wKGV2ZW50KSI+CiAgICAgIDxkaXYgc3R5bGU9ImZvbnQtc2l6ZTozNnB4Ij7wn5OCPC9kaXY+CiAgICAgIDxoMz5DYXJpY2EgY2F0YWxvZy5qc29uPC9oMz4KICAgICAgPHA+VHJhc2NpbmEgaWwgZmlsZSA8Y29kZT5jYXRhbG9nLmpzb248L2NvZGU+IG9wcHVyZSBjbGljY2EgcGVyIHNlbGV6aW9uYXJsby48YnIvPkluIGFsdGVybmF0aXZhLCBtZXR0aWxvIG5lbGxhIHN0ZXNzYSBjYXJ0ZWxsYSBkZWwgc2l0by48L3A+CiAgICAgIDxpbnB1dCB0eXBlPSJmaWxlIiBpZD0iZmkiIGFjY2VwdD0iLmpzb24iIG9uY2hhbmdlPSJvbkZpbGUoZXZlbnQpIi8+CiAgICAgIDxidXR0b24gY2xhc3M9InVwLWJ0biIgb25jbGljaz0iZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ2ZpJykuY2xpY2soKSI+U2NlZ2xpIGZpbGU8L2J1dHRvbj4KICAgIDwvZGl2PmA7Cn0KZnVuY3Rpb24gb25Ecm9wKGUpIHsgZS5wcmV2ZW50RGVmYXVsdCgpOyBjb25zdCBmID0gZS5kYXRhVHJhbnNmZXIuZmlsZXNbMF07IGlmIChmKSByZWFkSnNvbihmKTsgfQpmdW5jdGlvbiBvbkZpbGUoZSkgeyByZWFkSnNvbihlLnRhcmdldC5maWxlc1swXSk7IH0KZnVuY3Rpb24gcmVhZEpzb24oZikgewogIGNvbnN0IHIgPSBuZXcgRmlsZVJlYWRlcigpOwogIHIub25sb2FkID0gZXYgPT4geyB0cnkgeyBpbml0KEpTT04ucGFyc2UoZXYudGFyZ2V0LnJlc3VsdCkpOyB9IGNhdGNoIHsgYWxlcnQoJ0pTT04gbm9uIHZhbGlkby4nKTsgfSB9OwogIHIucmVhZEFzVGV4dChmKTsKfQoKbG9hZCgpOwoKYXN5bmMgZnVuY3Rpb24gZG93bmxvYWRaaXAoKSB7CiAgaWYgKCFhbGxJdGVtcy5sZW5ndGgpIHJldHVybjsKICBpZiAoIXdvcmtlclVybCkgeyBhbGVydCgnQ29uZmlndXJhIGlsIFdvcmtlciBVUkwgbmVsbGEgYmFycmEgaW4gYWx0bycpOyByZXR1cm47IH0KICBpZiAodHlwZW9mIEpTWmlwID09PSAndW5kZWZpbmVkJykgeyBhbGVydCgnSlNaaXAgbm9uIGRpc3BvbmliaWxlJyk7IHJldHVybjsgfQoKICBjb25zdCBidG4gPSBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgnemlwLWJ0bicpOwogIGJ0bi50ZXh0Q29udGVudCA9ICfij7MgMC8nICsgYWxsSXRlbXMubGVuZ3RoOwogIGJ0bi5kaXNhYmxlZCA9IHRydWU7CgogIGNvbnN0IHppcCA9IG5ldyBKU1ppcCgpOwogIGxldCBkb25lID0gMCwgZmFpbGVkID0gMDsKCiAgZm9yIChsZXQgaSA9IDA7IGkgPCBhbGxJdGVtcy5sZW5ndGg7IGkrKykgewogICAgY29uc3QgaXQgPSBhbGxJdGVtc1tpXTsKICAgIGNvbnN0IHNyYyA9IHdvcmtlckltZ1NyYyhpdC5vcmlnaW5hbFVybCB8fCBpdC51cmwpOwogICAgdHJ5IHsKICAgICAgY29uc3QgYmxvYiA9IGF3YWl0IGltZ1RvQmxvYihzcmMpOwogICAgICB6aXAuZmlsZShpdC5maWxlbmFtZSwgYmxvYik7CiAgICAgIGRvbmUrKzsKICAgIH0gY2F0Y2goZSkgewogICAgICBmYWlsZWQrKzsKICAgIH0KICAgIGJ0bi50ZXh0Q29udGVudCA9ICfij7MgJyArIChpKzEpICsgJy8nICsgYWxsSXRlbXMubGVuZ3RoOwogIH0KCiAgaWYgKGRvbmUgPT09IDApIHsKICAgIGJ0bi50ZXh0Q29udGVudCA9ICfinYwgRmFsbGl0byc7CiAgICBidG4uZGlzYWJsZWQgPSBmYWxzZTsKICAgIGFsZXJ0KCdOZXNzdW5hIGltbWFnaW5lIHNjYXJpY2F0YS4gQXNzaWN1cmF0aSBjaGUgbGUgaW1tYWdpbmkgc2lhbm8gdmlzaWJpbGkgbmVsIHZpZXdlci4nKTsKICAgIHJldHVybjsKICB9CgogIGJ0bi50ZXh0Q29udGVudCA9ICfwn5OmIENyZWF6aW9uZSBaSVAuLi4nOwogIGNvbnN0IGJsb2IgPSBhd2FpdCB6aXAuZ2VuZXJhdGVBc3luYyh7IHR5cGU6ICdibG9iJywgY29tcHJlc3Npb246ICdERUZMQVRFJywgY29tcHJlc3Npb25PcHRpb25zOiB7IGxldmVsOiA0IH0gfSk7CiAgY29uc3QgYSA9IGRvY3VtZW50LmNyZWF0ZUVsZW1lbnQoJ2EnKTsKICBhLmhyZWYgPSBVUkwuY3JlYXRlT2JqZWN0VVJMKGJsb2IpOwogIGEuZG93bmxvYWQgPSAnY2F0YWxvZ29fJyArIChhbGxJdGVtc1swXT8uZmlsZW5hbWU/LnNwbGl0KCdfJylbMF0gfHwgJ3l1cG9vJykgKyAnXycgKyBkb25lICsgJ2ltZy56aXAnOwogIGEuY2xpY2soKTsKICBzZXRUaW1lb3V0KCgpID0+IFVSTC5yZXZva2VPYmplY3RVUkwoYS5ocmVmKSwgMTAwMDApOwoKICBidG4udGV4dENvbnRlbnQgPSAn4pyFICcgKyBkb25lICsgJyBzY2FyaWNhdGUnICsgKGZhaWxlZCA/ICcsICcgKyBmYWlsZWQgKyAnIGZhbGxpdGUnIDogJycpOwogIGJ0bi5kaXNhYmxlZCA9IGZhbHNlOwp9CgovLyBXb3JrZXIgVVJMIGluaXQKKGZ1bmN0aW9uKCkgewogIC8vIFJlYWQgYWN0aXZlIHdvcmtlciBVUkw6IGluamVjdGVkIOKGkiBsb2NhbFN0b3JhZ2Ug4oaSIGlucHV0IGRlZmF1bHQgdmFsdWUKICBjb25zdCBpbmplY3RlZCA9ICh0eXBlb2Ygd2luZG93Ll9fV09SS0VSX1VSTF9fICE9PSAndW5kZWZpbmVkJykgPyB3aW5kb3cuX19XT1JLRVJfVVJMX18gOiAnJzsKICBjb25zdCBzYXZlZCA9IGxvY2FsU3RvcmFnZS5nZXRJdGVtKCd5dXBvb193b3JrZXJfdXJsJykgfHwgJyc7CiAgY29uc3QgaW5wID0gZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ2N2LXdvcmtlci11cmwnKTsKICBjb25zdCBpbnB1dERlZmF1bHQgPSBpbnAgPyBpbnAudmFsdWUgOiAnJzsKICBjb25zdCBhY3RpdmUgPSBpbmplY3RlZCB8fCBzYXZlZCB8fCBpbnB1dERlZmF1bHQgfHwgJyc7CiAgaWYgKGFjdGl2ZSkgewogICAgd29ya2VyVXJsID0gYWN0aXZlOwogICAgaWYgKGlucCkgeyBpbnAudmFsdWUgPSBhY3RpdmU7IH0KICAgIGlmIChhY3RpdmUgJiYgYWN0aXZlLmluY2x1ZGVzKCd3b3JrZXJzLmRldicpKSB7CiAgICAgIGlmIChpbnApIGlucC5jbGFzc0xpc3QuYWRkKCdvaycpOwogICAgICBjb25zdCBzdCA9IGRvY3VtZW50LmdldEVsZW1lbnRCeUlkKCdjdi13b3JrZXItc3RhdHVzJyk7CiAgICAgIGlmIChzdCkgeyBzdC5jbGFzc05hbWUgPSAnb2snOyBzdC50ZXh0Q29udGVudCA9ICfinJMgV29ya2VyIGF0dGl2byc7IH0KICAgIH0KICAgIGxvY2FsU3RvcmFnZS5zZXRJdGVtKCd5dXBvb193b3JrZXJfdXJsJywgYWN0aXZlKTsKICB9CiAgLy8gUmUtcmVuZGVyIGltYWdlcyB3aXRoIGFjdGl2ZSB3b3JrZXIgaWYgY2F0YWxvZyBhbHJlYWR5IGxvYWRlZAogIGlmICh0eXBlb2YgcmVuZGVyID09PSAnZnVuY3Rpb24nICYmIGFsbEl0ZW1zICYmIGFsbEl0ZW1zLmxlbmd0aCA+IDApIHJlbmRlcigpOwp9KSgpOwoKZnVuY3Rpb24gY3ZXb3JrZXJDaGFuZ2UoKSB7CiAgY29uc3QgdiA9IGRvY3VtZW50LmdldEVsZW1lbnRCeUlkKCdjdi13b3JrZXItdXJsJykudmFsdWUudHJpbSgpOwogIHdvcmtlclVybCA9IHY7CiAgaWYgKHYpIGxvY2FsU3RvcmFnZS5zZXRJdGVtKCd5dXBvb193b3JrZXJfdXJsJywgdik7IGVsc2UgbG9jYWxTdG9yYWdlLnJlbW92ZUl0ZW0oJ3l1cG9vX3dvcmtlcl91cmwnKTsKICBjb25zdCBpbnAgPSBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgnY3Ytd29ya2VyLXVybCcpOwogIGNvbnN0IHN0ICA9IGRvY3VtZW50LmdldEVsZW1lbnRCeUlkKCdjdi13b3JrZXItc3RhdHVzJyk7CiAgaWYgKHYgJiYgdi5pbmNsdWRlcygnd29ya2Vycy5kZXYnKSkgewogICAgaW5wLmNsYXNzTGlzdC5hZGQoJ29rJyk7CiAgICBzdC5jbGFzc05hbWUgPSAnb2snOyBzdC50ZXh0Q29udGVudCA9ICfinJMgV29ya2VyIGF0dGl2byc7CiAgfSBlbHNlIHsKICAgIGlucC5jbGFzc0xpc3QucmVtb3ZlKCdvaycpOwogICAgc3QuY2xhc3NOYW1lID0gJ25vJzsgc3QudGV4dENvbnRlbnQgPSAn4oCTIG5vbiBjb25maWd1cmF0byc7CiAgfQogIC8vIFJlLXJlbmRlciB3aXRoIG5ldyBwcm94eQogIHJlbmRlcigpOwp9Cjwvc2NyaXB0Pgo8L2JvZHk+CjwvaHRtbD4K";
-// UTF-8 safe base64 decode (atob is Latin-1 only, breaks emoji)
-const VIEWER_TEMPLATE = (() => {
-  try {
-    const bytes = Uint8Array.from(atob(VIEWER_TEMPLATE_B64), c => c.charCodeAt(0));
-    return new TextDecoder('utf-8').decode(bytes);
-  } catch(e) {
-    return atob(VIEWER_TEMPLATE_B64); // fallback
-  }
-})();
-
-function exportStandalone() {
-  if (!images.length) return;
-  const raw  = document.getElementById('url-input').value.trim();
-  const id   = raw.split('/').filter(Boolean).pop() || 'catalog';
-  const catalogData = {
-    _meta: {
-      source: raw,
-      shopHost,
-      album: id,
-      total: images.length,
-      generated: new Date().toISOString(),
-      extractor: 'v11'
-    },
-    images
-  };
-
-  // Inject catalog data AND worker URL into the standalone HTML
-  const workerScript = '<scr' + 'ipt>window.__CATALOG__ = ' + JSON.stringify(catalogData) + '; window.__WORKER_URL__ = ' + JSON.stringify(workerUrl || '') + ';</s' + 'cript>';
-  const standalone = VIEWER_TEMPLATE.replace('</head>', workerScript + '\n</head>');
-
-  const blob = new Blob([standalone], { type: 'text/html' });
-  saveAs(blob, `yupoo_${id}.html`);
-  log(`✅ Salvato yupoo_${id}.html — apri questo file nel browser, funziona subito!`, 'success');
-}
-
-function exportJSON() {
-  if (!images.length) return;
-  const raw = document.getElementById('url-input').value.trim();
-  const id  = raw.split('/').filter(Boolean).pop() || 'catalog';
-  const blob = new Blob([JSON.stringify({
-    _meta: {
-      source: raw,
-      shopHost,          // ← stored so catalog-viewer can use it for Referer spoofing
-      album: id,
-      total: images.length,
-      generated: new Date().toISOString(),
-      extractor: 'v10'
-    },
-    images
-  }, null, 2)], { type: 'application/json' });
-  saveAs(blob, `catalog_${id}.json`);
-  log('Salvato catalog_' + id + '.json — ' + (blob.size/1024).toFixed(1) + ' KB', 'success');
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// IMAGE DOWNLOAD ENGINE — Cloudflare Worker proxy
-//
-// The ONLY reliable way to download Yupoo images from a browser:
-//   Browser → Cloudflare Worker → photo.yupoo.com (with Referer) → Browser
-//
-// All other approaches (wsrv.nl, corsproxy, allorigins) FAIL because:
-//   1. They cannot set the Referer header required by Yupoo CDN
-//   2. Browsers forbid JS from setting the Referer header directly
-// ─────────────────────────────────────────────────────────────────────────────
-
-function workerProxyUrl(imageUrl) {
-  if (!workerUrl) return null;
-  const base = workerUrl.replace(/\/$/, '');
-  return `${base}/?url=${encodeURIComponent(imageUrl)}`;
-}
-
-async function fetchWithTimeout(url, timeoutMs = 15000) {
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
-  try {
-    const r = await fetch(url, { signal: ctrl.signal, cache: 'no-store' });
-    clearTimeout(timer);
-    return r;
-  } catch(e) {
-    clearTimeout(timer);
-    throw e;
-  }
-}
-
-async function fetchImageBlob(url, originalUrl) {
-  if (!workerUrl) throw new Error('Worker non configurato');
-
-  const orig = originalUrl || url;
-
-  // Build a set of URLs to try: original size first (guaranteed in CDN),
-  // then HD variants. Also try stripping any size suffix as last resort.
-  const candidates = [];
-  // 1. Original URL from HTML (e.g. thumb.jpg, fit_p_360_360.jpg)
-  candidates.push(orig);
-  // 2. fit_p_720_720 variant
-  candidates.push(orig.replace(/\/(small|thumb|tiny|medium|fit_[a-z]_\d+_\d+)\./i, '/fit_p_720_720.'));
-  // 3. HD URL (fit_p_900_900) if different from above
-  if (url !== orig) candidates.push(url);
-  // 4. medium variant (always exists on Yupoo)
-  candidates.push(orig.replace(/\/(small|thumb|tiny|fit_[a-z]_\d+_\d+)\./i, '/medium.'));
-  // 5. small variant
-  candidates.push(orig.replace(/\/(thumb|tiny|fit_[a-z]_\d+_\d+)\./i, '/small.'));
-
-  // Deduplicate preserving order
-  const tried = new Set();
-  const urls = candidates.filter(u => { if (tried.has(u)) return false; tried.add(u); return true; });
-
-  let lastErr = 'Tutti i tentativi falliti';
-
-  for (const imageUrl of urls) {
-    const proxyUrl = workerProxyUrl(imageUrl);
-    let r;
-    try {
-      r = await fetchWithTimeout(proxyUrl, 18000);
-    } catch(e) {
-      if (e.name === 'AbortError') { lastErr = 'Timeout — Worker lento o non risponde'; continue; }
-      lastErr = 'Rete: ' + e.message; continue;
+    if (!allAlbums.length) {
+      log('❌ Nessun album trovato. Controlla l\'URL.', 'err'); return;
     }
 
-    if (r.status === 404) { lastErr = '404 su ' + imageUrl.split('/').slice(-2).join('/'); continue; }
-    if (r.status === 403) { lastErr = '403 Referer bloccato per ' + imageUrl.split('/').slice(-2).join('/'); continue; }
-    if (!r.ok) {
-      let body = ''; try { body = await r.text(); } catch {}
-      try {
-        const j = JSON.parse(body);
-        lastErr = 'Worker: ' + j.error + ' (HTTP ' + r.status + ')';
-      } catch { lastErr = 'HTTP ' + r.status; }
-      continue;
-    }
+    log(`✅ Trovati ${allAlbums.length} album — elaborazione...`, 'ok');
 
-    const b = await r.blob();
-    const ct = (r.headers.get('content-type') || b.type || '').toLowerCase();
+    // Process each album → build product
+    for (let i = 0; i < allAlbums.length; i++) {
+      if (stopped) break;
+      const album = allAlbums[i];
+      setProgress((i / allAlbums.length) * 100, `${i+1}/${allAlbums.length} — "${album.name.substring(0,40)}"`);
 
-    if (ct.startsWith('image/') && b.size > 1000) {
-      return { blob: b, proxyName: 'Worker', size: b.size, usedUrl: imageUrl };
-    }
+      const cny = parsePriceFromName(album.name);
+      const cleanName = cleanProductName(album.name);
+      const tipo = guessType(album.name);
 
-    if (b.size < 500) {
-      let body = ''; try { body = await b.text(); } catch {}
-      if (body.toLowerCase().includes('hello world')) {
-        throw new Error('Worker ha ancora codice Hello World! Incolla yupoo-proxy-worker.js e fai Deploy.');
+      let coverUrl = album.coverUrl;
+      // If no cover from parsing, fetch it
+      if (!coverUrl) {
+        try {
+          coverUrl = await fetchAlbumCover(album.id);
+        } catch(e) {
+          if (e.name === 'AbortError') break;
+          log(`⚠ Album ${album.id}: copertina non trovata`, 'warn');
+        }
       }
+
+      const prod = {
+        id: album.id,
+        albumName: album.name,
+        nome: cleanName || `Prodotto ${i+1}`,
+        tipo, brand: '', taglie: 'S,M,L,XL', colori: '',
+        cny, eur: cny ? cny * (parseFloat(document.getElementById('rate').value)||0.129) : null,
+        final: cny ? calcFinal(cny) : null,
+        coverUrl: coverUrl || null,
+        imgbbUrl: '', status: 'idle'
+      };
+      products.push(prod);
+      renderTable();
+      updateStats();
     }
-    lastErr = 'Risposta non-immagine: ' + ct + ' ' + (b.size/1024).toFixed(0) + 'KB';
-  }
-  throw new Error(lastErr);
-}
 
-async function exportZip() {
-  if (!images.length) return;
+    setProgress(100, `✅ Completato — ${products.length} prodotti estratti`);
+    log(`✅ Estrazione completata: ${products.length} prodotti, ${products.filter(p=>p.coverUrl).length} immagini`, 'ok');
+    log(`Prezzi trovati: ${products.filter(p=>p.cny).length}/${products.length}`, 'info');
 
-  // Check worker is configured
-  if (!workerUrl) {
-    log('❌ Per il download ZIP serve il Cloudflare Worker.', 'err');
-    log('⚡ Incolla il Worker URL nel campo in alto — guarda le istruzioni (▶ Come ottenere il Worker URL).', 'warn');
-    document.getElementById('worker-url').focus();
-    document.getElementById('worker-help-full').style.display = 'block';
-    document.getElementById('worker-help-collapsed').style.display = 'none';
-    return;
-  }
+    document.getElementById('btn-upload').disabled = false;
+    document.getElementById('btn-csv').disabled = false;
+    document.getElementById('btn-zip').disabled = false;
 
-  document.getElementById('act-row').querySelectorAll('button').forEach(b => b.disabled = true);
-  log(`⚡ Download ZIP via Worker: ${workerUrl.replace('https://','')}`);
-  setBar(0, 'Test connessione Worker...');
-
-  // Quick test on first image — log exact URL for debugging
-  const img0 = images[0];
-  const orig0 = img0.originalUrl || img0.url;
-  log('Test download: ' + orig0.split('/').slice(-3).join('/'));
-  let firstBlob;
-  try {
-    const src0 = workerUrl.replace(/\/$/, '') + '/?url=' + encodeURIComponent(orig0);
-    firstBlob = await imgToBlob(src0);
-    log(`✅ Worker OK — ${(firstBlob.size/1024).toFixed(0)}KB`, 'success');
   } catch(e) {
-    log(`❌ Worker fallito: ${e.message}`, 'err');
-    log('URL: ' + orig0, 'warn');
-    document.getElementById('act-row').querySelectorAll('button').forEach(b => b.disabled = false);
-    setBar(0, 'Test fallito');
-    return;
+    if (e.name !== 'AbortError')
+      log('❌ Errore: ' + e.message, 'err');
   }
 
-  const zip = new JSZip();
-  const folder = zip.folder('yupoo_images');
-  let done = 0, failed = 0;
-  folder.file(images[0].filename, firstBlob); done++;
+  document.getElementById('btn-extract').disabled = false;
+  document.getElementById('btn-stop').style.display = 'none';
+}
 
-  for (let i = 1; i < images.length; i++) {
-    const img = images[i];
-    const src = workerUrl.replace(/\/$/, '') + '/?url=' + encodeURIComponent(img.originalUrl || img.url);
+async function extractAllAlbums(pageUrl, catId) {
+  let allAlbums = [];
+
+  // Method 1: Yupoo native REST API (/albums?uid=CATID&page=N)
+  if (catId) {
+    log('Strategia 1: API nativa Yupoo...');
     try {
-      const blob = await imgToBlob(src);
-      folder.file(img.filename, blob); done++;
-    } catch(e) {
-      failed++;
-      if (failed <= 5) log(`⚠ img ${i+1}: ${e.message}`, 'warn');
-    }
-    setBar(Math.round((i+1)/images.length*88), `${i+1}/${images.length} — ✓${done} ✗${failed}`);
-  }
-
-  if (done === 0) {
-    log('❌ Nessuna immagine scaricata.', 'err');
-    document.getElementById('act-row').querySelectorAll('button').forEach(b => b.disabled = false);
-    setBar(0, 'Fallito'); return;
-  }
-
-  log(`Creazione ZIP (${done} immagini)...`);
-  const zipBlob = await zip.generateAsync(
-    { type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 4 } },
-    m => setBar(88 + m.percent * 0.12, 'ZIP ' + Math.round(m.percent) + '%...')
-  );
-
-  saveAs(zipBlob, `yupoo_${username}_${done}img.zip`);
-  log(`✅ ZIP scaricato: ${done}/${images.length}${failed ? ` (${failed} fallite)` : ''}`, 'success');
-  setBar(100, `✓ ${done} immagini`);
-  document.getElementById('act-row').querySelectorAll('button').forEach(b => b.disabled = false);
-}
-
-document.getElementById('url-input').addEventListener('keydown', e => { if (e.key === 'Enter') start(); });
-
-// ─────────────────────────────────────────────────────────────────────────────
-// INPUT MODE (single / multi-link)
-// ─────────────────────────────────────────────────────────────────────────────
-let inputMode = 'single';
-let linkRowCount = 0;
-
-function setInputMode(mode) {
-  inputMode = mode;
-  document.getElementById('single-area').style.display = mode === 'single' ? '' : 'none';
-  document.getElementById('batch-area').style.display  = mode === 'batch'  ? '' : 'none';
-  document.getElementById('tab-single').classList.toggle('active', mode === 'single');
-  document.getElementById('tab-batch').classList.toggle('active', mode === 'batch');
-  // Init with 3 rows on first open
-  if (mode === 'batch' && linkRowCount === 0) {
-    addLinkRow(); addLinkRow(); addLinkRow();
-  }
-}
-
-function addLinkRow(value) {
-  const id = ++linkRowCount;
-  const container = document.getElementById('link-rows');
-  const row = document.createElement('div');
-  row.className = 'link-row';
-  row.id = 'link-row-' + id;
-  row.innerHTML =
-    '<span class="row-status" id="rs-' + id + '">🔗</span>' +
-    '<input type="text" id="link-' + id + '"' +
-    '  placeholder="https://huskyreps.x.yupoo.com/categories/..."' +
-    '  autocomplete="off" spellcheck="false"' +
-    '  oninput="updateBatchCount()"/>' +
-    '<button class="btn-rm-row" onclick="removeLinkRow(' + id + ')" title="Rimuovi">✕</button>';
-  container.appendChild(row);
-  if (value) { const inp = document.getElementById('link-' + id); if (inp) inp.value = value; }
-  updateBatchCount();
-  return id;
-}
-
-function removeLinkRow(id) {
-  const row = document.getElementById('link-row-' + id);
-  if (row) row.remove();
-  updateBatchCount();
-}
-
-function updateBatchCount() {
-  const urls = getValidBatchUrls();
-  const cnt = document.getElementById('batch-count');
-  cnt.textContent = urls.length > 0 ? urls.length + ' link validi' : '';
-}
-
-function getValidBatchUrls() {
-  const inputs = document.querySelectorAll('#link-rows input[type=text]');
-  return Array.from(inputs)
-    .map(i => i.value.trim())
-    .filter(v => v.startsWith('http') && v.includes('yupoo.com'));
-}
-
-function parseBatchUrls(text) {
-  return text.split(/[\n,;\s]+/)
-    .map(s => s.trim())
-    .filter(s => s.startsWith('http') && s.includes('yupoo.com'));
-}
-
-function blogBatch(msg, cls) {
-  const d = document.getElementById('batch-log');
-  const line = document.createElement('div');
-  if (cls) line.className = cls;
-  line.textContent = msg;
-  d.appendChild(line);
-  d.scrollTop = d.scrollHeight;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// BATCH EXTRACT + ZIP
-// Processes multiple Yupoo URLs one by one, packages all images into one ZIP
-// with one subfolder per link, then triggers download.
-// ─────────────────────────────────────────────────────────────────────────────
-async function startBatch() {
-  // Collect URLs from individual input rows
-  const inputs = Array.from(document.querySelectorAll('#link-rows .link-row'));
-  const rows = inputs.map(row => {
-    const inp = row.querySelector('input');
-    const id  = row.id.replace('link-row-','');
-    return { id, url: inp ? inp.value.trim() : '', inp };
-  }).filter(r => r.url.startsWith('http') && r.url.includes('yupoo.com'));
-
-  if (!rows.length) { alert('Inserisci almeno un link Yupoo valido.'); return; }
-  if (!workerUrl) { alert('Configura il Worker URL (campo ⚡) prima di usare il Multi-link.'); return; }
-
-  const btn = document.getElementById('batch-btn');
-  btn.disabled = true;
-  document.getElementById('batch-btn').textContent = '⏳ Elaborazione...';
-  const prog = document.getElementById('batch-progress');
-  prog.style.display = 'block';
-  document.getElementById('batch-log').innerHTML = '';
-
-  blogBatch('📋 Avvio: ' + rows.length + ' link da processare', 'bl-info');
-
-  const zip = new JSZip();
-  let totalDone = 0;
-
-  for (let i = 0; i < rows.length; i++) {
-    const { id, url, inp } = rows[i];
-    const shortName = url.split('/').filter(Boolean).pop() || ('link_' + (i+1));
-    const statusEl = document.getElementById('rs-' + id);
-
-    // Visual state: running
-    if (inp) inp.className = 'row-running';
-    if (statusEl) statusEl.textContent = '⟳';
-    blogBatch('[' + (i+1) + '/' + rows.length + '] ' + shortName + ' — estrazione...', 'bl-cur');
-
-    // ── 1. Extract images exactly like single mode ──
-    let extracted = [];
-    try {
-      extracted = await extractUrl(url);
-    } catch(e) {
-      blogBatch('  ❌ Errore estrazione: ' + e.message, 'bl-err');
-      if (inp) inp.className = 'row-err';
-      if (statusEl) statusEl.textContent = '❌';
-      continue;
-    }
-
-    if (!extracted.length) {
-      blogBatch('  ⚠ Nessuna immagine trovata', 'bl-err');
-      if (inp) inp.className = 'row-err';
-      if (statusEl) statusEl.textContent = '⚠';
-      continue;
-    }
-
-    blogBatch('  ✅ ' + extracted.length + ' immagini — scaricamento...', 'bl-ok');
-
-    // ── 2. Download via canvas → ZIP subfolder ──
-    const folder = zip.folder(shortName);
-    let done = 0, failed = 0;
-
-    for (let j = 0; j < extracted.length; j++) {
-      const img = extracted[j];
-      const src = workerUrl.replace(/\/$/, '') + '/?url=' + encodeURIComponent(img.originalUrl || img.url);
-      try {
-        const blob = await imgToBlob(src);
-        folder.file(img.filename, blob);
-        done++;
-      } catch(e) {
-        failed++;
+      const page1 = await fetchJson(`${siteBase}/albums?uid=${catId}&page=1&t=${Date.now()}`);
+      parseAlbumsWithCovers(page1, allAlbums);
+      const tp = getTotalPages(page1);
+      log(`API: ${allAlbums.length} album pag.1, tot.${tp} pagine`);
+      for (let p = 2; p <= Math.min(tp, 500); p++) {
+        if (stopped) break;
+        setProgress((p/tp)*40, `Raccolta pag.${p}/${tp}...`);
+        try {
+          const pd = await fetchJson(`${siteBase}/albums?uid=${catId}&page=${p}&t=${Date.now()}`);
+          parseAlbumsWithCovers(pd, allAlbums);
+        } catch {}
       }
-      // Update status every 5 images
-      if ((j + 1) % 5 === 0 || j === extracted.length - 1) {
-        if (statusEl) statusEl.textContent = '📥';
-        blogBatch('  ' + (j+1) + '/' + extracted.length + ' — ✓' + done + (failed ? ' ✗' + failed : ''), 'bl-info');
-      }
+      if (allAlbums.length > 0) return allAlbums;
+    } catch(e) { if (e.name === 'AbortError') throw e; log('API nativa fallita, provo HTML...', 'warn'); }
+  }
+
+  // Method 2: _next/data API
+  log('Strategia 2: _next/data...');
+  try {
+    const html = await fetchHtml(pageUrl);
+    const m = html.match(/<script[^>]+id=["']__NEXT_DATA__["'][^>]*>([\s\S]*?)<\/script>/i);
+    if (m) {
+      const nd = JSON.parse(m[1]);
+      buildId = nd.buildId || '';
+      parseAlbumsWithCovers(nd, allAlbums);
     }
+    if (allAlbums.length > 0) { log(`_next/data: ${allAlbums.length} album`, 'ok'); return allAlbums; }
 
-    totalDone += done;
-    if (inp) inp.className = done > 0 ? 'row-ok' : 'row-err';
-    if (statusEl) statusEl.textContent = done > 0 ? '✅' : '❌';
-    blogBatch('  📁 ' + shortName + ': ' + done + ' scaricate' + (failed ? ', ' + failed + ' fallite' : ''), done > 0 ? 'bl-ok' : 'bl-err');
-  }
+    // Method 3: HTML scraping
+    log('Strategia 3: scraping HTML...');
+    const htmlAlbums = parseHtmlAlbumsWithCovers(html);
+    allAlbums.push(...htmlAlbums);
+    if (allAlbums.length > 0) { log(`HTML scraping: ${allAlbums.length} album`, 'ok'); return allAlbums; }
+  } catch(e) { if (e.name === 'AbortError') throw e; }
 
-  if (totalDone === 0) {
-    blogBatch('\n❌ Nessuna immagine scaricata.', 'bl-err');
-    btn.disabled = false;
-    btn.textContent = '🚀 Estrai & ZIP tutto';
-    return;
-  }
-
-  blogBatch('\n📦 Creazione ZIP (' + totalDone + ' immagini)...', 'bl-cur');
-  const zipBlob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 4 } });
-  const ts = new Date().toISOString().slice(0, 10);
-  saveAs(zipBlob, 'yupoo_' + rows.length + 'links_' + totalDone + 'img_' + ts + '.zip');
-  blogBatch('\n✅ ZIP scaricato! ' + totalDone + ' immagini totali.', 'bl-ok');
-
-  btn.disabled = false;
-  btn.textContent = '🚀 Estrai & ZIP tutto';
+  return allAlbums;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// extractUrl — runs the full extraction pipeline for a single URL
-// Returns array of image objects {url, originalUrl, filename}
-// ─────────────────────────────────────────────────────────────────────────────
-async function extractUrl(rawUrl, pageRange) {
-  // If ?page=N is present, extract only that page unless pageRange overrides
-  const _u0 = new URL(rawUrl);
-  const pageParam = parseInt(_u0.searchParams.get('page') || _u0.searchParams.get('p') || '0');
-  _u0.search = '';
-  const url = _u0.href;
-  const u   = new URL(url);
-  const uname = u.hostname.split('.')[0];
-  const sBase = u.protocol + '//' + u.hostname;
-  const isAlb = /\/albums\//.test(url);
+async function fetchAlbumCover(albumId) {
+  // Try native API first
+  try {
+    const json = await fetchJson(`${siteBase}/albums/${albumId}?page=1&t=${Date.now()}`);
+    const photos = [];
+    function findPhotos(obj, d) {
+      if (d>15||!obj||typeof obj!=='object') return;
+      const uid = obj.uid||obj.imageid||obj.imageId;
+      if (uid && /^[0-9a-f]{5,20}$/i.test(uid) && !obj.buildId) {
+        if (obj.path) photos.push(obj.path.startsWith('http') ? obj.path : 'https://photo.yupoo.com' + obj.path);
+        else if (username) photos.push(`https://photo.yupoo.com/${username}/${uid}/fit_p_900_900.jpg`);
+        return;
+      }
+      if (Array.isArray(obj)) obj.forEach(i => findPhotos(i, d+1));
+      else Object.values(obj).forEach(v => { if(v && typeof v==='object') findPhotos(v, d+1); });
+    }
+    findPhotos(json, 0);
+    if (photos.length) return toHD(photos[0]);
+  } catch(e) { if (e.name === 'AbortError') throw e; }
 
-  // Resolve page range: explicit > URL param > full extraction
-  const pStart = (pageRange && pageRange.from) || pageParam || 1;
-  const pEnd   = (pageRange && pageRange.to)   || pageParam || 9999;
+  // Fallback: HTML scrape album page
+  const html = await fetchHtml(`${siteBase}/albums/${albumId}`);
+  const SKIP = /\/(?:icons?|avatars?|watermarks?|default|logo)\//i;
+  const re = /https?:\/\/photo\.yupoo\.com\/([a-z0-9_]+)\/([a-z0-9]+)\/[^\s"'<>]+\.jpg/gi;
+  let m;
+  while ((m = re.exec(html)) !== null) {
+    if (!SKIP.test(m[0])) return toHD(m[0]);
+  }
+  throw new Error('nessuna immagine');
+}
 
-  // CRITICAL: reset AbortController
-  if (abortCtrl) abortCtrl.abort();
+// ═══════════════════════════════════════════════════════
+// IMGBB UPLOAD
+// ═══════════════════════════════════════════════════════
+async function uploadAllImgbb() {
+  const key = document.getElementById('imgbb-key').value.trim();
+  if (!key) { alert('Inserisci prima la API key di imgbb!\nRegistrati gratis su imgbb.com → api.imgbb.com'); return; }
+  if (!workerUrl) { alert('Inserisci il Worker URL Cloudflare per poter scaricare le immagini da Yupoo.'); return; }
+
+  const toUpload = products.filter(p => p.coverUrl && !p.imgbbUrl);
+  if (!toUpload.length) { alert('Nessuna immagine da caricare.'); return; }
+
+  document.getElementById('btn-upload').disabled = true;
+  log(`⬆ Upload di ${toUpload.length} immagini su imgbb...`, 'info');
   abortCtrl = new AbortController();
   stopped = false;
 
-  // Reset per-extraction state
-  images = []; seenUrls.clear();
-  username = uname; siteBase = sBase; shopHost = u.hostname;
-  albumCount = 0; pageCount = 0; errCount = 0; cachedHtml = '';
-  buildId = await getBuildId(url).catch(() => '');
+  for (let i = 0; i < toUpload.length; i++) {
+    if (stopped) break;
+    const prod = toUpload[i];
+    setProductStatus(prod.id, 'uploading');
+    setProgress((i / toUpload.length) * 100, `Upload ${i+1}/${toUpload.length}: ${prod.nome.substring(0,30)}`);
 
-  if (isAlb) {
-    await runAlbumMode(url);
-  } else if (extractMode === 'covers') {
-    await runCoversMode(url, pStart, pEnd);
-  } else {
-    await runDeepMode(url);
+    try {
+      // Fetch image via Worker proxy (required for Yupoo CDN)
+      const proxyUrl = workerUrl.replace(/\/$/, '') + '/?url=' + encodeURIComponent(prod.coverUrl);
+      const imgResp = await fetch(proxyUrl, { signal: abortCtrl.signal });
+      if (!imgResp.ok) throw new Error('Worker HTTP ' + imgResp.status);
+      const imgBlob = await imgResp.blob();
+
+      // Convert to base64
+      const base64 = await blobToBase64(imgBlob);
+      const b64data = base64.split(',')[1];
+
+      // Upload to imgbb
+      const formData = new FormData();
+      formData.append('key', key);
+      formData.append('image', b64data);
+      formData.append('name', `lillofind_${prod.id}`);
+
+      const uploadResp = await fetch('https://api.imgbb.com/1/upload', { method: 'POST', body: formData });
+      const uploadJson = await uploadResp.json();
+
+      if (uploadJson.success) {
+        prod.imgbbUrl = uploadJson.data.url;
+        setProductStatus(prod.id, 'done');
+        renderTableRow(prod);
+        log(`✅ [${i+1}/${toUpload.length}] ${prod.nome.substring(0,30)} → ${prod.imgbbUrl}`, 'ok');
+      } else {
+        throw new Error(uploadJson.error?.message || 'Upload fallito');
+      }
+    } catch(e) {
+      if (e.name === 'AbortError') { log('⛔ Upload interrotto.', 'warn'); break; }
+      setProductStatus(prod.id, 'error');
+      log(`❌ [${i+1}] ${prod.nome.substring(0,30)}: ${e.message}`, 'err');
+    }
+    updateStats();
   }
 
-  return [...images];
+  setProgress(100, `✅ Upload completato`);
+  document.getElementById('btn-upload').disabled = false;
+  document.getElementById('btn-csv').disabled = false;
 }
 
-// imgToBlob — canvas-based image capture (used by batch and standalone viewer)
-function imgToBlob(src) {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    const timer = setTimeout(() => reject(new Error('timeout')), 20000);
-    img.onload = () => {
-      clearTimeout(timer);
-      const c = document.createElement('canvas');
-      c.width = img.naturalWidth; c.height = img.naturalHeight;
-      c.getContext('2d').drawImage(img, 0, 0);
-      c.toBlob(b => b ? resolve(b) : reject(new Error('toBlob failed')), 'image/jpeg', 0.92);
-    };
-    img.onerror = () => { clearTimeout(timer); reject(new Error('load failed')); };
-    img.src = src;
+function blobToBase64(blob) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(r.result);
+    r.onerror = () => rej(new Error('FileReader error'));
+    r.readAsDataURL(blob);
   });
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// WORKER URL MANAGEMENT
-// ─────────────────────────────────────────────────────────────────────────────
-function onWorkerUrlChange() {
-  const v = document.getElementById('worker-url').value.trim();
-  workerUrl = v;
-  if (v) localStorage.setItem('yupoo_worker_url', v);
-  else localStorage.removeItem('yupoo_worker_url');
-  updateWorkerBadge();
-}
+// ═══════════════════════════════════════════════════════
+// ZIP DOWNLOAD (direct from Yupoo via Worker)
+// ═══════════════════════════════════════════════════════
+async function downloadZip() {
+  if (!workerUrl) { alert('Inserisci il Worker URL Cloudflare!'); return; }
+  const toDownload = products.filter(p => p.coverUrl);
+  if (!toDownload.length) { alert('Nessuna immagine estratta.'); return; }
 
-function updateWorkerBadge() {
-  const inp   = document.getElementById('worker-url');
-  const badge = document.getElementById('worker-badge');
-  const zipBtn = document.querySelector('#act-row button:nth-child(2)');
-  if (workerUrl && workerUrl.startsWith('https://') && workerUrl.includes('workers.dev')) {
-    inp.classList.add('ok'); inp.classList.remove('err');
-    badge.className = 'worker-badge ok'; badge.textContent = '✓ Worker pronto';
-    if (zipBtn) { zipBtn.disabled = false; zipBtn.title = ''; }
-  } else if (workerUrl) {
-    inp.classList.remove('ok'); inp.classList.add('err');
-    badge.className = 'worker-badge err'; badge.textContent = '✗ URL non valido';
-  } else {
-    inp.classList.remove('ok','err');
-    badge.className = 'worker-badge'; badge.textContent = '– Worker non configurato';
-    if (zipBtn) { zipBtn.disabled = false; }
-  }
-}
+  log(`📦 Creazione ZIP di ${toDownload.length} immagini...`, 'info');
+  document.getElementById('btn-zip').disabled = true;
+  const zip = new JSZip();
+  abortCtrl = new AbortController();
+  let done = 0, failed = 0;
 
-async function testWorker() {
-  if (!workerUrl) { alert('Inserisci prima il Worker URL'); return; }
-  const badge = document.getElementById('worker-badge');
-  badge.className = 'worker-badge'; badge.textContent = '⟳ Test...';
-
-  // Use a real extracted image if available, otherwise test Worker health
-  const testImgUrl = images.length > 0
-    ? (images[0].originalUrl || images[0].url)
-    : null;
-
-  const base = workerUrl.replace(/\/$/, '');
-
-  // If no images extracted yet, just ping the Worker root to check it's alive
-  if (!testImgUrl) {
+  for (let i = 0; i < toDownload.length; i++) {
+    if (stopped) break;
+    const prod = toDownload[i];
+    setProgress((i / toDownload.length) * 100, `ZIP ${i+1}/${toDownload.length}`);
     try {
-      const r = await fetch(base + '/?url=', { cache: 'no-store' });
-      const body = await r.text();
-      // Our Worker returns JSON {error: 'Missing ?url= parameter'} for empty url
-      if (body.includes('Missing') || body.includes('url') || r.status === 400) {
-        badge.className = 'worker-badge ok'; badge.textContent = '✓ Worker attivo';
-        log('✅ Worker attivo e risponde correttamente. Estrai prima le immagini per testare il download.', 'success');
-      } else if (body.includes('Hello') || body.includes('hello world')) {
-        badge.className = 'worker-badge err'; badge.textContent = '✗ Hello World';
-        log('❌ Worker ha ancora il codice "Hello World" di default!', 'err');
-        log('Vai su dash.cloudflare.com → Workers → yupoo-proxy → Edit code → incolla yupoo-proxy-worker.js → Deploy', 'warn');
-      } else {
-        badge.className = 'worker-badge ok'; badge.textContent = '✓ Worker attivo';
-        log('Worker risponde. Estrai le immagini per testare il download reale.', 'success');
-      }
+      const proxyUrl = workerUrl.replace(/\/$/, '') + '/?url=' + encodeURIComponent(prod.coverUrl);
+      const resp = await fetch(proxyUrl, { signal: abortCtrl.signal });
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      const blob = await resp.blob();
+      const filename = `${String(i+1).padStart(3,'0')}_${(prod.nome||'prodotto').replace(/[^a-z0-9]/gi,'_').substring(0,30)}.jpg`;
+      zip.file(filename, blob);
+      done++;
     } catch(e) {
-      badge.className = 'worker-badge err'; badge.textContent = '✗ Non raggiungibile';
-      log('❌ Worker non raggiungibile: ' + e.message, 'err');
+      if (e.name === 'AbortError') break;
+      failed++;
     }
-    return;
   }
 
-  // Test with a real image URL
-  const proxyUrl = base + '/?url=' + encodeURIComponent(testImgUrl);
-  log('Test Worker con immagine reale: ' + testImgUrl.split('/').slice(-2).join('/'));
-  try {
-    const r = await fetch(proxyUrl, { cache: 'no-store' });
-    const ct = r.headers.get('content-type') || '';
+  log(`Generazione ZIP (${done} immagini)...`);
+  const zipBlob = await zip.generateAsync({ type:'blob', compression:'DEFLATE', compressionOptions:{level:4} });
+  saveAs(zipBlob, `lillofind_${done}img_${new Date().toISOString().slice(0,10)}.zip`);
+  log(`✅ ZIP scaricato! ${done} immagini${failed ? ', ' + failed + ' fallite' : ''}.`, 'ok');
+  setProgress(100, '✅ ZIP completato');
+  document.getElementById('btn-zip').disabled = false;
+}
 
-    if (ct.startsWith('image/')) {
-      const b = await r.blob();
-      badge.className = 'worker-badge ok'; badge.textContent = '✓ Worker OK';
-      log('✅ Worker OK — immagine: ' + (b.size/1024).toFixed(0) + 'KB, tipo: ' + ct, 'success');
-    } else {
-      let body = '';
-      try { body = await r.text(); } catch {}
-      if (body.includes('Hello') || body.toLowerCase().includes('hello world')) {
-        badge.className = 'worker-badge err'; badge.textContent = '✗ Hello World';
-        log('❌ Worker ha ancora il codice "Hello World" di default!', 'err');
-        log('Vai su dash.cloudflare.com → Workers → yupoo-proxy → Edit code → incolla yupoo-proxy-worker.js → Deploy', 'warn');
-      } else {
-        badge.className = 'worker-badge err'; badge.textContent = '✗ HTTP ' + r.status;
-        log('❌ Worker errore HTTP ' + r.status + ': ' + body.substring(0, 150), 'err');
-        // Parse our Worker's JSON error
-        try {
-          const j = JSON.parse(body);
-          if (j.error) log('Dettaglio: ' + j.error + (j.url ? ' → ' + j.url : ''), 'warn');
-        } catch {}
-      }
-    }
-  } catch(e) {
-    badge.className = 'worker-badge err'; badge.textContent = '✗ Errore';
-    log('❌ Worker non raggiungibile: ' + e.message, 'err');
+// ═══════════════════════════════════════════════════════
+// CSV EXPORT
+// ═══════════════════════════════════════════════════════
+function exportCSV() {
+  if (!products.length) return;
+  const header = 'nome,prezzo,brand,tipo,taglie,colori,url_immagine';
+  const rows = products.map(p => {
+    const url = p.imgbbUrl || p.coverUrl || '';
+    const price = p.final !== null ? p.final.toFixed(2) : '';
+    return [p.nome, price, p.brand, p.tipo, p.taglie, p.colori, url]
+      .map(v => `"${(v||'').replace(/"/g,'""')}"`)
+      .join(',');
+  });
+  const csv = '\uFEFF' + [header, ...rows].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `lillofind_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  log(`✅ CSV esportato! (${products.length} prodotti, url_immagine: ${products.filter(p=>p.imgbbUrl||p.coverUrl).length} compilate)`, 'ok');
+}
+
+// ═══════════════════════════════════════════════════════
+// TABLE RENDER
+// ═══════════════════════════════════════════════════════
+function renderTable() {
+  const tbody = document.getElementById('tbody');
+  tbody.innerHTML = products.map((p, i) => buildRow(p, i)).join('');
+}
+
+function buildRow(p, i) {
+  const imgHtml = p.imgbbUrl
+    ? `<img src="${p.imgbbUrl}" onerror="this.src='${p.coverUrl||''}'">` 
+    : p.coverUrl
+      ? `<img src="${p.coverUrl}" crossorigin="anonymous" onerror="this.outerHTML='<div class=noimg>?</div>'">`
+      : `<div class="noimg">?</div>`;
+  const urlVal = p.imgbbUrl || p.coverUrl || '';
+  const idx = products.indexOf(p);
+  return `<tr id="tr-${p.id}" class="${p.status==='uploading'?'uploading':p.status==='done'?'uploaded':p.status==='error'?'upload-err':''}">
+    <td class="td-num">${(i||idx)+1}</td>
+    <td class="td-img">${imgHtml}</td>
+    <td class="td-nome"><input value="${esc(p.nome)}" oninput="upd(${p.id},'nome',this.value)"></td>
+    <td class="td-tipo"><input value="${esc(p.tipo)}" oninput="upd(${p.id},'tipo',this.value)" style="width:100px"></td>
+    <td class="td-brand"><input value="${esc(p.brand)}" oninput="upd(${p.id},'brand',this.value)" style="width:100px"></td>
+    <td class="td-taglie"><input value="${esc(p.taglie)}" oninput="upd(${p.id},'taglie',this.value)" style="width:90px"></td>
+    <td class="td-colori"><input value="${esc(p.colori)}" oninput="upd(${p.id},'colori',this.value)" style="width:120px"></td>
+    <td class="td-cny">${p.cny ? '¥'+p.cny : '<span style="color:var(--muted)">–</span>'}</td>
+    <td class="td-eur">${p.final !== null ? '€'+p.final.toFixed(2) : '<span style="color:var(--muted)">–</span>'}</td>
+    <td class="td-url"><input value="${esc(urlVal)}" oninput="upd(${p.id},'imgbbUrl',this.value)" placeholder="url immagine..."></td>
+    <td class="td-status"><span class="status-badge ${p.status}">${statusLabel(p.status)}</span></td>
+    <td class="td-del" onclick="deleteProd(${p.id})">✕</td>
+  </tr>`;
+}
+
+function renderTableRow(prod) {
+  const tr = document.getElementById('tr-' + prod.id);
+  if (tr) {
+    const idx = products.indexOf(prod);
+    tr.outerHTML = buildRow(prod, idx);
   }
 }
 
-function toggleWorkerHelp() {
-  const collapsed = document.getElementById('worker-help-collapsed');
-  const full      = document.getElementById('worker-help-full');
-  const show = full.style.display === 'none';
-  full.style.display = show ? 'block' : 'none';
-  collapsed.style.display = show ? 'none' : 'block';
+function setProductStatus(id, status) {
+  const p = products.find(p => p.id === id);
+  if (p) p.status = status;
 }
 
-// Restore saved worker URL on load + always update badge
-(function initWorkerUrl() {
-  const saved = localStorage.getItem('yupoo_worker_url');
-  if (saved) {
-    document.getElementById('worker-url').value = saved;
-    workerUrl = saved;
-  }
-  // Always update badge (even for pre-filled default value)
-  updateWorkerBadge();
+function statusLabel(s) {
+  return {idle:'–', extracting:'⟳', uploading:'⬆', done:'✅ OK', error:'❌', skipped:'skip'}[s] || s;
+}
+
+function upd(id, field, value) {
+  const p = products.find(p => p.id === id);
+  if (p) p[field] = value;
+  updateStats();
+}
+
+function deleteProd(id) {
+  products = products.filter(p => p.id !== id);
+  renderTable();
+  updateStats();
+}
+
+// ═══════════════════════════════════════════════════════
+// STATS
+// ═══════════════════════════════════════════════════════
+function updateStats() {
+  document.getElementById('st-total').textContent = products.length;
+  document.getElementById('st-imgs').textContent = products.filter(p=>p.coverUrl).length;
+  document.getElementById('st-prices').textContent = products.filter(p=>p.cny).length;
+  document.getElementById('st-uploaded').textContent = products.filter(p=>p.imgbbUrl).length;
+  const prices = products.filter(p=>p.final).map(p=>p.final);
+  document.getElementById('st-avg').textContent = prices.length
+    ? '€' + (prices.reduce((a,b)=>a+b,0)/prices.length).toFixed(2) : '–';
+}
+
+// ═══════════════════════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════════════════════
+function esc(s) { return (s||'').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+function setProgress(pct, text) {
+  document.getElementById('progress-fill').style.width = pct + '%';
+  if (text) document.getElementById('progress-text').textContent = text;
+}
+function log(msg, type) {
+  const el = document.getElementById('log-section');
+  const d = document.createElement('div');
+  d.className = type || '';
+  d.textContent = msg;
+  el.appendChild(d);
+  el.scrollTop = el.scrollHeight;
+}
+function clearLog() { document.getElementById('log-section').innerHTML = ''; }
+function stopExtraction() {
+  stopped = true;
+  if (abortCtrl) abortCtrl.abort();
+  document.getElementById('btn-stop').style.display = 'none';
+  document.getElementById('btn-extract').disabled = false;
+  log('⛔ Fermato.', 'warn');
+}
+function updateRateDisplay() {
+  const r = parseFloat(document.getElementById('rate').value) || 0.129;
+  document.getElementById('rate-display').textContent = `¥1 = €${r.toFixed(3)}`;
+  // Recalculate all prices
+  products.forEach(p => {
+    if (p.cny) { p.eur = p.cny * r; p.final = calcFinal(p.cny); }
+  });
+  renderTable(); updateStats();
+}
+function saveWorker() {
+  workerUrl = document.getElementById('worker-url').value.trim();
+  if (workerUrl) localStorage.setItem('yupoo_worker_url', workerUrl);
+  const inp = document.getElementById('worker-url');
+  inp.className = 'cfg-input wide' + (workerUrl.includes('workers.dev') ? ' ok' : '');
+}
+function saveImgbb() {
+  imgbbKey = document.getElementById('imgbb-key').value.trim();
+  if (imgbbKey) localStorage.setItem('imgbb_key', imgbbKey);
+}
+function clearAll() {
+  products = [];
+  document.getElementById('tbody').innerHTML = '';
+  document.getElementById('table-wrap').style.display = 'none';
+  document.getElementById('empty-state').style.display = 'block';
+  document.getElementById('stats-bar').style.display = 'none';
+  document.getElementById('progress-section').classList.remove('visible');
+  clearLog();
+  document.getElementById('btn-csv').disabled = true;
+  document.getElementById('btn-zip').disabled = true;
+  document.getElementById('btn-upload').disabled = true;
+}
+function loadExample() {
+  document.getElementById('cat-url').value = 'https://huskyreps.x.yupoo.com/categories/5003229';
+  log('Esempio caricato — premi ESTRAI CATALOGO per iniziare', 'info');
+}
+
+// ── INIT ──────────────────────────────────────────────
+(function init() {
+  workerUrl = workerUrl || 'https://yupoo-proxy.conti9708.workers.dev/';
+  imgbbKey = imgbbKey || '4e0f0e5bfe97cdcf39838aa5a82abb75';
+  localStorage.setItem('yupoo_worker_url', workerUrl);
+  localStorage.setItem('imgbb_key', imgbbKey);
+  document.getElementById('worker-url').value = workerUrl; saveWorker();
+  document.getElementById('imgbb-key').value = imgbbKey;
+  updateRateDisplay();
 })();
 </script>
 </body>
