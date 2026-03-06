@@ -312,8 +312,22 @@ async function fetchJson(url) {
 }
 
 function toHD(url) {
-  return url.replace(/\/(small|thumb|tiny|medium)\./i, '/fit_p_900_900.')
-            .replace(/\/fit_p_\d+_\d+\./i, '/fit_p_900_900.');
+  // Use medium as default — most reliable on Yupoo CDN
+  return url.replace(/\/(fit_p_\d+_\d+|large|small|thumb|tiny)\./i, '/medium.');
+}
+
+// Try multiple size variants in order of reliability
+function imageVariants(url) {
+  if (!url) return [url];
+  const base = url.replace(/\/(fit_p_\d+_\d+|large|medium|small|thumb|tiny)\./i, '/VARIANT.');
+  return [
+    base.replace('VARIANT','medium'),
+    base.replace('VARIANT','small'),
+    base.replace('VARIANT','thumb'),
+    base.replace('VARIANT','fit_p_560_560'),
+    base.replace('VARIANT','fit_p_900_900'),
+    url
+  ].filter((v,i,a) => a.indexOf(v)===i);
 }
 
 // ═══════════════════════════════════════════════════════
@@ -338,6 +352,9 @@ function parseAlbumsWithCovers(obj, out, depth) {
   if (!Array.isArray(obj) && typeof obj.id === 'number' && obj.id > 0
       && (obj.name || obj.prettyName || obj.albumName || obj.title)) {
     const name = obj.name || obj.prettyName || obj.albumName || obj.title || String(obj.id);
+    // Filter out pagination/navigation fake albums
+    const SKIP_NAMES = /^(next\s*page|prev|previous|page\s*\d+|older|newer|more|avanti|indietro|successivo|precedente)$/i;
+    if (SKIP_NAMES.test(name.trim())) return out;
     const cover = extractCoverFromAlbumObj(obj);
     out.push({ id: obj.id, name, coverUrl: cover });
     return out;
@@ -635,11 +652,22 @@ async function uploadAllImgbb() {
     setProgress((i / toUpload.length) * 100, `Upload ${i+1}/${toUpload.length}: ${prod.nome.substring(0,30)}`);
 
     try {
-      // Fetch image via Worker proxy (required for Yupoo CDN)
-      const proxyUrl = workerUrl.replace(/\/$/, '') + '/?url=' + encodeURIComponent(prod.coverUrl);
-      const imgResp = await fetch(proxyUrl, { signal: abortCtrl.signal });
-      if (!imgResp.ok) throw new Error('Worker HTTP ' + imgResp.status);
-      const imgBlob = await imgResp.blob();
+      // Try multiple image size variants via Worker proxy
+      const variants = imageVariants(prod.coverUrl);
+      let imgBlob = null;
+      let lastErr = '';
+      for (const varUrl of variants) {
+        try {
+          const proxyUrl = workerUrl.replace(/\/$/, '') + '/?url=' + encodeURIComponent(varUrl);
+          const imgResp = await fetch(proxyUrl, { signal: abortCtrl.signal });
+          if (imgResp.ok) {
+            const ct = imgResp.headers.get('content-type') || '';
+            if (ct.startsWith('image/')) { imgBlob = await imgResp.blob(); prod.coverUrl = varUrl; break; }
+          }
+          lastErr = 'HTTP ' + imgResp.status;
+        } catch(ve) { if (ve.name === 'AbortError') throw ve; lastErr = ve.message; }
+      }
+      if (!imgBlob) throw new Error('Tutte le varianti fallite: ' + lastErr);
 
       // Convert to base64
       const base64 = await blobToBase64(imgBlob);
@@ -703,10 +731,16 @@ async function downloadZip() {
     const prod = toDownload[i];
     setProgress((i / toDownload.length) * 100, `ZIP ${i+1}/${toDownload.length}`);
     try {
-      const proxyUrl = workerUrl.replace(/\/$/, '') + '/?url=' + encodeURIComponent(prod.coverUrl);
-      const resp = await fetch(proxyUrl, { signal: abortCtrl.signal });
-      if (!resp.ok) throw new Error('HTTP ' + resp.status);
-      const blob = await resp.blob();
+      const variants = imageVariants(prod.coverUrl);
+      let blob = null;
+      for (const varUrl of variants) {
+        try {
+          const proxyUrl = workerUrl.replace(/\/$/, '') + '/?url=' + encodeURIComponent(varUrl);
+          const resp = await fetch(proxyUrl, { signal: abortCtrl.signal });
+          if (resp.ok) { blob = await resp.blob(); if (blob.size > 1000) break; }
+        } catch(ve) { if (ve.name === 'AbortError') throw ve; }
+      }
+      if (!blob || blob.size < 100) throw new Error('Immagine non scaricabile');
       const filename = `${String(i+1).padStart(3,'0')}_${(prod.nome||'prodotto').replace(/[^a-z0-9]/gi,'_').substring(0,30)}.jpg`;
       zip.file(filename, blob);
       done++;
