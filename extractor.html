@@ -515,6 +515,10 @@ async function startExtraction() {
       document.getElementById('btn-upload').disabled = false;
       document.getElementById('btn-csv').disabled    = false;
       document.getElementById('btn-zip').disabled    = false;
+      // Enable colors if any product has a cover image
+      if (products.some(function(p){ return p.coverUrl; })) {
+        document.getElementById('btn-colors').disabled = false;
+      }
     }
 
   } catch(e) {
@@ -741,7 +745,7 @@ async function detectColorsGemini(imageUrl, apiKey) {
   }
 
   var gemResp = await fetch(
-    'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=' + apiKey,
+    'https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent?key=' + apiKey,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
