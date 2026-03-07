@@ -810,93 +810,119 @@ function extractDominantColors(imageUrl) {
     img.crossOrigin = 'anonymous';
     img.onload = function() {
       try {
-        // Usa risoluzione alta per più dettaglio
-        var SIZE = 120;
+        var SIZE = 160;
         var canvas = document.createElement('canvas');
         canvas.width = SIZE; canvas.height = SIZE;
         var ctx = canvas.getContext('2d');
         ctx.drawImage(img, 0, 0, SIZE, SIZE);
         var data = ctx.getImageData(0, 0, SIZE, SIZE).data;
 
-        // --- Rileva colore di sfondo dai 4 angoli ---
-        function cornerRgb(px) {
-          return [data[px], data[px+1], data[px+2]];
-        }
-        var corners = [
-          cornerRgb(0),
-          cornerRgb((SIZE-1)*4),
-          cornerRgb((SIZE*(SIZE-1))*4),
-          cornerRgb((SIZE*SIZE-1)*4)
+        // --- Rileva sfondo dai 4 angoli e bordi ---
+        var bgSamples = [];
+        var borderPx = [
+          0, (SIZE-1)*4,
+          (SIZE*(SIZE-1))*4, (SIZE*SIZE-1)*4,
+          // bordo top center, bottom center
+          Math.floor(SIZE/2)*4,
+          (SIZE*(SIZE-1) + Math.floor(SIZE/2))*4
         ];
-        // Media colore angoli = sfondo presunto
-        var bgR = Math.round(corners.reduce(function(s,c){return s+c[0];},0)/4);
-        var bgG = Math.round(corners.reduce(function(s,c){return s+c[1];},0)/4);
-        var bgB = Math.round(corners.reduce(function(s,c){return s+c[2];},0)/4);
-        var bgThreshold = 38; // distanza colore per considerare un pixel "sfondo"
+        borderPx.forEach(function(px){
+          if(px >= 0 && px < data.length-2)
+            bgSamples.push([data[px], data[px+1], data[px+2]]);
+        });
+        var bgR = Math.round(bgSamples.reduce(function(s,c){return s+c[0];},0)/bgSamples.length);
+        var bgG = Math.round(bgSamples.reduce(function(s,c){return s+c[1];},0)/bgSamples.length);
+        var bgB = Math.round(bgSamples.reduce(function(s,c){return s+c[2];},0)/bgSamples.length);
 
-        // --- Campiona solo la zona centrale (evita bordi) ---
-        var margin = Math.floor(SIZE * 0.10);
-        var pixels = [];
-        for (var y = margin; y < SIZE - margin; y++) {
-          for (var x = margin; x < SIZE - margin; x++) {
-            var idx = (y * SIZE + x) * 4;
-            var r = data[idx], g = data[idx+1], b = data[idx+2], a = data[idx+3];
-            if (a < 200) continue;
+        // --- Funzione: colore dominante di una zona (escludendo sfondo) ---
+        function zoneDominant(x0, y0, x1, y1) {
+          var buckets = {};
+          var total = 0;
+          for (var y = y0; y < y1; y++) {
+            for (var x = x0; x < x1; x++) {
+              var i = (y * SIZE + x) * 4;
+              var r = data[i], g = data[i+1], b = data[i+2], a = data[i+3];
+              if (a < 180) continue;
+              // Salta pixel di sfondo
+              if (colorDistance(r, g, b, bgR, bgG, bgB) < 32) continue;
+              // Salta pixel troppo chiari (sfondo bianco/grigio chiaro)
+              if (r > 220 && g > 220 && b > 220) continue;
+              var step = 28;
+              var qr = Math.round(r/step)*step;
+              var qg = Math.round(g/step)*step;
+              var qb = Math.round(b/step)*step;
+              var key = qr+','+qg+','+qb;
+              buckets[key] = (buckets[key]||0) + 1;
+              total++;
+            }
+          }
+          if (total < 15) return null; // zona troppo vuota (sfondo)
+          var sorted = Object.entries(buckets).sort(function(a,b){return b[1]-a[1];});
+          if (!sorted.length) return null;
+          var best = sorted[0][0].split(',').map(Number);
+          // Scarta se il colore dominante è ancora troppo vicino allo sfondo
+          if (colorDistance(best[0],best[1],best[2], bgR,bgG,bgB) < 28) {
+            if (sorted.length > 1) best = sorted[1][0].split(',').map(Number);
+            else return null;
+          }
+          return best;
+        }
 
-            // Salta pixel troppo vicini allo sfondo
-            if (colorDistance(r,g,b, bgR,bgG,bgB) < bgThreshold) continue;
+        // --- Griglia 3x3 sul centro dell'immagine (ignora 12% bordi) ---
+        var margin = Math.floor(SIZE * 0.12);
+        var inner = SIZE - margin * 2;
+        var cols = 3, rows = 3;
+        var zoneW = Math.floor(inner / cols);
+        var zoneH = Math.floor(inner / rows);
 
-            // Salta grigi neutri puri (r≈g≈b e saturazione bassa) → spesso pattern neutri
-            var maxC = Math.max(r,g,b), minC = Math.min(r,g,b);
-            var sat = maxC === 0 ? 0 : (maxC - minC) / maxC;
-            var lum = (r+g+b)/3;
-            // Accetta grigi scuri (Nero, Grigio Scuro) e colori saturi
-            var isNeutral = sat < 0.12;
-            var isDarkGrey = isNeutral && lum < 80;
-            var isMidGrey  = isNeutral && lum >= 80 && lum < 200;
-            if (isMidGrey) continue; // grigio medio neutro → spesso sfondo grigio
-
-            pixels.push([r, g, b]);
+        var zoneColors = [];
+        for (var row = 0; row < rows; row++) {
+          for (var col = 0; col < cols; col++) {
+            var zx0 = margin + col * zoneW;
+            var zy0 = margin + row * zoneH;
+            var dom = zoneDominant(zx0, zy0, zx0 + zoneW, zy0 + zoneH);
+            if (dom) zoneColors.push(dom);
           }
         }
 
-        if (pixels.length < 30) {
-          // Fallback: accetta tutto senza filtro sfondo
-          pixels = [];
-          for (var i2 = 0; i2 < data.length; i2 += 4) {
-            if (data[i2+3] > 128) pixels.push([data[i2],data[i2+1],data[i2+2]]);
+        // --- Raggruppa zone con colore simile (clustering semplice) ---
+        var clusters = [];
+        zoneColors.forEach(function(c) {
+          var found = false;
+          for (var k = 0; k < clusters.length; k++) {
+            if (colorDistance(c[0],c[1],c[2], clusters[k][0],clusters[k][1],clusters[k][2]) < 50) {
+              // Media progressiva
+              clusters[k][0] = Math.round((clusters[k][0]+c[0])/2);
+              clusters[k][1] = Math.round((clusters[k][1]+c[1])/2);
+              clusters[k][2] = Math.round((clusters[k][2]+c[2])/2);
+              clusters[k][3] = (clusters[k][3]||1) + 1; // contatore
+              found = true; break;
+            }
           }
-        }
-
-        // --- Quantizzazione fine (step 24) e frequenza ---
-        var step = 24;
-        var buckets = {};
-        pixels.forEach(function(p) {
-          var qr = Math.round(p[0]/step)*step;
-          var qg = Math.round(p[1]/step)*step;
-          var qb = Math.round(p[2]/step)*step;
-          var key = qr+','+qg+','+qb;
-          buckets[key] = (buckets[key]||0) + 1;
+          if (!found) { var nc = c.slice(); nc[3] = 1; clusters.push(nc); }
         });
 
-        // --- Seleziona colori distinti più frequenti ---
-        var sorted = Object.entries(buckets).sort(function(a,b){return b[1]-a[1];});
+        // Ordina per frequenza (zone più rappresentate = colori principali)
+        clusters.sort(function(a,b){ return (b[3]||1)-(a[3]||1); });
+
+        // Prendi max 4 colori distinti
         var picked = [];
-        var MIN_DIST = 55;
-        for (var j = 0; j < sorted.length && picked.length < 4; j++) {
-          var parts2 = sorted[j][0].split(',').map(Number);
-          var pr = parts2[0], pg = parts2[1], pb = parts2[2];
-          // Scarta se troppo simile a un colore già scelto
-          var tooClose = picked.some(function(c){
-            return colorDistance(pr,pg,pb,c[0],c[1],c[2]) < MIN_DIST;
+        clusters.forEach(function(c) {
+          if (picked.length >= 4) return;
+          var dup = picked.some(function(p){
+            return colorDistance(c[0],c[1],c[2],p[0],p[1],p[2]) < 45;
           });
-          if (!tooClose) picked.push([pr,pg,pb]);
+          if (!dup) picked.push(c);
+        });
+
+        // Fallback se nessun colore trovato (immagine solo sfondo)
+        if (!picked.length) {
+          picked.push([bgR, bgG, bgB]);
         }
 
-        // --- Mappa a nomi italiani e deduplicata ---
         var names = [];
         picked.forEach(function(c) {
-          var name = rgbToColorName(c[0],c[1],c[2]);
+          var name = rgbToColorName(c[0], c[1], c[2]);
           if (names.indexOf(name) === -1) names.push(name);
         });
 
