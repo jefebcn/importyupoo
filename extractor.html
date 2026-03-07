@@ -810,48 +810,93 @@ function extractDominantColors(imageUrl) {
     img.crossOrigin = 'anonymous';
     img.onload = function() {
       try {
-        var SIZE = 80;
+        // Usa risoluzione alta per più dettaglio
+        var SIZE = 120;
         var canvas = document.createElement('canvas');
         canvas.width = SIZE; canvas.height = SIZE;
         var ctx = canvas.getContext('2d');
         ctx.drawImage(img, 0, 0, SIZE, SIZE);
         var data = ctx.getImageData(0, 0, SIZE, SIZE).data;
 
-        // Sample pixels, skip near-white background
-        var buckets = {};
-        for (var i = 0; i < data.length; i += 16) {
-          var r = data[i], g = data[i+1], b = data[i+2], a = data[i+3];
-          if (a < 128) continue;
-          // Skip very bright (background) and very dark pixels for initial pass
-          var brightness = (r + g + b) / 3;
-          if (brightness > 240) continue; // skip near-white bg
-          // Quantize to reduce similar colors
-          r = Math.round(r/32)*32; g = Math.round(g/32)*32; b = Math.round(b/32)*32;
-          var key = r + ',' + g + ',' + b;
-          buckets[key] = (buckets[key] || 0) + 1;
+        // --- Rileva colore di sfondo dai 4 angoli ---
+        function cornerRgb(px) {
+          return [data[px], data[px+1], data[px+2]];
+        }
+        var corners = [
+          cornerRgb(0),
+          cornerRgb((SIZE-1)*4),
+          cornerRgb((SIZE*(SIZE-1))*4),
+          cornerRgb((SIZE*SIZE-1)*4)
+        ];
+        // Media colore angoli = sfondo presunto
+        var bgR = Math.round(corners.reduce(function(s,c){return s+c[0];},0)/4);
+        var bgG = Math.round(corners.reduce(function(s,c){return s+c[1];},0)/4);
+        var bgB = Math.round(corners.reduce(function(s,c){return s+c[2];},0)/4);
+        var bgThreshold = 38; // distanza colore per considerare un pixel "sfondo"
+
+        // --- Campiona solo la zona centrale (evita bordi) ---
+        var margin = Math.floor(SIZE * 0.10);
+        var pixels = [];
+        for (var y = margin; y < SIZE - margin; y++) {
+          for (var x = margin; x < SIZE - margin; x++) {
+            var idx = (y * SIZE + x) * 4;
+            var r = data[idx], g = data[idx+1], b = data[idx+2], a = data[idx+3];
+            if (a < 200) continue;
+
+            // Salta pixel troppo vicini allo sfondo
+            if (colorDistance(r,g,b, bgR,bgG,bgB) < bgThreshold) continue;
+
+            // Salta grigi neutri puri (r≈g≈b e saturazione bassa) → spesso pattern neutri
+            var maxC = Math.max(r,g,b), minC = Math.min(r,g,b);
+            var sat = maxC === 0 ? 0 : (maxC - minC) / maxC;
+            var lum = (r+g+b)/3;
+            // Accetta grigi scuri (Nero, Grigio Scuro) e colori saturi
+            var isNeutral = sat < 0.12;
+            var isDarkGrey = isNeutral && lum < 80;
+            var isMidGrey  = isNeutral && lum >= 80 && lum < 200;
+            if (isMidGrey) continue; // grigio medio neutro → spesso sfondo grigio
+
+            pixels.push([r, g, b]);
+          }
         }
 
-        // Sort by frequency
-        var sorted = Object.entries(buckets).sort(function(a,b){ return b[1]-a[1]; });
-
-        // Pick top distinct colors (min distance between picked colors)
-        var picked = [];
-        for (var j = 0; j < sorted.length && picked.length < 4; j++) {
-          var parts = sorted[j][0].split(',').map(Number);
-          var pr = parts[0], pg = parts[1], pb = parts[2];
-          var tooClose = false;
-          for (var k = 0; k < picked.length; k++) {
-            if (colorDistance(pr,pg,pb, picked[k][0],picked[k][1],picked[k][2]) < 60) {
-              tooClose = true; break;
-            }
+        if (pixels.length < 30) {
+          // Fallback: accetta tutto senza filtro sfondo
+          pixels = [];
+          for (var i2 = 0; i2 < data.length; i2 += 4) {
+            if (data[i2+3] > 128) pixels.push([data[i2],data[i2+1],data[i2+2]]);
           }
+        }
+
+        // --- Quantizzazione fine (step 24) e frequenza ---
+        var step = 24;
+        var buckets = {};
+        pixels.forEach(function(p) {
+          var qr = Math.round(p[0]/step)*step;
+          var qg = Math.round(p[1]/step)*step;
+          var qb = Math.round(p[2]/step)*step;
+          var key = qr+','+qg+','+qb;
+          buckets[key] = (buckets[key]||0) + 1;
+        });
+
+        // --- Seleziona colori distinti più frequenti ---
+        var sorted = Object.entries(buckets).sort(function(a,b){return b[1]-a[1];});
+        var picked = [];
+        var MIN_DIST = 55;
+        for (var j = 0; j < sorted.length && picked.length < 4; j++) {
+          var parts2 = sorted[j][0].split(',').map(Number);
+          var pr = parts2[0], pg = parts2[1], pb = parts2[2];
+          // Scarta se troppo simile a un colore già scelto
+          var tooClose = picked.some(function(c){
+            return colorDistance(pr,pg,pb,c[0],c[1],c[2]) < MIN_DIST;
+          });
           if (!tooClose) picked.push([pr,pg,pb]);
         }
 
-        // Map to Italian names, deduplicate
+        // --- Mappa a nomi italiani e deduplicata ---
         var names = [];
         picked.forEach(function(c) {
-          var name = rgbToColorName(c[0], c[1], c[2]);
+          var name = rgbToColorName(c[0],c[1],c[2]);
           if (names.indexOf(name) === -1) names.push(name);
         });
 
