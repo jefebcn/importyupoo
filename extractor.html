@@ -124,7 +124,7 @@ td input:focus{background:#141400;border-bottom:1px solid var(--accent);}
 <!-- HEADER -->
 <header>
   <div class="logo">LILLOFIND <em>//</em> YUPOO → CSV
-    <small>ESTRAZIONE · PREZZI ¥→€ · UPLOAD IMGBB · AI NOMI · COLORI · EXPORT CSV</small>
+    <small>ESTRAZIONE · PREZZI ¥→€ · UPLOAD IMGBB · RINOMINA · COLORI · EXPORT CSV</small>
   </div>
   <div style="display:flex;gap:8px;">
     <button class="btn btn-outline" onclick="loadExample()">ESEMPIO</button>
@@ -204,7 +204,7 @@ td input:focus{background:#141400;border-bottom:1px solid var(--accent);}
   <div class="action-btns">
     <button class="btn btn-purple" id="btn-upload"   onclick="uploadAllImgbb()" disabled>↑ UPLOAD IMGBB</button>
     <button class="btn btn-teal"   id="btn-colors"  onclick="detectAllColors()"  disabled>🎨 COLORI</button>
-    <button class="btn btn-orange" id="btn-ainames" onclick="renameAllAI()"      disabled>🔤 AI NOMI</button>
+    <button class="btn btn-orange" id="btn-ainames" onclick="renameAllAI()"      disabled>🔤 RINOMINA</button>
     <button class="btn btn-green"  id="btn-csv"     onclick="exportCSV()"        disabled>↓ CSV</button>
     <button class="btn btn-orange" id="btn-zip"     onclick="downloadZip()"      disabled>↓ ZIP</button>
   </div>
@@ -891,112 +891,152 @@ async function detectAllColors() {
 }
 
 // ═══════════════════════════════════════════════
-// AI RENAME — Claude API
+// SMART RENAME — 100% locale, zero API
 // ═══════════════════════════════════════════════
-async function renameAllAI() {
+
+// Mappa traduzione tipo EN → IT (usata anche nel nome finale)
+var TIPO_MAP = [
+  [/T-?SHIRTS?\b/i,            'T-Shirt'],
+  [/\bPOLOS?\b/i,              'Polo'],
+  [/HOODIES?|HOODED\b/i,       'Felpa con Cappuccio'],
+  [/SWEATERS?|CREWNECK/i,      'Felpa'],
+  [/FLEECE\b/i,                'Pile'],
+  [/\bVEST\b/i,                'Gilet'],
+  [/JACKETS?\b/i,              'Giacca'],
+  [/BOMBERS?\b/i,              'Bomber'],
+  [/PUFFER|PIUMINO/i,          'Piumino'],
+  [/TROUSERS?|PANTS?\b/i,      'Pantaloni'],
+  [/SHORTS?\b/i,               'Pantaloncini'],
+  [/LONG.?SLEEVE/i,            'Maglia Manica Lunga'],
+  [/\bBAGS?\b/i,               'Borsa'],
+  [/BACKPACKS?\b/i,            'Zaino'],
+  [/\bCAPS?\b|BEANIES?|\bHATS?\b/i, 'Cappello'],
+  [/SNEAKERS?|SHOES?\b/i,      'Sneakers'],
+  [/CARDIGAN/i,                'Cardigan'],
+  [/SHIRT\b/i,                 'Camicia'],
+  [/COAT\b/i,                  'Cappotto'],
+  [/DRESS\b/i,                 'Vestito'],
+  [/SKIRT\b/i,                 'Gonna'],
+  [/LEGGINGS?\b/i,             'Leggings'],
+  [/SOCKS?\b/i,                'Calzini'],
+  [/BELT\b/i,                  'Cintura'],
+  [/WALLET\b/i,                'Portafoglio'],
+  [/SCARF\b/i,                 'Sciarpa'],
+  [/GLOVES?\b/i,               'Guanti'],
+];
+
+// Parole/pattern da rimuovere completamente dal nome
+var JUNK_PATTERNS = [
+  /\(\s*\d{2,3}\s*(?:cm)?\s*\d{2,3}\s*(?:kg)?[^)]{0,60}\)/gi,  // (185cm 70kg iwear size M in the photo)
+  /\[\s*\d{2,3}\s*(?:cm)?\s*\d{2,3}\s*(?:kg)?[^\]]{0,60}\]/gi, // [185cm 70kg ...]
+  /\d{2,3}\s*cm\b/gi,
+  /\d{2,3}\s*kg\b/gi,
+  /\biwear\b.*$/gi,
+  /\bin\s+the\s+photo\b/gi,
+  /\bsize\s+[xsml0-9]+\b/gi,
+  /[¥￥Y]\s*~?\s*[\d]+(?:[.,]\d{1,2})?/gi,
+  /[\d]+(?:[.,]\d{1,2})?\s*[¥￥]/gi,
+  /\b(L🔥|C🔥|ST🔥|🔥|im\b|\(im\)|TOP\b)/gi,
+  /\bCOTTON\b/gi,         // rimuove "Cotton" come aggettivo ridondante
+  /\bNEW\b/gi,
+  /\bVERSION\b/gi,
+  /\b\d{6,}\b/g,          // codici numerici lunghi
+];
+
+// Genere
+var GENERE_MAP = [
+  [/\bWOMEN?'?S?\b|\bFEMM(?:INE|INA)?\b/i, 'Donna'],
+  [/\bMEN'?S?\b|\bMASCH(?:IO|ILE)?\b/i,    'Uomo'],
+];
+
+function smartRename(p) {
+  var raw     = (p.albumName || '').trim();
+  var brand   = (p.brand || document.getElementById('default-brand').value.trim() || '').trim();
+  var tipoIt  = p.tipo || '';   // tipo già tradotto in IT da guessType
+
+  // ----- 1. Rimuovi junk dal nome grezzo -----
+  var n = raw;
+  JUNK_PATTERNS.forEach(function(rx) { n = n.replace(rx, ' '); });
+  n = n.replace(/\s{2,}/g, ' ').trim();
+
+  // ----- 2. Estrai genere -----
+  var genere = '';
+  GENERE_MAP.forEach(function(pair) {
+    if (pair[0].test(n)) {
+      genere = pair[1];
+      n = n.replace(pair[0], ' ').trim();
+    }
+  });
+
+  // ----- 3. Estrai e rimuovi tipo EN dal nome, teniamo la versione IT -----
+  var tipoFound = tipoIt; // usiamo già quello calcolato da guessType
+  // Rimuovi la keyword EN dal nome per non avere duplicati
+  TIPO_MAP.forEach(function(pair) {
+    if (pair[0].test(n)) {
+      if (!tipoFound) tipoFound = pair[1];
+      n = n.replace(pair[0], ' ').trim();
+    }
+  });
+
+  // ----- 4. Rimuovi brand dal nome se già presente -----
+  if (brand) {
+    var brandRx = new RegExp('\\b' + brand.replace(/[.*+?^${}()|[\]\\]/g,'\\$&') + '\\b', 'gi');
+    n = n.replace(brandRx, ' ').trim();
+  }
+  // Rimuovi anche varianti comuni di brand scritto male (es. RAPHAUEN → Ralph Lauren)
+  n = n.replace(/\bRAPHAUEN\b/gi, '').trim();
+
+  // ----- 5. Pulisci residui e applica Title Case -----
+  n = n.replace(/[^a-zA-ZÀ-ÖØ-öø-ÿ0-9\s\-&]/g, ' ')
+       .replace(/\s{2,}/g,' ').trim();
+
+  // ----- 6. Componi il nome finale -----
+  // Parti: [Brand] [Tipo IT] [extra dal nome pulito] [Genere]
+  var parts = [];
+  if (brand)     parts.push(brand);
+  if (tipoFound) parts.push(tipoFound);
+
+  // Aggiungi parole extra significative rimaste (es. "Sport", "Classic", "Logo")
+  var STOP = /^(the|a|an|and|or|of|in|on|at|to|for|with|by|la|il|lo|le|gli|di|da|su|con|per|e|un|una)$/i;
+  var extras = n.split(/\s+/).filter(function(w) {
+    return w.length > 2 && !STOP.test(w);
+  });
+  if (extras.length && extras.join(' ').length < 25) {
+    parts.push(toTitleCase(extras.join(' ')));
+  }
+
+  if (genere) parts.push(genere);
+
+  var result = parts.join(' ').substring(0, 60).trim();
+
+  // ----- 7. Fallback se il risultato è ancora generico -----
+  if (!result || /^prodotto\s+\d+$/i.test(result) || result.length < 4) {
+    result = [brand, tipoFound || 'Prodotto', genere].filter(Boolean).join(' ');
+  }
+
+  return result || (brand + ' Prodotto') || 'Prodotto';
+}
+
+function renameAllAI() {
   if (!products.length) return;
 
   document.getElementById('btn-ainames').disabled = true;
-  stopped = false;
-  abortCtrl = new AbortController();
-
-  var brand = document.getElementById('default-brand').value.trim() || 'Brand';
-  var BATCH = 30;
-  var total = products.length;
-  log('🔤 AI Rinomina ' + total + ' prodotti in batch da ' + BATCH + '...', 'info');
-  setProgress(0, '🔤 AI Rinomina in corso...');
+  setProgress(0, '🔤 Rinomina intelligente in corso...');
+  log('🔤 Rinomina ' + products.length + ' prodotti (locale, zero API)...', 'info');
 
   var renamed = 0;
-
-  for (var start = 0; start < total; start += BATCH) {
-    if (stopped) break;
-    var batch = products.slice(start, start + BATCH);
-
-    var items = batch.map(function(p, i) {
-      return { idx: i, raw: p.albumName || p.nome, brand: p.brand || brand, tipo: p.tipo || '' };
-    });
-
-    var prompt =
-      'Sei un esperto di naming per un ecommerce di moda italiano.\n' +
-      'Rinomina i seguenti prodotti Yupoo con nomi puliti, SEO-friendly, in italiano.\n\n' +
-      'REGOLE OBBLIGATORIE:\n' +
-      '- Massimo 55 caratteri\n' +
-      '- Title Case (prima lettera maiuscola per ogni parola importante)\n' +
-      '- Elimina misure corporee tipo (185cm 70kg iwear size M in the photo)\n' +
-      '- Mantieni il tipo di capo (T-Shirt, Hoodie→Felpa con Cappuccio, Sweater→Felpa, Jacket→Giacca, Cap→Cappello, Shorts→Pantaloncini, Polo, Bag→Borsa)\n' +
-      '- Traduce Woman/Women→Donna, Man/Men→Uomo se presente\n' +
-      '- Usa il brand fornito nel campo brand\n' +
-      '- Formato ideale: "{Brand} {Tipo} {Donna/Uomo se presente}"\n' +
-      '- Esempi: "Ralph Lauren T-Shirt Uomo", "Polo Ralph Lauren Felpa Donna", "Nike Hoodie"\n' +
-      '- Se il nome raw è vuoto o generico, crea un nome sensato dal tipo\n' +
-      '- Rispondi SOLO con un array JSON di stringhe, una per ogni item, nessun altro testo\n\n' +
-      'Items:\n' + JSON.stringify(items);
-
-    try {
-      var geminiKey = document.getElementById('gemini-key').value.trim();
-      if (!geminiKey) throw new Error('Inserisci la Gemini API key nel campo 🎨 GEMINI (gratis su aistudio.google.com)');
-
-      var resp = await fetch(
-        'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + geminiKey,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: { temperature: 0.2, maxOutputTokens: 1200 }
-          }),
-          signal: abortCtrl.signal
-        }
-      );
-
-      if (!resp.ok) {
-        var errJson = await resp.json().catch(function(){ return {}; });
-        throw new Error('Gemini error ' + resp.status + ': ' + (errJson.error && errJson.error.message || ''));
-      }
-      var data = await resp.json();
-      var text = ((data.candidates || [])[0] || {}).content
-        ? data.candidates[0].content.parts.map(function(p){ return p.text || ''; }).join('')
-        : '';
-
-      // Parse JSON array from response
-      var clean = text.replace(/```json|```/g,'').trim();
-      // Find JSON array
-      var arrM = clean.match(/\[[\s\S]*\]/);
-      if (!arrM) throw new Error('Risposta AI non valida: ' + text.substring(0,80));
-      var names = JSON.parse(arrM[0]);
-
-      if (!Array.isArray(names) || names.length !== batch.length)
-        throw new Error('Array AI errato: atteso ' + batch.length + ' nomi, ricevuto ' + (names ? names.length : '?'));
-
-      batch.forEach(function(p, i) {
-        if (names[i] && names[i].trim()) {
-          p.nome = names[i].trim();
-          renamed++;
-        }
-      });
-
-      renderTable();
-      updateStats();
-      setProgress(Math.round(Math.min(start + BATCH, total) / total * 100),
-        '🔤 ' + Math.min(start + BATCH, total) + '/' + total + ' rinominati');
-      log('✅ Batch ' + (Math.floor(start/BATCH)+1) + ': ' + batch.length + ' nomi generati', 'ok');
-
-    } catch(e) {
-      if (e.name === 'AbortError') { log('⛔ AI rinomina interrotto.', 'warn'); break; }
-      log('❌ Batch AI error: ' + e.message, 'err');
-      // Fallback: apply just cleanName + titleCase for this batch
-      batch.forEach(function(p) {
-        if (p.albumName) p.nome = cleanName(p.albumName) || p.nome;
-      });
-      renderTable();
+  products.forEach(function(p) {
+    var nuovoNome = smartRename(p);
+    if (nuovoNome && nuovoNome !== p.nome) {
+      p.nome = nuovoNome;
+      renamed++;
     }
+  });
 
-    // Small delay between batches
-    await new Promise(function(r){ setTimeout(r, 400); });
-  }
-
-  setProgress(100, '✅ ' + renamed + ' prodotti rinominati con AI');
-  log('✅ AI Rinomina completato: ' + renamed + ' nomi aggiornati', 'ok');
+  renderTable();
+  updateStats();
+  setProgress(100, '✅ ' + renamed + ' prodotti rinominati');
+  log('✅ Rinomina completata: ' + renamed + ' nomi aggiornati', 'ok');
   document.getElementById('btn-ainames').disabled = false;
 }
 
