@@ -124,7 +124,7 @@ td input:focus{background:#141400;border-bottom:1px solid var(--accent);}
 <!-- HEADER -->
 <header>
   <div class="logo">LILLOFIND <em>//</em> YUPOO → CSV
-    <small>ESTRAZIONE · PREZZI ¥→€ · UPLOAD IMGBB · COLORI GEMINI · EXPORT CSV</small>
+    <small>ESTRAZIONE · PREZZI ¥→€ · UPLOAD IMGBB · AI NOMI · COLORI · EXPORT CSV</small>
   </div>
   <div style="display:flex;gap:8px;">
     <button class="btn btn-outline" onclick="loadExample()">ESEMPIO</button>
@@ -202,10 +202,11 @@ td input:focus{background:#141400;border-bottom:1px solid var(--accent);}
   <div class="stat-item"><span>CARICATI</span><strong id="st-uploaded">0</strong></div>
   <div class="stat-item"><span>MEDIA €</span><strong id="st-avg">–</strong></div>
   <div class="action-btns">
-    <button class="btn btn-purple" id="btn-upload" onclick="uploadAllImgbb()" disabled>↑ UPLOAD IMGBB</button>
-    <button class="btn btn-teal"   id="btn-colors" onclick="detectAllColors()"  disabled>🎨 COLORI</button>
-    <button class="btn btn-green"  id="btn-csv"    onclick="exportCSV()"        disabled>↓ CSV</button>
-    <button class="btn btn-orange" id="btn-zip"    onclick="downloadZip()"      disabled>↓ ZIP</button>
+    <button class="btn btn-purple" id="btn-upload"   onclick="uploadAllImgbb()" disabled>↑ UPLOAD IMGBB</button>
+    <button class="btn btn-teal"   id="btn-colors"  onclick="detectAllColors()"  disabled>🎨 COLORI</button>
+    <button class="btn btn-orange" id="btn-ainames" onclick="renameAllAI()"      disabled>🔤 AI NOMI</button>
+    <button class="btn btn-green"  id="btn-csv"     onclick="exportCSV()"        disabled>↓ CSV</button>
+    <button class="btn btn-orange" id="btn-zip"     onclick="downloadZip()"      disabled>↓ ZIP</button>
   </div>
 </div>
 
@@ -380,11 +381,25 @@ function parsePriceCny(name) {
 }
 
 function cleanName(name) {
-  return name
+  var cleaned = name
     .replace(/[¥￥Y]\s*~?\s*[\d]+(?:[.,]\d{1,2})?/gi,'')
     .replace(/[\d]+(?:[.,]\d{1,2})?\s*[¥￥]/gi,'')
     .replace(/\b(L🔥|C🔥|ST🔥|🔥|im\b|\(im\)|TOP\b)/gi,'')
-    .replace(/\d{7,}/g,'').replace(/\s{2,}/g,' ').trim();
+    // Rimuove info modello tipo (185CM 70KG iwear size M in the photo)
+    .replace(/\(\s*\d{2,3}\s*(?:cm)?\s*\d{2,3}\s*(?:kg)?[^)]*\)/gi,'')
+    .replace(/\[\s*\d{2,3}\s*(?:cm)?\s*\d{2,3}\s*(?:kg)?[^\]]*\]/gi,'')
+    // Rimuove solo numeri residui standalone
+    .replace(/\b\d{3,}\s*(?:cm|kg|g)\b/gi,'')
+    .replace(/\d{7,}/g,'')
+    .replace(/\s{2,}/g,' ').trim();
+  return toTitleCase(cleaned);
+}
+
+function toTitleCase(str) {
+  var minuscole = /^(a|e|il|lo|la|gli|le|di|da|in|con|su|per|tra|fra|and|or|the|of|in|on|at|to|for)$/i;
+  return str.toLowerCase().replace(/\b\w+/g, function(w, i) {
+    return (i === 0 || !minuscole.test(w)) ? w.charAt(0).toUpperCase() + w.slice(1) : w;
+  });
 }
 
 function guessType(name) {
@@ -512,9 +527,10 @@ async function startExtraction() {
     log('✅ Estrazione completata: ' + products.length + ' prodotti', 'ok');
 
     if (products.length) {
-      document.getElementById('btn-upload').disabled = false;
-      document.getElementById('btn-csv').disabled    = false;
-      document.getElementById('btn-zip').disabled    = false;
+      document.getElementById('btn-upload').disabled  = false;
+      document.getElementById('btn-ainames').disabled = false;
+      document.getElementById('btn-csv').disabled     = false;
+      document.getElementById('btn-zip').disabled     = false;
       // Enable colors if any product has a cover image
       if (products.some(function(p){ return p.coverUrl; })) {
         document.getElementById('btn-colors').disabled = false;
@@ -875,6 +891,116 @@ async function detectAllColors() {
 }
 
 // ═══════════════════════════════════════════════
+// AI RENAME — Claude API
+// ═══════════════════════════════════════════════
+async function renameAllAI() {
+  if (!products.length) return;
+
+  document.getElementById('btn-ainames').disabled = true;
+  stopped = false;
+  abortCtrl = new AbortController();
+
+  var brand = document.getElementById('default-brand').value.trim() || 'Brand';
+  var BATCH = 30;
+  var total = products.length;
+  log('🔤 AI Rinomina ' + total + ' prodotti in batch da ' + BATCH + '...', 'info');
+  setProgress(0, '🔤 AI Rinomina in corso...');
+
+  var renamed = 0;
+
+  for (var start = 0; start < total; start += BATCH) {
+    if (stopped) break;
+    var batch = products.slice(start, start + BATCH);
+
+    var items = batch.map(function(p, i) {
+      return { idx: i, raw: p.albumName || p.nome, brand: p.brand || brand, tipo: p.tipo || '' };
+    });
+
+    var prompt =
+      'Sei un esperto di naming per un ecommerce di moda italiano.\n' +
+      'Rinomina i seguenti prodotti Yupoo con nomi puliti, SEO-friendly, in italiano.\n\n' +
+      'REGOLE OBBLIGATORIE:\n' +
+      '- Massimo 55 caratteri\n' +
+      '- Title Case (prima lettera maiuscola per ogni parola importante)\n' +
+      '- Elimina misure corporee tipo (185cm 70kg iwear size M in the photo)\n' +
+      '- Mantieni il tipo di capo (T-Shirt, Hoodie→Felpa con Cappuccio, Sweater→Felpa, Jacket→Giacca, Cap→Cappello, Shorts→Pantaloncini, Polo, Bag→Borsa)\n' +
+      '- Traduce Woman/Women→Donna, Man/Men→Uomo se presente\n' +
+      '- Usa il brand fornito nel campo brand\n' +
+      '- Formato ideale: "{Brand} {Tipo} {Donna/Uomo se presente}"\n' +
+      '- Esempi: "Ralph Lauren T-Shirt Uomo", "Polo Ralph Lauren Felpa Donna", "Nike Hoodie"\n' +
+      '- Se il nome raw è vuoto o generico, crea un nome sensato dal tipo\n' +
+      '- Rispondi SOLO con un array JSON di stringhe, una per ogni item, nessun altro testo\n\n' +
+      'Items:\n' + JSON.stringify(items);
+
+    try {
+      var geminiKey = document.getElementById('gemini-key').value.trim();
+      if (!geminiKey) throw new Error('Inserisci la Gemini API key nel campo 🎨 GEMINI (gratis su aistudio.google.com)');
+
+      var resp = await fetch(
+        'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + geminiKey,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: { temperature: 0.2, maxOutputTokens: 1200 }
+          }),
+          signal: abortCtrl.signal
+        }
+      );
+
+      if (!resp.ok) {
+        var errJson = await resp.json().catch(function(){ return {}; });
+        throw new Error('Gemini error ' + resp.status + ': ' + (errJson.error && errJson.error.message || ''));
+      }
+      var data = await resp.json();
+      var text = ((data.candidates || [])[0] || {}).content
+        ? data.candidates[0].content.parts.map(function(p){ return p.text || ''; }).join('')
+        : '';
+
+      // Parse JSON array from response
+      var clean = text.replace(/```json|```/g,'').trim();
+      // Find JSON array
+      var arrM = clean.match(/\[[\s\S]*\]/);
+      if (!arrM) throw new Error('Risposta AI non valida: ' + text.substring(0,80));
+      var names = JSON.parse(arrM[0]);
+
+      if (!Array.isArray(names) || names.length !== batch.length)
+        throw new Error('Array AI errato: atteso ' + batch.length + ' nomi, ricevuto ' + (names ? names.length : '?'));
+
+      batch.forEach(function(p, i) {
+        if (names[i] && names[i].trim()) {
+          p.nome = names[i].trim();
+          renamed++;
+        }
+      });
+
+      renderTable();
+      updateStats();
+      setProgress(Math.round(Math.min(start + BATCH, total) / total * 100),
+        '🔤 ' + Math.min(start + BATCH, total) + '/' + total + ' rinominati');
+      log('✅ Batch ' + (Math.floor(start/BATCH)+1) + ': ' + batch.length + ' nomi generati', 'ok');
+
+    } catch(e) {
+      if (e.name === 'AbortError') { log('⛔ AI rinomina interrotto.', 'warn'); break; }
+      log('❌ Batch AI error: ' + e.message, 'err');
+      // Fallback: apply just cleanName + titleCase for this batch
+      batch.forEach(function(p) {
+        if (p.albumName) p.nome = cleanName(p.albumName) || p.nome;
+      });
+      renderTable();
+    }
+
+    // Small delay between batches
+    await new Promise(function(r){ setTimeout(r, 400); });
+  }
+
+  setProgress(100, '✅ ' + renamed + ' prodotti rinominati con AI');
+  log('✅ AI Rinomina completato: ' + renamed + ' nomi aggiornati', 'ok');
+  document.getElementById('btn-ainames').disabled = false;
+}
+
+// ═══════════════════════════════════════════════
 // ZIP
 // ═══════════════════════════════════════════════
 async function downloadZip() {
@@ -1060,10 +1186,11 @@ function clearAll() {
   document.getElementById('empty-state').style.display   = 'block';
   document.getElementById('stats-bar').style.display     = 'none';
   document.getElementById('progress-section').className  = 'progress-section';
-  document.getElementById('btn-upload').disabled = true;
-  document.getElementById('btn-colors').disabled = true;
-  document.getElementById('btn-csv').disabled    = true;
-  document.getElementById('btn-zip').disabled    = true;
+  document.getElementById('btn-upload').disabled  = true;
+  document.getElementById('btn-colors').disabled  = true;
+  document.getElementById('btn-ainames').disabled = true;
+  document.getElementById('btn-csv').disabled     = true;
+  document.getElementById('btn-zip').disabled     = true;
   clearLog();
 }
 
