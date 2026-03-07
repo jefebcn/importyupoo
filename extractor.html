@@ -7,6 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Bebas+Neue&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/color-thief/2.3.2/color-thief.umd.js"></script>
 <style>
 :root{
   --bg:#0a0a0a;--card:#111;--surface:#161616;--border:#222;--border2:#2a2a2a;
@@ -810,125 +811,49 @@ function extractDominantColors(imageUrl) {
     img.crossOrigin = 'anonymous';
     img.onload = function() {
       try {
-        var SIZE = 160;
-        var canvas = document.createElement('canvas');
-        canvas.width = SIZE; canvas.height = SIZE;
-        var ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, SIZE, SIZE);
-        var data = ctx.getImageData(0, 0, SIZE, SIZE).data;
+        var thief = new ColorThief();
 
-        // --- Rileva sfondo dai 4 angoli e bordi ---
-        var bgSamples = [];
-        var borderPx = [
-          0, (SIZE-1)*4,
-          (SIZE*(SIZE-1))*4, (SIZE*SIZE-1)*4,
-          // bordo top center, bottom center
-          Math.floor(SIZE/2)*4,
-          (SIZE*(SIZE-1) + Math.floor(SIZE/2))*4
+        // getPalette(img, colorCount) restituisce i N colori più dominanti
+        var palette = thief.getPalette(img, 6);
+
+        if (!palette || !palette.length) {
+          resolve('Non rilevato'); return;
+        }
+
+        // Rileva colore sfondo dai 4 angoli tramite canvas
+        var SIZE = 80;
+        var cv = document.createElement('canvas');
+        cv.width = SIZE; cv.height = SIZE;
+        var cx = cv.getContext('2d');
+        cx.drawImage(img, 0, 0, SIZE, SIZE);
+        var d = cx.getImageData(0, 0, SIZE, SIZE).data;
+        var corners = [
+          [d[0], d[1], d[2]],
+          [d[(SIZE-1)*4], d[(SIZE-1)*4+1], d[(SIZE-1)*4+2]],
+          [d[SIZE*(SIZE-1)*4], d[SIZE*(SIZE-1)*4+1], d[SIZE*(SIZE-1)*4+2]],
+          [d[(SIZE*SIZE-1)*4], d[(SIZE*SIZE-1)*4+1], d[(SIZE*SIZE-1)*4+2]]
         ];
-        borderPx.forEach(function(px){
-          if(px >= 0 && px < data.length-2)
-            bgSamples.push([data[px], data[px+1], data[px+2]]);
+        var bgR = Math.round(corners.reduce(function(s,c){return s+c[0];},0)/4);
+        var bgG = Math.round(corners.reduce(function(s,c){return s+c[1];},0)/4);
+        var bgB = Math.round(corners.reduce(function(s,c){return s+c[2];},0)/4);
+
+        // Filtra colori troppo vicini allo sfondo
+        var filtered = palette.filter(function(c) {
+          return colorDistance(c[0],c[1],c[2], bgR,bgG,bgB) > 30;
         });
-        var bgR = Math.round(bgSamples.reduce(function(s,c){return s+c[0];},0)/bgSamples.length);
-        var bgG = Math.round(bgSamples.reduce(function(s,c){return s+c[1];},0)/bgSamples.length);
-        var bgB = Math.round(bgSamples.reduce(function(s,c){return s+c[2];},0)/bgSamples.length);
+        if (!filtered.length) filtered = palette; // fallback
 
-        // --- Funzione: colore dominante di una zona (escludendo sfondo) ---
-        function zoneDominant(x0, y0, x1, y1) {
-          var buckets = {};
-          var total = 0;
-          for (var y = y0; y < y1; y++) {
-            for (var x = x0; x < x1; x++) {
-              var i = (y * SIZE + x) * 4;
-              var r = data[i], g = data[i+1], b = data[i+2], a = data[i+3];
-              if (a < 180) continue;
-              // Salta pixel di sfondo
-              if (colorDistance(r, g, b, bgR, bgG, bgB) < 32) continue;
-              // Salta pixel troppo chiari (sfondo bianco/grigio chiaro)
-              if (r > 220 && g > 220 && b > 220) continue;
-              var step = 28;
-              var qr = Math.round(r/step)*step;
-              var qg = Math.round(g/step)*step;
-              var qb = Math.round(b/step)*step;
-              var key = qr+','+qg+','+qb;
-              buckets[key] = (buckets[key]||0) + 1;
-              total++;
-            }
-          }
-          if (total < 15) return null; // zona troppo vuota (sfondo)
-          var sorted = Object.entries(buckets).sort(function(a,b){return b[1]-a[1];});
-          if (!sorted.length) return null;
-          var best = sorted[0][0].split(',').map(Number);
-          // Scarta se il colore dominante è ancora troppo vicino allo sfondo
-          if (colorDistance(best[0],best[1],best[2], bgR,bgG,bgB) < 28) {
-            if (sorted.length > 1) best = sorted[1][0].split(',').map(Number);
-            else return null;
-          }
-          return best;
-        }
-
-        // --- Griglia 3x3 sul centro dell'immagine (ignora 12% bordi) ---
-        var margin = Math.floor(SIZE * 0.12);
-        var inner = SIZE - margin * 2;
-        var cols = 3, rows = 3;
-        var zoneW = Math.floor(inner / cols);
-        var zoneH = Math.floor(inner / rows);
-
-        var zoneColors = [];
-        for (var row = 0; row < rows; row++) {
-          for (var col = 0; col < cols; col++) {
-            var zx0 = margin + col * zoneW;
-            var zy0 = margin + row * zoneH;
-            var dom = zoneDominant(zx0, zy0, zx0 + zoneW, zy0 + zoneH);
-            if (dom) zoneColors.push(dom);
-          }
-        }
-
-        // --- Raggruppa zone con colore simile (clustering semplice) ---
-        var clusters = [];
-        zoneColors.forEach(function(c) {
-          var found = false;
-          for (var k = 0; k < clusters.length; k++) {
-            if (colorDistance(c[0],c[1],c[2], clusters[k][0],clusters[k][1],clusters[k][2]) < 50) {
-              // Media progressiva
-              clusters[k][0] = Math.round((clusters[k][0]+c[0])/2);
-              clusters[k][1] = Math.round((clusters[k][1]+c[1])/2);
-              clusters[k][2] = Math.round((clusters[k][2]+c[2])/2);
-              clusters[k][3] = (clusters[k][3]||1) + 1; // contatore
-              found = true; break;
-            }
-          }
-          if (!found) { var nc = c.slice(); nc[3] = 1; clusters.push(nc); }
-        });
-
-        // Ordina per frequenza (zone più rappresentate = colori principali)
-        clusters.sort(function(a,b){ return (b[3]||1)-(a[3]||1); });
-
-        // Prendi max 4 colori distinti
-        var picked = [];
-        clusters.forEach(function(c) {
-          if (picked.length >= 4) return;
-          var dup = picked.some(function(p){
-            return colorDistance(c[0],c[1],c[2],p[0],p[1],p[2]) < 45;
-          });
-          if (!dup) picked.push(c);
-        });
-
-        // Fallback se nessun colore trovato (immagine solo sfondo)
-        if (!picked.length) {
-          picked.push([bgR, bgG, bgB]);
-        }
-
+        // Converti in nomi italiani, max 4, deduplicati
         var names = [];
-        picked.forEach(function(c) {
+        filtered.forEach(function(c) {
+          if (names.length >= 4) return;
           var name = rgbToColorName(c[0], c[1], c[2]);
           if (names.indexOf(name) === -1) names.push(name);
         });
 
         resolve(names.join(', ') || 'Non rilevato');
       } catch(e) {
-        reject(new Error('Canvas error: ' + e.message));
+        reject(new Error('ColorThief error: ' + e.message));
       }
     };
     img.onerror = function() { reject(new Error('Immagine non caricabile')); };
