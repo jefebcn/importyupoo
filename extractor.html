@@ -3,77 +3,83 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>LilloFind — Catalogo Yupoo → CSV</title>
+<title>LilloFind — Yupoo → CSV</title>
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Bebas+Neue&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
 <style>
 :root{
   --bg:#0a0a0a;--card:#111;--surface:#161616;--border:#222;--border2:#2a2a2a;
-  --accent:#c8ff00;--accent2:#ff4444;--accent3:#ff9900;--purple:#a78bfa;
+  --accent:#c8ff00;--orange:#ff9900;--purple:#a78bfa;--teal:#34d399;
   --text:#f0f0f0;--text2:#888;--muted:#444;
   --ok:#4caf50;--err:#f44336;--warn:#ff9800;
 }
 *{box-sizing:border-box;margin:0;padding:0;}
 body{background:var(--bg);color:var(--text);font-family:'Space Mono',monospace;font-size:12px;min-height:100vh;}
 
+/* HEADER */
 header{background:var(--card);border-bottom:2px solid var(--accent);padding:12px 24px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;}
-.logo{font-family:'Bebas Neue';font-size:24px;letter-spacing:5px;color:var(--accent);}
-.logo em{color:#333;font-style:normal;margin:0 8px;}
-.logo small{font-family:'Space Mono';font-size:10px;color:var(--muted);letter-spacing:2px;display:block;margin-top:-4px;}
+.logo{font-family:'Bebas Neue';font-size:22px;letter-spacing:4px;color:var(--accent);}
+.logo em{color:#333;font-style:normal;margin:0 6px;}
+.logo small{font-family:'Space Mono';font-size:9px;color:var(--muted);letter-spacing:2px;display:block;margin-top:2px;}
 
 /* CONFIG STRIP */
-.config-strip{background:#0a0f00;border-bottom:1px solid #1a2200;padding:8px 24px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
-.cfg-label{font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;}
+.config-strip{background:#0a0f00;border-bottom:1px solid #1a2200;padding:8px 24px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+.cfg-label{font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;white-space:nowrap;}
 .cfg-input{background:#111;border:1px solid #2a2a2a;color:var(--accent);font-family:'Space Mono';font-size:12px;padding:4px 10px;outline:none;border-radius:2px;}
 .cfg-input:focus{border-color:var(--accent);}
-.cfg-input.wide{width:320px;color:var(--text2);}
-.cfg-input.wide.ok{border-color:var(--ok);color:var(--ok);}
+.cfg-input.dim{color:var(--text2);}
+.cfg-input.ok{border-color:var(--ok);color:var(--ok);}
 .cfg-select{background:#111;border:1px solid #2a2a2a;color:var(--text);font-family:'Space Mono';font-size:11px;padding:4px 8px;outline:none;border-radius:2px;cursor:pointer;}
-.cfg-sep{width:1px;height:24px;background:var(--border2);}
-.rate-val{color:var(--accent);font-size:13px;}
+.cfg-sep{width:1px;height:24px;background:var(--border2);flex-shrink:0;}
+.rate-val{color:var(--accent);font-size:13px;white-space:nowrap;}
 
-/* MAIN INPUT SECTION */
-.input-section{padding:20px 24px;background:var(--card);border-bottom:1px solid var(--border);}
+/* INPUT SECTION */
+.input-section{padding:18px 24px;background:var(--card);border-bottom:1px solid var(--border);}
 .section-label{font-size:9px;letter-spacing:3px;color:var(--muted);text-transform:uppercase;margin-bottom:10px;}
 .url-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
 .url-input{flex:1;min-width:300px;background:var(--surface);border:1px solid var(--border2);color:var(--text);font-family:'Space Mono';font-size:12px;padding:10px 14px;outline:none;border-radius:3px;}
 .url-input:focus{border-color:var(--accent);}
 .url-input::placeholder{color:#333;}
+.info-box{background:#0a0a1a;border:1px solid #2a2a4a;border-radius:4px;padding:10px 16px;font-size:10px;color:var(--text2);line-height:2.2;margin-top:10px;}
+.info-box strong{color:var(--purple);}
+.info-box a{color:var(--purple);}
 
 /* BUTTONS */
 .btn{font-family:'Space Mono';font-size:10px;letter-spacing:2px;text-transform:uppercase;padding:9px 18px;border:none;cursor:pointer;border-radius:2px;transition:all .15s;white-space:nowrap;}
 .btn:disabled{opacity:.3;cursor:not-allowed;}
 .btn-primary{background:var(--accent);color:#000;font-weight:700;}
 .btn-primary:hover:not(:disabled){background:#d9ff33;}
-.btn-outline{background:transparent;border:1px solid var(--border2);color:var(--text2);}
-.btn-outline:hover:not(:disabled){border-color:var(--text2);color:var(--text);}
-.btn-green{background:transparent;border:1px solid var(--ok);color:var(--ok);}
-.btn-green:hover:not(:disabled){background:var(--ok);color:#000;}
-.btn-orange{background:transparent;border:1px solid var(--accent3);color:var(--accent3);}
-.btn-orange:hover:not(:disabled){background:var(--accent3);color:#000;}
-.btn-purple{background:transparent;border:1px solid var(--purple);color:var(--purple);}
-.btn-purple:hover:not(:disabled){background:var(--purple);color:#000;}
 .btn-red{background:transparent;border:1px solid var(--err);color:var(--err);}
 .btn-red:hover:not(:disabled){background:var(--err);color:#fff;}
+.btn-outline{background:transparent;border:1px solid var(--border2);color:var(--text2);}
+.btn-outline:hover:not(:disabled){border-color:var(--text);color:var(--text);}
+.btn-purple{background:transparent;border:1px solid var(--purple);color:var(--purple);}
+.btn-purple:hover:not(:disabled){background:var(--purple);color:#000;}
+.btn-teal{background:transparent;border:1px solid var(--teal);color:var(--teal);}
+.btn-teal:hover:not(:disabled){background:var(--teal);color:#000;}
+.btn-green{background:transparent;border:1px solid var(--ok);color:var(--ok);}
+.btn-green:hover:not(:disabled){background:var(--ok);color:#000;}
+.btn-orange{background:transparent;border:1px solid var(--orange);color:var(--orange);}
+.btn-orange:hover:not(:disabled){background:var(--orange);color:#000;}
 
 /* PROGRESS */
-.progress-section{padding:10px 24px;background:var(--surface);border-bottom:1px solid var(--border);display:none;}
+.progress-section{padding:8px 24px;background:var(--surface);border-bottom:1px solid var(--border);display:none;}
 .progress-section.visible{display:block;}
-.progress-bar-wrap{height:4px;background:#1a1a1a;border-radius:2px;overflow:hidden;margin:8px 0;}
-.progress-bar-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent3));transition:width .3s;border-radius:2px;width:0%;}
+.progress-bar-wrap{height:4px;background:#1a1a1a;border-radius:2px;overflow:hidden;margin:6px 0;}
+.progress-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--orange));transition:width .3s;border-radius:2px;width:0%;}
 .progress-text{font-size:10px;color:var(--text2);letter-spacing:1px;}
 
 /* LOG */
-.log-section{background:var(--surface);border-bottom:1px solid var(--border);max-height:90px;overflow-y:auto;font-size:10px;font-family:'Space Mono';padding:8px 24px;line-height:1.9;}
-.log-section .ok{color:var(--ok);}
-.log-section .err{color:var(--err);}
-.log-section .warn{color:var(--warn);}
-.log-section .info{color:var(--purple);}
+.log-box{background:var(--surface);border-bottom:1px solid var(--border);max-height:80px;overflow-y:auto;font-size:10px;padding:6px 24px;line-height:1.9;color:var(--text2);}
+.log-box .ok{color:var(--ok);}
+.log-box .err{color:var(--err);}
+.log-box .warn{color:var(--warn);}
+.log-box .info{color:var(--purple);}
 
 /* STATS BAR */
-.stats-bar{background:var(--card);border-bottom:1px solid var(--border);padding:8px 24px;display:flex;gap:24px;align-items:center;flex-wrap:wrap;}
-.stat-item span{color:var(--muted);font-size:9px;letter-spacing:2px;}
+.stats-bar{background:var(--card);border-bottom:1px solid var(--border);padding:8px 24px;display:none;align-items:center;gap:20px;flex-wrap:wrap;}
+.stat-item span{color:var(--muted);font-size:9px;letter-spacing:2px;display:block;}
 .stat-item strong{color:var(--accent);font-size:15px;font-family:'Bebas Neue';letter-spacing:1px;}
 .action-btns{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;}
 
@@ -84,61 +90,41 @@ thead th{background:#0a0f00;color:var(--accent);font-size:9px;letter-spacing:2px
 tbody tr:nth-child(odd){background:#0c0c0c;}
 tbody tr:nth-child(even){background:#0a0a0a;}
 tbody tr:hover{background:#0f1400;}
-tbody tr.uploading{background:#0f0a00;}
-tbody tr.uploaded{background:#001a00;}
-tbody tr.upload-err{background:#1a0000;}
+tbody tr.st-done{background:#001500;}
+tbody tr.st-error{background:#150000;}
 td{padding:7px 10px;border-bottom:1px solid #161616;vertical-align:middle;}
 td input{background:transparent;border:none;color:var(--text);font-family:'Space Mono';font-size:11px;width:100%;outline:none;}
-td input:focus{background:#141400;border-bottom:1px solid var(--accent);padding-bottom:1px;}
-
-.td-num{width:32px;color:var(--muted);text-align:center;}
-.td-img{width:64px;}
-.td-img img{width:54px;height:54px;object-fit:cover;border-radius:3px;border:1px solid var(--border);}
-.td-img .noimg{width:54px;height:54px;background:var(--surface);border:1px solid var(--border);border-radius:3px;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:18px;}
-.td-nome{min-width:160px;}
-.td-tipo{min-width:110px;}
-.td-brand{min-width:110px;}
-.td-taglie{min-width:100px;}
-.td-colori{min-width:130px;}
-.td-cny{width:70px;color:var(--accent3);text-align:right;font-weight:700;}
-.td-eur{width:80px;color:var(--accent);text-align:right;font-weight:700;}
-.td-url{min-width:180px;}
-.td-url input{font-size:10px;color:#44aa44;}
-.td-status{width:90px;text-align:center;}
-.td-del{width:30px;text-align:center;cursor:pointer;color:var(--muted);}
+td input:focus{background:#141400;border-bottom:1px solid var(--accent);}
+.td-num{width:30px;color:var(--muted);text-align:center;}
+.td-img{width:62px;}
+.td-img img{width:52px;height:52px;object-fit:cover;border-radius:3px;border:1px solid var(--border);}
+.noimg{width:52px;height:52px;background:var(--surface);border:1px solid var(--border);border-radius:3px;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:18px;}
+.td-cny{color:var(--orange);text-align:right;font-weight:700;width:65px;white-space:nowrap;}
+.td-eur{color:var(--accent);text-align:right;font-weight:700;width:72px;white-space:nowrap;}
+.td-status{width:85px;text-align:center;}
+.td-del{width:28px;text-align:center;cursor:pointer;color:var(--muted);}
 .td-del:hover{color:var(--err);}
-
-.status-badge{font-size:9px;letter-spacing:1px;padding:3px 8px;border-radius:10px;display:inline-block;}
-.status-badge.idle{background:#1a1a1a;color:var(--muted);}
-.status-badge.extracting{background:#1a1000;color:var(--accent3);}
-.status-badge.uploading{background:#0a0a1a;color:var(--purple);}
+.status-badge{font-size:9px;letter-spacing:1px;padding:2px 7px;border-radius:10px;display:inline-block;background:#1a1a1a;color:var(--muted);}
 .status-badge.done{background:#001a00;color:var(--ok);}
+.status-badge.uploading{background:#0a001a;color:var(--purple);}
 .status-badge.error{background:#1a0000;color:var(--err);}
-.status-badge.skipped{background:#1a1a1a;color:#555;}
 
 /* EMPTY */
 .empty-state{padding:60px 24px;text-align:center;color:var(--muted);}
-.empty-state .big{font-size:56px;margin-bottom:16px;}
-.empty-state p{font-size:11px;letter-spacing:2px;line-height:2.2;}
-.empty-state code{color:var(--accent);font-family:'Space Mono';}
+.empty-state .big{font-size:52px;margin-bottom:14px;}
+.empty-state p{font-size:11px;letter-spacing:2px;line-height:2.6;}
+.empty-state code{color:var(--accent);}
 
-/* SCROLLBAR */
 ::-webkit-scrollbar{width:4px;height:4px;}
-::-webkit-scrollbar-track{background:transparent;}
 ::-webkit-scrollbar-thumb{background:#2a2a2a;border-radius:4px;}
-
-/* IMGBB INFO BOX */
-.info-box{background:#0a0a1a;border:1px solid #2a2a4a;border-radius:4px;padding:10px 14px;font-size:10px;color:var(--text2);line-height:1.9;margin-top:10px;}
-.info-box a{color:var(--purple);text-decoration:none;}
-.info-box a:hover{text-decoration:underline;}
-.info-box strong{color:var(--purple);}
 </style>
 </head>
 <body>
 
+<!-- HEADER -->
 <header>
   <div class="logo">LILLOFIND <em>//</em> YUPOO → CSV
-    <small>ESTRAZIONE CATALOGO · CONVERSIONE PREZZI · UPLOAD IMGBB · EXPORT CSV</small>
+    <small>ESTRAZIONE · PREZZI ¥→€ · UPLOAD IMGBB · COLORI GEMINI · EXPORT CSV</small>
   </div>
   <div style="display:flex;gap:8px;">
     <button class="btn btn-outline" onclick="loadExample()">ESEMPIO</button>
@@ -149,11 +135,13 @@ td input:focus{background:#141400;border-bottom:1px solid var(--accent);padding-
 <!-- CONFIG STRIP -->
 <div class="config-strip">
   <span class="cfg-label">CNY/EUR</span>
-  <input class="cfg-input" type="number" id="rate" value="0.129" step="0.001" min="0.001" style="width:85px" oninput="updateRateDisplay()">
+  <input class="cfg-input" type="number" id="rate" value="0.129" step="0.001" min="0.001" style="width:82px" oninput="onRateChange()">
   <span class="rate-val" id="rate-display">¥1 = €0.129</span>
+
   <div class="cfg-sep"></div>
   <span class="cfg-label">MARKUP %</span>
-  <input class="cfg-input" type="number" id="markup" value="0" step="1" min="0" max="999" style="width:70px">
+  <input class="cfg-input" type="number" id="markup" value="0" step="1" min="0" max="999" style="width:68px">
+
   <div class="cfg-sep"></div>
   <span class="cfg-label">ARROTONDA</span>
   <select class="cfg-select" id="round-mode">
@@ -161,608 +149,698 @@ td input:focus{background:#141400;border-bottom:1px solid var(--accent);padding-
     <option value="0.99">X.99</option>
     <option value="up">Intero ↑</option>
   </select>
+
   <div class="cfg-sep"></div>
   <span class="cfg-label">⚡ WORKER</span>
-  <input class="cfg-input wide" type="text" id="worker-url" placeholder="https://yupoo-proxy.TUO-NOME.workers.dev" spellcheck="false" oninput="saveWorker()">
+  <input class="cfg-input dim" type="text" id="worker-url" placeholder="https://yupoo-proxy.TUO-NOME.workers.dev" style="width:310px" spellcheck="false" oninput="onWorkerChange()">
+
   <div class="cfg-sep"></div>
-  <span class="cfg-label">📷 IMGBB KEY</span>
-  <input class="cfg-input" type="text" id="imgbb-key" placeholder="API key imgbb.com" style="width:160px" spellcheck="false" oninput="saveImgbb()">
-  <button class="btn btn-outline" style="padding:5px 10px;font-size:9px" onclick="window.open('https://api.imgbb.com/','_blank')">OTTIENI KEY ↗</button>
+  <span class="cfg-label">📷 IMGBB</span>
+  <input class="cfg-input dim" type="text" id="imgbb-key" placeholder="API key imgbb.com" style="width:155px" spellcheck="false">
+
   <div class="cfg-sep"></div>
-  <span class="cfg-label">🏷 BRAND DEFAULT</span>
-  <input class="cfg-input" type="text" id="default-brand" placeholder="es. Polo Ralph Lauren" style="width:180px" spellcheck="false" oninput="saveBrand()">
+  <span class="cfg-label">🏷 BRAND</span>
+  <input class="cfg-input dim" type="text" id="default-brand" placeholder="es. Polo Ralph Lauren" style="width:175px" spellcheck="false">
+
   <div class="cfg-sep"></div>
-  <span class="cfg-label">🎨 GEMINI KEY</span>
-  <input class="cfg-input" type="text" id="gemini-key" placeholder="AIza... (gratis su aistudio.google.com)" style="width:220px" spellcheck="false" oninput="saveGeminiKey()">
-  <button class="btn btn-outline" style="padding:5px 10px;font-size:9px" onclick="window.open('https://aistudio.google.com/app/apikey','_blank')">OTTIENI KEY ↗</button>
+  <span class="cfg-label">🎨 GEMINI</span>
+  <input class="cfg-input dim" type="text" id="gemini-key" placeholder="AIza... (gratis)" style="width:175px" spellcheck="false">
 </div>
 
 <!-- URL INPUT -->
 <div class="input-section">
-  <div class="section-label">01 — URL CATALOGO YUPOO (pagina categoria con tutti i prodotti)</div>
+  <div class="section-label">URL CATALOGO YUPOO — incolla la pagina categoria o album</div>
   <div class="url-row">
     <input class="url-input" type="text" id="cat-url"
-      placeholder="https://huskyreps.x.yupoo.com/categories/5003229  oppure  /albums/12345">
+      placeholder="https://huskyreps.x.yupoo.com/categories/5003229">
     <button class="btn btn-primary" id="btn-extract" onclick="startExtraction()">⚡ ESTRAI CATALOGO</button>
     <button class="btn btn-red" id="btn-stop" onclick="stopExtraction()" style="display:none">■ STOP</button>
   </div>
-  <div class="info-box" style="margin-top:10px;">
-    <strong>Come funziona:</strong><br>
-    1. Incolla l'URL della pagina categoria Yupoo → il tool estrae tutti i prodotti con nome, immagine e prezzo<br>
-    2. I prezzi in ¥ vengono rilevati automaticamente dal nome album e convertiti in €<br>
-    3. Clicca <strong>↑ UPLOAD IMGBB</strong> per caricare tutte le immagini su imgbb e ottenere gli URL<br>
-    4. Esporta il <strong>CSV</strong> pronto per l'import · Oppure scarica le immagini in <strong>ZIP</strong><br>
-    <strong>imgbb:</strong> registrati gratis su <a href="https://imgbb.com" target="_blank">imgbb.com</a> → <a href="https://api.imgbb.com" target="_blank">api.imgbb.com</a> → genera API key
+  <div class="info-box">
+    <strong>Come funziona:</strong> Incolla URL categoria →
+    <strong>⚡ ESTRAI</strong> → premi <strong>↑ IMGBB</strong> per caricare le foto →
+    <strong>🎨 COLORI</strong> per rilevamento automatico (Gemini gratis) →
+    <strong>↓ CSV</strong> pronto per l'import Firebase.&nbsp;
+    Gemini key gratis: <a href="https://aistudio.google.com/app/apikey" target="_blank">aistudio.google.com/app/apikey</a>
   </div>
 </div>
 
 <!-- PROGRESS -->
 <div class="progress-section" id="progress-section">
   <div class="progress-text" id="progress-text">Inizializzazione...</div>
-  <div class="progress-bar-wrap"><div class="progress-bar-fill" id="progress-fill"></div></div>
+  <div class="progress-bar-wrap"><div class="progress-fill" id="progress-fill"></div></div>
 </div>
 
 <!-- LOG -->
-<div class="log-section" id="log-section"></div>
+<div class="log-box" id="log-box"></div>
 
-<!-- STATS + ACTIONS -->
-<div class="stats-bar" id="stats-bar" style="display:none">
-  <div class="stat-item"><span>PRODOTTI</span><br><strong id="st-total">0</strong></div>
-  <div class="stat-item"><span>IMMAGINI</span><br><strong id="st-imgs">0</strong></div>
-  <div class="stat-item"><span>PREZZI TROVATI</span><br><strong id="st-prices">0</strong></div>
-  <div class="stat-item"><span>CARICATI IMGBB</span><br><strong id="st-uploaded">0</strong></div>
-  <div class="stat-item"><span>PREZZO MEDIO €</span><br><strong id="st-avg">–</strong></div>
+<!-- STATS BAR -->
+<div class="stats-bar" id="stats-bar">
+  <div class="stat-item"><span>PRODOTTI</span><strong id="st-total">0</strong></div>
+  <div class="stat-item"><span>IMMAGINI</span><strong id="st-imgs">0</strong></div>
+  <div class="stat-item"><span>PREZZI</span><strong id="st-prices">0</strong></div>
+  <div class="stat-item"><span>CARICATI</span><strong id="st-uploaded">0</strong></div>
+  <div class="stat-item"><span>MEDIA €</span><strong id="st-avg">–</strong></div>
   <div class="action-btns">
     <button class="btn btn-purple" id="btn-upload" onclick="uploadAllImgbb()" disabled>↑ UPLOAD IMGBB</button>
-    <button class="btn btn-green" id="btn-colors" onclick="detectAllColors()" disabled style="border-color:#34d399;color:#34d399">🎨 RILEVA COLORI</button>
-    <button class="btn btn-green" id="btn-csv" onclick="exportCSV()" disabled>↓ CSV</button>
-    <button class="btn btn-orange" id="btn-zip" onclick="downloadZip()" disabled>↓ ZIP IMMAGINI</button>
+    <button class="btn btn-teal"   id="btn-colors" onclick="detectAllColors()"  disabled>🎨 COLORI</button>
+    <button class="btn btn-green"  id="btn-csv"    onclick="exportCSV()"        disabled>↓ CSV</button>
+    <button class="btn btn-orange" id="btn-zip"    onclick="downloadZip()"      disabled>↓ ZIP</button>
   </div>
 </div>
 
-<!-- RESULTS TABLE -->
-<div id="results-area">
-  <div class="empty-state" id="empty-state">
-    <div class="big">🗂</div>
-    <p>
-      INCOLLA L'URL DELLA PAGINA CATALOGO YUPOO<br>
-      ES: <code>https://huskyreps.x.yupoo.com/categories/5003229</code><br><br>
-      IL TOOL ESTRARRÀ AUTOMATICAMENTE:<br>
-      NOME · PREZZO ¥ → € · IMMAGINE COPERTINA
-    </p>
-  </div>
-  <div class="table-wrap" id="table-wrap" style="display:none">
-    <table>
-      <thead><tr>
-        <th class="td-num">#</th>
-        <th class="td-img">IMG</th>
-        <th class="td-nome">NOME</th>
-        <th class="td-tipo">TIPO</th>
-        <th class="td-brand">BRAND</th>
-        <th class="td-taglie">TAGLIE</th>
-        <th class="td-colori">COLORI</th>
-        <th class="td-cny">¥ CNY</th>
-        <th class="td-eur">€ EUR</th>
-        <th class="td-url">URL IMMAGINE</th>
-        <th class="td-status">STATO</th>
-        <th class="td-del">✕</th>
-      </tr></thead>
-      <tbody id="tbody"></tbody>
-    </table>
-  </div>
+<!-- RESULTS -->
+<div id="empty-state" class="empty-state">
+  <div class="big">🗂</div>
+  <p>INCOLLA L'URL DEL CATALOGO YUPOO E PREMI ⚡ ESTRAI CATALOGO<br>
+  ES: <code>https://huskyreps.x.yupoo.com/categories/5003229</code><br><br>
+  ESTRAE: NOME · PREZZO ¥→€ · IMMAGINE · TIPO</p>
+</div>
+
+<div class="table-wrap" id="table-wrap" style="display:none">
+  <table>
+    <thead><tr>
+      <th class="td-num">#</th>
+      <th class="td-img">IMG</th>
+      <th style="min-width:160px">NOME</th>
+      <th style="min-width:110px">TIPO</th>
+      <th style="min-width:120px">BRAND</th>
+      <th style="min-width:95px">TAGLIE</th>
+      <th style="min-width:130px">COLORI</th>
+      <th class="td-cny">¥ CNY</th>
+      <th class="td-eur">€ EUR</th>
+      <th style="min-width:180px">URL IMMAGINE</th>
+      <th class="td-status">STATO</th>
+      <th class="td-del">✕</th>
+    </tr></thead>
+    <tbody id="tbody"></tbody>
+  </table>
 </div>
 
 <script>
-// ═══════════════════════════════════════════════════════
+'use strict';
+
+// ═══════════════════════════════════════════════
 // STATE
-// ═══════════════════════════════════════════════════════
-let products = [];      // {id, albumId, albumName, nome, tipo, brand, taglie, colori, cny, eur, final, coverUrl, imgbbUrl, status}
-let stopped = false;
-let abortCtrl = null;
-let workerUrl = localStorage.getItem('yupoo_worker_url') || '';
-let imgbbKey = localStorage.getItem('imgbb_key') || '';
-let defaultBrand = localStorage.getItem('default_brand') || '';
-let geminiKey = localStorage.getItem('gemini_key') || '';
+// ═══════════════════════════════════════════════
+var products  = [];
+var stopped   = false;
+var abortCtrl = null;
+var siteBase  = '';
+var username  = '';
+var buildId   = '';
+var seenIds   = new Set();
 
-// Per-extraction Yupoo state
-let siteBase = '', username = '', shopHost = '', buildId = '';
-let seenUrls = new Set();
-
-// ═══════════════════════════════════════════════════════
-// YUPOO PROXY / FETCH ENGINE (from original extractor)
-// ═══════════════════════════════════════════════════════
-const PROXIES = [
-  async (url, sig) => {
-    const r = await fetch(`https://corsproxy.io/?${encodeURIComponent(url)}`, { signal: sig });
-    if (!r.ok) throw new Error('corsproxy ' + r.status);
-    return r.text();
-  },
-  async (url, sig) => {
-    const r = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`, { signal: sig });
-    if (!r.ok) throw new Error('allorigins ' + r.status);
-    const j = await r.json(); return j.contents || '';
-  },
-  async (url, sig) => {
-    const r = await fetch(`https://thingproxy.freeboard.io/fetch/${url}`, { signal: sig });
-    if (!r.ok) throw new Error('thingproxy ' + r.status);
-    return r.text();
-  }
-];
-
-async function fetchHtml(url) {
-  for (let i = 0; i < PROXIES.length; i++) {
+// ═══════════════════════════════════════════════
+// PROXY HELPERS
+// ═══════════════════════════════════════════════
+async function proxyFetchText(url) {
+  var proxies = [
+    'https://corsproxy.io/?' + encodeURIComponent(url),
+    'https://thingproxy.freeboard.io/fetch/' + url
+  ];
+  for (var i = 0; i < proxies.length; i++) {
     try {
-      const html = await PROXIES[i](url, abortCtrl.signal);
-      if (html.length > 200 && (html.includes('yupoo') || html.includes('NEXT_DATA') || html.includes('photo.yupoo')))
-        return html;
+      var r = await fetch(proxies[i], { signal: abortCtrl.signal });
+      if (r.ok) { var t = await r.text(); if (t.length > 100) return t; }
     } catch(e) { if (e.name === 'AbortError') throw e; }
   }
-  throw new Error('Tutti i proxy falliti per: ' + url);
+  // allorigins as last resort
+  try {
+    var r2 = await fetch('https://api.allorigins.win/get?url=' + encodeURIComponent(url), { signal: abortCtrl.signal });
+    var j = await r2.json();
+    return j.contents || '';
+  } catch(e) { if (e.name === 'AbortError') throw e; }
+  throw new Error('Tutti i proxy falliti');
 }
 
-async function fetchJson(url) {
-  for (let i = 0; i < 3; i++) {
-    try {
-      let text;
-      if (i === 1) {
-        const r = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`, { signal: abortCtrl.signal });
-        const j = await r.json(); text = j.contents || '';
-      } else {
-        const proxy = i === 0
-          ? `https://corsproxy.io/?${encodeURIComponent(url)}`
-          : `https://thingproxy.freeboard.io/fetch/${url}`;
-        const r = await fetch(proxy, { signal: abortCtrl.signal });
-        if (!r.ok) throw new Error('HTTP ' + r.status);
-        text = await r.text();
-      }
-      return JSON.parse(text);
-    } catch(e) { if (e.name === 'AbortError') throw e; }
-  }
-  throw new Error('fetchJson fallito');
+async function proxyFetchJson(url) {
+  var text = await proxyFetchText(url);
+  return JSON.parse(text);
 }
 
-function toHD(url) {
-  // Use medium as default — most reliable on Yupoo CDN
+// ═══════════════════════════════════════════════
+// IMAGE HELPERS
+// ═══════════════════════════════════════════════
+function toMedium(url) {
   return url.replace(/\/(fit_p_\d+_\d+|large|small|thumb|tiny)\./i, '/medium.');
 }
 
-// Try multiple size variants in order of reliability
 function imageVariants(url) {
-  if (!url) return [url];
-  const base = url.replace(/\/(fit_p_\d+_\d+|large|medium|small|thumb|tiny)\./i, '/VARIANT.');
-  return [
+  if (!url) return [];
+  var base = url.replace(/\/(fit_p_\d+_\d+|large|medium|small|thumb|tiny)\./i, '/VARIANT.');
+  var variants = [
     base.replace('VARIANT','medium'),
     base.replace('VARIANT','small'),
     base.replace('VARIANT','thumb'),
     base.replace('VARIANT','fit_p_560_560'),
     base.replace('VARIANT','fit_p_900_900'),
     url
-  ].filter((v,i,a) => a.indexOf(v)===i);
+  ];
+  return variants.filter(function(v,i,a){ return a.indexOf(v) === i; });
 }
 
-// ═══════════════════════════════════════════════════════
-// ALBUM PARSING — extracts {id, name, coverUrl} together
-// ═══════════════════════════════════════════════════════
-function extractCoverFromAlbumObj(obj) {
-  // look for photo path inside album object
-  const str = JSON.stringify(obj);
-  const m = str.match(/photo\.yupoo\.com\/[^\\"]+\.jpg/);
-  if (m) return toHD('https://' + m[0]);
-  // try uid-based construction
-  const uid = obj.uid || obj.coverId || obj.coverUid;
-  if (uid && username) return toHD(`https://photo.yupoo.com/${username}/${uid}/fit_p_900_900.jpg`);
+// ═══════════════════════════════════════════════
+// ALBUM PARSING
+// ═══════════════════════════════════════════════
+var SKIP_NAV = /^(next\s*page|prev|previous|page\s*\d+|older|newer|more|avanti|indietro)$/i;
+
+function coverFromAlbumObj(obj) {
+  var s = JSON.stringify(obj);
+  var m = s.match(/photo\.yupoo\.com\/[^\\"]+\.jpg/);
+  if (m) return toMedium('https://' + m[0]);
+  var uid = obj.uid || obj.coverId || obj.coverUid;
+  if (uid && username) return 'https://photo.yupoo.com/' + username + '/' + uid + '/medium.jpg';
   return null;
 }
 
-function parseAlbumsWithCovers(obj, out, depth) {
+function parseAlbums(obj, out, depth) {
   if (!out) out = [];
   if (!depth) depth = 0;
   if (depth > 15 || !obj || typeof obj !== 'object') return out;
-
   if (!Array.isArray(obj) && typeof obj.id === 'number' && obj.id > 0
       && (obj.name || obj.prettyName || obj.albumName || obj.title)) {
-    const name = obj.name || obj.prettyName || obj.albumName || obj.title || String(obj.id);
-    // Filter out pagination/navigation fake albums
-    const SKIP_NAMES = /^(next\s*page|prev|previous|page\s*\d+|older|newer|more|avanti|indietro|successivo|precedente)$/i;
-    if (SKIP_NAMES.test(name.trim())) return out;
-    const cover = extractCoverFromAlbumObj(obj);
-    out.push({ id: obj.id, name, coverUrl: cover });
+    var name = obj.name || obj.prettyName || obj.albumName || obj.title || String(obj.id);
+    if (!SKIP_NAV.test(name.trim())) {
+      out.push({ id: obj.id, name: name, coverUrl: coverFromAlbumObj(obj) });
+    }
     return out;
   }
-  if (Array.isArray(obj)) { for (const i of obj) parseAlbumsWithCovers(i, out, depth + 1); }
-  else { for (const v of Object.values(obj)) { if (v && typeof v === 'object') parseAlbumsWithCovers(v, out, depth + 1); } }
+  if (Array.isArray(obj)) {
+    for (var i = 0; i < obj.length; i++) parseAlbums(obj[i], out, depth + 1);
+  } else {
+    var vals = Object.values(obj);
+    for (var j = 0; j < vals.length; j++) {
+      if (vals[j] && typeof vals[j] === 'object') parseAlbums(vals[j], out, depth + 1);
+    }
+  }
   return out;
 }
 
-function getTotalPages(json) {
-  const s = JSON.stringify(json);
-  for (const k of ['totalPage','totalPages','total_page','pageCount','pages']) {
-    const m = s.match(new RegExp('"' + k + '"\\s*:\\s*(\\d+)'));
+function totalPages(json) {
+  var s = JSON.stringify(json);
+  var keys = ['totalPage','totalPages','total_page','pageCount','pages'];
+  for (var i = 0; i < keys.length; i++) {
+    var m = s.match(new RegExp('"' + keys[i] + '"\\s*:\\s*(\\d+)'));
     if (m && +m[1] > 0) return +m[1];
   }
-  const tot  = s.match(/"(?:total|totalAlbums|totalImages|count)"\s*:\s*(\d+)/);
-  const size = s.match(/"(?:pageSize|perPage|limit|size)"\s*:\s*(\d+)/);
+  var tot  = s.match(/"(?:total|totalAlbums|count)"\s*:\s*(\d+)/);
+  var size = s.match(/"(?:pageSize|perPage|limit|size)"\s*:\s*(\d+)/);
   if (tot && size && +size[1] > 0) return Math.ceil(+tot[1] / +size[1]);
   return 1;
 }
 
-// Extract cover from HTML scraping
-function parseHtmlAlbumsWithCovers(html) {
-  const albums = [];
-  const seen = new Set();
-  const SKIP = /\/(?:icons?|avatars?|watermarks?|default|logo)\//i;
-  const albumRe = /href=["']([^"']*\/albums\/(\d+)[^"']*)["']/g;
-  let m;
-  while ((m = albumRe.exec(html)) !== null) {
-    const id = m[2];
+function htmlParseAlbums(html) {
+  var albums = [], seen = new Set();
+  var SKIP_IMG = /\/(?:icons?|avatars?|watermarks?|default|logo)\//i;
+  var re = /href=["'][^"']*\/albums\/(\d+)[^"']*["']/g;
+  var m;
+  while ((m = re.exec(html)) !== null) {
+    var id = m[1];
     if (seen.has(id)) continue;
     seen.add(id);
-    const ctx = html.substring(Math.max(0, m.index - 400), m.index + 400);
-    // get name
-    const nameM = ctx.match(/(?:title|alt|data-name|data-title)=["']([^"']{2,80})["']/) ||
-                  ctx.match(/<(?:span|div|h\d|p)[^>]*>\s*([^<]{2,80})\s*<\/(?:span|div|h\d|p)>/);
-    const name = nameM ? nameM[1].trim() : '';
-    // get cover image
-    const imgM = ctx.match(/https?:\/\/photo\.yupoo\.com\/[a-z0-9_]+\/[a-z0-9]+\/[^\s"'<>]+\.jpg/i);
-    let coverUrl = null;
-    if (imgM && !SKIP.test(imgM[0])) coverUrl = toHD(imgM[0]);
-    albums.push({ id: parseInt(id), name, coverUrl });
+    var ctx = html.substring(Math.max(0, m.index - 400), m.index + 400);
+    var nm = ctx.match(/(?:title|alt|data-name)=["']([^"']{2,80})["']/);
+    var name = nm ? nm[1].trim() : '';
+    if (SKIP_NAV.test(name)) continue;
+    var im = ctx.match(/https?:\/\/photo\.yupoo\.com\/[a-z0-9_]+\/[a-z0-9]+\/[^\s"'<>]+\.jpg/i);
+    var coverUrl = (im && !SKIP_IMG.test(im[0])) ? toMedium(im[0]) : null;
+    albums.push({ id: parseInt(id), name: name, coverUrl: coverUrl });
   }
   return albums;
 }
 
-// ═══════════════════════════════════════════════════════
-// PRICE & NAME PARSING
-// ═══════════════════════════════════════════════════════
-function parsePriceFromName(name) {
-  const m = name.match(/[¥￥Y]\s*~?\s*([\d]+(?:[.,]\d{1,2})?)/i) ||
-            name.match(/([\d]+(?:[.,]\d{1,2})?)\s*[¥￥]/i);
-  if (m) return parseFloat(m[1].replace(',', '.'));
-  return null;
+// ═══════════════════════════════════════════════
+// PRODUCT HELPERS
+// ═══════════════════════════════════════════════
+function parsePriceCny(name) {
+  var m = name.match(/[¥￥Y]\s*~?\s*([\d]+(?:[.,]\d{1,2})?)/i)
+       || name.match(/([\d]+(?:[.,]\d{1,2})?)\s*[¥￥]/i);
+  return m ? parseFloat(m[1].replace(',','.')) : null;
 }
 
-function cleanProductName(name) {
+function cleanName(name) {
   return name
-    .replace(/[¥￥Y]\s*~?\s*[\d]+(?:[.,]\d{1,2})?/gi, '')
-    .replace(/[\d]+(?:[.,]\d{1,2})?\s*[¥￥]/gi, '')
-    .replace(/\b(L🔥|C🔥|ST🔥|🔥|L👑|C👑|ST👑|👑|\(im\)|im\b)/gi, '')
-    .replace(/TOP\b/gi, '').replace(/\d{7,}/g, '')
-    .replace(/\s{2,}/g, ' ').trim();
+    .replace(/[¥￥Y]\s*~?\s*[\d]+(?:[.,]\d{1,2})?/gi,'')
+    .replace(/[\d]+(?:[.,]\d{1,2})?\s*[¥￥]/gi,'')
+    .replace(/\b(L🔥|C🔥|ST🔥|🔥|im\b|\(im\)|TOP\b)/gi,'')
+    .replace(/\d{7,}/g,'').replace(/\s{2,}/g,' ').trim();
 }
 
 function guessType(name) {
-  const n = name.toUpperCase();
-  if (/T-?SHIRT|TSHIRT/.test(n)) return 'T-shirt';
-  if (/POLO/.test(n)) return 'Polo';
-  if (/HOODIE|HOODED/.test(n)) return 'Felpa con cappuccio';
-  if (/SWEATER|CREWNECK|FELPA/.test(n)) return 'Felpa';
-  if (/JACKET|BOMBER/.test(n)) return 'Giacca';
-  if (/PUFFER|PIUMINO/.test(n)) return 'Piumino';
-  if (/TROUSER|PANT/.test(n)) return 'Pantaloni';
-  if (/SHORT|PANTALONCIN/.test(n)) return 'Pantaloncini';
-  if (/LONG.?SLEEVE|LONGSLEEVE/.test(n)) return 'Maglia manica lunga';
-  if (/BAG|BORSA/.test(n)) return 'Borsa';
-  if (/BACKPACK|ZAINO/.test(n)) return 'Zaino';
-  if (/CAP|HAT|BEANIE/.test(n)) return 'Cappello';
-  if (/SNEAKER|SHOE|SCARPE/.test(n)) return 'Sneakers';
+  var n = name.toUpperCase();
+  if (/T-?SHIRT|TSHIRT/.test(n))          return 'T-shirt';
+  if (/\bPOLO\b/.test(n))                 return 'Polo';
+  if (/HOODIE|HOODED/.test(n))             return 'Felpa con cappuccio';
+  if (/SWEATER|CREWNECK|FLEECE/.test(n))   return 'Felpa';
+  if (/JACKET|BOMBER/.test(n))             return 'Giacca';
+  if (/PUFFER|PIUMINO/.test(n))            return 'Piumino';
+  if (/TROUSER|PANT/.test(n))              return 'Pantaloni';
+  if (/\bSHORT/.test(n))                   return 'Pantaloncini';
+  if (/LONG.?SLEEVE/.test(n))              return 'Maglia manica lunga';
+  if (/\bBAG\b/.test(n))                   return 'Borsa';
+  if (/BACKPACK/.test(n))                  return 'Zaino';
+  if (/\bCAP\b|BEANIE|\bHAT\b/.test(n))   return 'Cappello';
+  if (/SNEAKER|SHOE/.test(n))              return 'Sneakers';
   return '';
 }
 
-function calcFinal(cny) {
-  const rate = parseFloat(document.getElementById('rate').value) || 0.129;
-  const markup = parseFloat(document.getElementById('markup').value) || 0;
-  const eur = cny * rate * (1 + markup / 100);
-  const mode = document.getElementById('round-mode').value;
+function calcEur(cny) {
+  var rate   = parseFloat(document.getElementById('rate').value)   || 0.129;
+  var markup = parseFloat(document.getElementById('markup').value) || 0;
+  var eur = cny * rate * (1 + markup / 100);
+  var mode = document.getElementById('round-mode').value;
   if (mode === '0.99') return Math.floor(eur) + 0.99;
-  if (mode === 'up') return Math.ceil(eur);
+  if (mode === 'up')   return Math.ceil(eur);
   return Math.round(eur * 100) / 100;
 }
 
-// ═══════════════════════════════════════════════════════
-// MAIN EXTRACTION PIPELINE
-// ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════
+// EXTRACTION
+// ═══════════════════════════════════════════════
 async function startExtraction() {
-  const rawUrl = document.getElementById('cat-url').value.trim();
+  var rawUrl = document.getElementById('cat-url').value.trim();
   if (!rawUrl) { alert('Inserisci prima un URL Yupoo!'); return; }
 
-  let url;
+  var url;
   try { url = new URL(rawUrl).href; }
-  catch { alert('URL non valido.'); return; }
+  catch(e) { alert('URL non valido!'); return; }
 
-  // Reset state
-  stopped = false; products = []; seenUrls.clear();
+  // Reset
+  stopped = false;
+  products = [];
+  seenIds.clear();
   if (abortCtrl) abortCtrl.abort();
   abortCtrl = new AbortController();
 
-  const u = new URL(url);
-  username = u.hostname.split('.')[0];
-  siteBase = u.protocol + '//' + u.hostname;
-  shopHost = u.hostname;
+  var u     = new URL(url);
+  username  = u.hostname.split('.')[0];
+  siteBase  = u.protocol + '//' + u.hostname;
+  buildId   = '';
 
-  document.getElementById('btn-extract').disabled = true;
-  document.getElementById('btn-stop').style.display = 'inline-block';
-  document.getElementById('progress-section').classList.add('visible');
-  document.getElementById('stats-bar').style.display = 'flex';
-  document.getElementById('empty-state').style.display = 'none';
-  document.getElementById('table-wrap').style.display = 'block';
+  // UI reset
+  setUI('extracting');
   setProgress(0, 'Connessione a Yupoo...');
   clearLog();
+  document.getElementById('empty-state').style.display = 'none';
+  document.getElementById('table-wrap').style.display  = 'block';
+  document.getElementById('stats-bar').style.display   = 'flex';
 
-  const isAlbum = /\/albums\//.test(url);
-  const catIdM = url.match(/\/categories\/(\d+)/);
-  const catId = catIdM ? catIdM[1] : null;
+  var isAlbum = /\/albums\//.test(url);
+  var catM    = url.match(/\/categories\/(\d+)/);
+  var catId   = catM ? catM[1] : null;
 
   try {
-    let allAlbums = [];
+    var allAlbums = [];
 
     if (isAlbum) {
-      // Single album mode
+      var aId = parseInt(url.match(/\/albums\/(\d+)/)[1]);
+      allAlbums = [{ id: aId, name: 'Album singolo', coverUrl: null }];
       log('Modalità: album singolo');
-      allAlbums = [{ id: parseInt(url.match(/\/albums\/(\d+)/)[1]), name: 'Album', coverUrl: null }];
     } else {
-      log('Modalità: catalogo categoria — raccolta album...');
-      allAlbums = await extractAllAlbums(url, catId);
+      log('Raccolta album catalogo...');
+      allAlbums = await collectAlbums(url, catId);
     }
 
     if (!allAlbums.length) {
-      log('❌ Nessun album trovato. Controlla l\'URL.', 'err'); return;
+      log('❌ Nessun album trovato. Verifica URL.', 'err');
+      setUI('idle'); return;
     }
 
-    log(`✅ Trovati ${allAlbums.length} album — elaborazione...`, 'ok');
+    log('✅ Trovati ' + allAlbums.length + ' album', 'ok');
+    var brand = document.getElementById('default-brand').value.trim();
 
-    // Process each album → build product
-    for (let i = 0; i < allAlbums.length; i++) {
+    for (var i = 0; i < allAlbums.length; i++) {
       if (stopped) break;
-      const album = allAlbums[i];
-      setProgress((i / allAlbums.length) * 100, `${i+1}/${allAlbums.length} — "${album.name.substring(0,40)}"`);
+      var album = allAlbums[i];
+      setProgress(Math.round((i / allAlbums.length) * 100),
+        (i+1) + '/' + allAlbums.length + ' — ' + album.name.substring(0,40));
 
-      const cny = parsePriceFromName(album.name);
-      const cleanName = cleanProductName(album.name);
-      const tipo = guessType(album.name);
+      var cny = parsePriceCny(album.name);
 
-      let coverUrl = album.coverUrl;
-      // If no cover from parsing, fetch it
+      var coverUrl = album.coverUrl;
       if (!coverUrl) {
-        try {
-          coverUrl = await fetchAlbumCover(album.id);
-        } catch(e) {
+        try { coverUrl = await fetchCover(album.id); }
+        catch(e) {
           if (e.name === 'AbortError') break;
-          log(`⚠ Album ${album.id}: copertina non trovata`, 'warn');
+          log('⚠ Album ' + album.id + ': nessuna copertina', 'warn');
         }
       }
 
-      const prod = {
-        id: album.id,
+      products.push({
+        id:        album.id,
         albumName: album.name,
-        nome: cleanName || `Prodotto ${i+1}`,
-        tipo, brand: document.getElementById('default-brand').value.trim(), taglie: 'S,M,L,XL', colori: '',
-        cny, eur: cny ? cny * (parseFloat(document.getElementById('rate').value)||0.129) : null,
-        final: cny ? calcFinal(cny) : null,
-        coverUrl: coverUrl || null,
-        imgbbUrl: '', status: 'idle'
-      };
-      products.push(prod);
+        nome:      cleanName(album.name) || ('Prodotto ' + (i+1)),
+        tipo:      guessType(album.name),
+        brand:     brand,
+        taglie:    'S,M,L,XL',
+        colori:    '',
+        cny:       cny,
+        final:     cny ? calcEur(cny) : null,
+        coverUrl:  coverUrl || null,
+        imgbbUrl:  '',
+        status:    'idle'
+      });
+
       renderTable();
       updateStats();
     }
 
-    setProgress(100, `✅ Completato — ${products.length} prodotti estratti`);
-    log(`✅ Estrazione completata: ${products.length} prodotti, ${products.filter(p=>p.coverUrl).length} immagini`, 'ok');
-    log(`Prezzi trovati: ${products.filter(p=>p.cny).length}/${products.length}`, 'info');
+    setProgress(100, '✅ ' + products.length + ' prodotti — ' +
+      products.filter(function(p){return p.coverUrl;}).length + ' immagini — ' +
+      products.filter(function(p){return p.cny;}).length + ' prezzi');
+    log('✅ Estrazione completata: ' + products.length + ' prodotti', 'ok');
 
-    document.getElementById('btn-upload').disabled = false;
-    document.getElementById('btn-colors').disabled = false;
-    document.getElementById('btn-csv').disabled = false;
-    document.getElementById('btn-zip').disabled = false;
+    if (products.length) {
+      document.getElementById('btn-upload').disabled = false;
+      document.getElementById('btn-csv').disabled    = false;
+      document.getElementById('btn-zip').disabled    = false;
+    }
 
   } catch(e) {
-    if (e.name !== 'AbortError')
-      log('❌ Errore: ' + e.message, 'err');
+    if (e.name !== 'AbortError') log('❌ ' + e.message, 'err');
   }
 
-  document.getElementById('btn-extract').disabled = false;
-  document.getElementById('btn-stop').style.display = 'none';
+  setUI('idle');
 }
 
-async function extractAllAlbums(pageUrl, catId) {
-  let allAlbums = [];
+async function collectAlbums(pageUrl, catId) {
+  var all = [];
 
-  // Method 1: Yupoo native REST API (/albums?uid=CATID&page=N)
+  // Strategy 1: native API
   if (catId) {
-    log('Strategia 1: API nativa Yupoo...');
+    log('Strategia 1: API Yupoo...', 'info');
     try {
-      const page1 = await fetchJson(`${siteBase}/albums?uid=${catId}&page=1&t=${Date.now()}`);
-      parseAlbumsWithCovers(page1, allAlbums);
-      const tp = getTotalPages(page1);
-      log(`API: ${allAlbums.length} album pag.1, tot.${tp} pagine`);
-      for (let p = 2; p <= Math.min(tp, 500); p++) {
+      var p1 = await proxyFetchJson(siteBase + '/albums?uid=' + catId + '&page=1&t=' + Date.now());
+      parseAlbums(p1, all);
+      var tp = totalPages(p1);
+      log('API: ' + all.length + ' album pag.1 / ' + tp + ' pagine totali');
+      for (var p = 2; p <= Math.min(tp, 500); p++) {
         if (stopped) break;
-        setProgress((p/tp)*40, `Raccolta pag.${p}/${tp}...`);
+        setProgress(Math.round((p / tp) * 35), 'Raccolta pag.' + p + '/' + tp);
         try {
-          const pd = await fetchJson(`${siteBase}/albums?uid=${catId}&page=${p}&t=${Date.now()}`);
-          parseAlbumsWithCovers(pd, allAlbums);
-        } catch {}
+          var pd = await proxyFetchJson(siteBase + '/albums?uid=' + catId + '&page=' + p + '&t=' + Date.now());
+          parseAlbums(pd, all);
+        } catch(e) { if (e.name === 'AbortError') throw e; }
       }
-      if (allAlbums.length > 0) return allAlbums;
-    } catch(e) { if (e.name === 'AbortError') throw e; log('API nativa fallita, provo HTML...', 'warn'); }
+      if (all.length) return all;
+    } catch(e) {
+      if (e.name === 'AbortError') throw e;
+      log('API nativa fallita, provo HTML...', 'warn');
+    }
   }
 
-  // Method 2: _next/data API
-  log('Strategia 2: _next/data...');
-  try {
-    const html = await fetchHtml(pageUrl);
-    const m = html.match(/<script[^>]+id=["']__NEXT_DATA__["'][^>]*>([\s\S]*?)<\/script>/i);
-    if (m) {
-      const nd = JSON.parse(m[1]);
+  // Strategy 2: __NEXT_DATA__ + HTML scraping
+  log('Strategia 2: HTML scraping...', 'info');
+  var html = await proxyFetchText(pageUrl);
+  var ndM = html.match(/<script[^>]+id=["']__NEXT_DATA__["'][^>]*>([\s\S]*?)<\/script>/i);
+  if (ndM) {
+    try {
+      var nd = JSON.parse(ndM[1]);
       buildId = nd.buildId || '';
-      parseAlbumsWithCovers(nd, allAlbums);
-    }
-    if (allAlbums.length > 0) { log(`_next/data: ${allAlbums.length} album`, 'ok'); return allAlbums; }
+      parseAlbums(nd, all);
+    } catch(e) {}
+  }
+  if (all.length) { log('__NEXT_DATA__: ' + all.length + ' album', 'ok'); return all; }
 
-    // Method 3: HTML scraping
-    log('Strategia 3: scraping HTML...');
-    const htmlAlbums = parseHtmlAlbumsWithCovers(html);
-    allAlbums.push(...htmlAlbums);
-    if (allAlbums.length > 0) { log(`HTML scraping: ${allAlbums.length} album`, 'ok'); return allAlbums; }
-  } catch(e) { if (e.name === 'AbortError') throw e; }
+  var ha = htmlParseAlbums(html);
+  all = all.concat(ha);
+  if (all.length) { log('HTML scraping: ' + all.length + ' album', 'ok'); return all; }
 
-  return allAlbums;
+  return all;
 }
 
-async function fetchAlbumCover(albumId) {
-  // Try native API first
+async function fetchCover(albumId) {
   try {
-    const json = await fetchJson(`${siteBase}/albums/${albumId}?page=1&t=${Date.now()}`);
-    const photos = [];
-    function findPhotos(obj, d) {
-      if (d>15||!obj||typeof obj!=='object') return;
-      const uid = obj.uid||obj.imageid||obj.imageId;
-      if (uid && /^[0-9a-f]{5,20}$/i.test(uid) && !obj.buildId) {
-        if (obj.path) photos.push(obj.path.startsWith('http') ? obj.path : 'https://photo.yupoo.com' + obj.path);
-        else if (username) photos.push(`https://photo.yupoo.com/${username}/${uid}/fit_p_900_900.jpg`);
+    var json = await proxyFetchJson(siteBase + '/albums/' + albumId + '?page=1&t=' + Date.now());
+    var photos = [];
+    function find(obj, d) {
+      if (d > 15 || !obj || typeof obj !== 'object') return;
+      var uid = obj.uid || obj.imageid || obj.imageId;
+      if (uid && /^[0-9a-f]{5,20}$/i.test(String(uid)) && !obj.buildId) {
+        if (obj.path) {
+          photos.push(obj.path.startsWith('http') ? obj.path : 'https://photo.yupoo.com' + obj.path);
+        } else if (username) {
+          photos.push('https://photo.yupoo.com/' + username + '/' + uid + '/medium.jpg');
+        }
         return;
       }
-      if (Array.isArray(obj)) obj.forEach(i => findPhotos(i, d+1));
-      else Object.values(obj).forEach(v => { if(v && typeof v==='object') findPhotos(v, d+1); });
+      if (Array.isArray(obj)) { obj.forEach(function(x){ find(x, d+1); }); }
+      else { Object.values(obj).forEach(function(v){ if(v && typeof v==='object') find(v, d+1); }); }
     }
-    findPhotos(json, 0);
-    if (photos.length) return toHD(photos[0]);
+    find(json, 0);
+    if (photos.length) return toMedium(photos[0]);
   } catch(e) { if (e.name === 'AbortError') throw e; }
 
-  // Fallback: HTML scrape album page
-  const html = await fetchHtml(`${siteBase}/albums/${albumId}`);
-  const SKIP = /\/(?:icons?|avatars?|watermarks?|default|logo)\//i;
-  const re = /https?:\/\/photo\.yupoo\.com\/([a-z0-9_]+)\/([a-z0-9]+)\/[^\s"'<>]+\.jpg/gi;
-  let m;
-  while ((m = re.exec(html)) !== null) {
-    if (!SKIP.test(m[0])) return toHD(m[0]);
+  var html = await proxyFetchText(siteBase + '/albums/' + albumId);
+  var SKIP = /\/(?:icons?|avatars?|watermarks?|default|logo)\//i;
+  var re2  = /https?:\/\/photo\.yupoo\.com\/[a-z0-9_]+\/[a-z0-9]+\/[^\s"'<>]+\.jpg/gi;
+  var m2;
+  while ((m2 = re2.exec(html)) !== null) {
+    if (!SKIP.test(m2[0])) return toMedium(m2[0]);
   }
-  throw new Error('nessuna immagine');
+  throw new Error('copertina non trovata');
 }
 
-// ═══════════════════════════════════════════════════════
+function stopExtraction() {
+  stopped = true;
+  if (abortCtrl) abortCtrl.abort();
+  log('⛔ Fermato.', 'warn');
+  setUI('idle');
+}
+
+// ═══════════════════════════════════════════════
 // IMGBB UPLOAD
-// ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════
 async function uploadAllImgbb() {
-  const key = document.getElementById('imgbb-key').value.trim();
-  if (!key) { alert('Inserisci prima la API key di imgbb!\nRegistrati gratis su imgbb.com → api.imgbb.com'); return; }
-  if (!workerUrl) { alert('Inserisci il Worker URL Cloudflare per poter scaricare le immagini da Yupoo.'); return; }
+  var key = document.getElementById('imgbb-key').value.trim();
+  var wUrl = document.getElementById('worker-url').value.trim();
+  if (!key)  { alert('Inserisci API key imgbb! Gratis su: api.imgbb.com'); return; }
+  if (!wUrl) { alert('Inserisci il Worker URL Cloudflare!'); return; }
 
-  const toUpload = products.filter(p => p.coverUrl && !p.imgbbUrl);
-  if (!toUpload.length) { alert('Nessuna immagine da caricare.'); return; }
+  var toUp = products.filter(function(p){ return p.coverUrl && !p.imgbbUrl; });
+  if (!toUp.length) { alert('Nessuna immagine da caricare (o già caricate).'); return; }
 
-  document.getElementById('btn-upload').disabled = true;
-  log(`⬆ Upload di ${toUpload.length} immagini su imgbb...`, 'info');
-  abortCtrl = new AbortController();
   stopped = false;
+  abortCtrl = new AbortController();
+  document.getElementById('btn-upload').disabled = true;
+  log('⬆ Upload ' + toUp.length + ' immagini su imgbb...', 'info');
 
-  for (let i = 0; i < toUpload.length; i++) {
+  for (var i = 0; i < toUp.length; i++) {
     if (stopped) break;
-    const prod = toUpload[i];
-    setProductStatus(prod.id, 'uploading');
-    setProgress((i / toUpload.length) * 100, `Upload ${i+1}/${toUpload.length}: ${prod.nome.substring(0,30)}`);
+    var prod = toUp[i];
+    prod.status = 'uploading';
+    renderTableRow(prod);
+    setProgress(Math.round((i / toUp.length) * 100),
+      'Upload ' + (i+1) + '/' + toUp.length + ': ' + prod.nome.substring(0,30));
 
     try {
-      // Try multiple image size variants via Worker proxy
-      const variants = imageVariants(prod.coverUrl);
-      let imgBlob = null;
-      let lastErr = '';
-      for (const varUrl of variants) {
+      // Try variants until one works
+      var variants = imageVariants(prod.coverUrl);
+      var imgBlob = null;
+      for (var vi = 0; vi < variants.length; vi++) {
         try {
-          const proxyUrl = workerUrl.replace(/\/$/, '') + '/?url=' + encodeURIComponent(varUrl);
-          const imgResp = await fetch(proxyUrl, { signal: abortCtrl.signal });
-          if (imgResp.ok) {
-            const ct = imgResp.headers.get('content-type') || '';
-            if (ct.startsWith('image/')) { imgBlob = await imgResp.blob(); prod.coverUrl = varUrl; break; }
+          var proxyUrl = wUrl.replace(/\/$/, '') + '/?url=' + encodeURIComponent(variants[vi]);
+          var resp = await fetch(proxyUrl, { signal: abortCtrl.signal });
+          if (resp.ok) {
+            var ct = resp.headers.get('content-type') || '';
+            if (ct.startsWith('image/')) {
+              imgBlob = await resp.blob();
+              prod.coverUrl = variants[vi];
+              break;
+            }
           }
-          lastErr = 'HTTP ' + imgResp.status;
-        } catch(ve) { if (ve.name === 'AbortError') throw ve; lastErr = ve.message; }
+        } catch(ve) { if (ve.name === 'AbortError') throw ve; }
       }
-      if (!imgBlob) throw new Error('Tutte le varianti fallite: ' + lastErr);
+      if (!imgBlob) throw new Error('Nessuna variante immagine disponibile');
 
-      // Convert to base64
-      const base64 = await blobToBase64(imgBlob);
-      const b64data = base64.split(',')[1];
+      var b64full = await blobToBase64(imgBlob);
+      var b64data = b64full.split(',')[1];
 
-      // Upload to imgbb
-      const formData = new FormData();
-      formData.append('key', key);
-      formData.append('image', b64data);
-      formData.append('name', `lillofind_${prod.id}`);
+      var fd = new FormData();
+      fd.append('key', key);
+      fd.append('image', b64data);
+      fd.append('name', 'lillofind_' + prod.id);
 
-      const uploadResp = await fetch('https://api.imgbb.com/1/upload', { method: 'POST', body: formData });
-      const uploadJson = await uploadResp.json();
+      var upResp = await fetch('https://api.imgbb.com/1/upload', { method:'POST', body: fd });
+      var upJson = await upResp.json();
 
-      if (uploadJson.success) {
-        prod.imgbbUrl = uploadJson.data.url;
-        // Auto-detect colors via Gemini if key set and colors missing
-        const gk = document.getElementById('gemini-key').value.trim();
-        if (gk && !prod.colori) {
-          try {
-            prod.colori = await detectColorsGemini(prod.imgbbUrl, gk);
-            log(`🎨 Colori rilevati: ${prod.colori}`, 'info');
-          } catch(ge) { /* skip silently */ }
-        }
-        setProductStatus(prod.id, 'done');
+      if (upJson.success) {
+        prod.imgbbUrl = upJson.data.url;
+        prod.status   = 'done';
         renderTableRow(prod);
-        log(`✅ [${i+1}/${toUpload.length}] ${prod.nome.substring(0,30)} → ${prod.imgbbUrl}`, 'ok');
+        log('✅ [' + (i+1) + '/' + toUp.length + '] ' + prod.nome.substring(0,30), 'ok');
       } else {
-        throw new Error(uploadJson.error?.message || 'Upload fallito');
+        throw new Error((upJson.error && upJson.error.message) || 'Upload fallito');
       }
     } catch(e) {
-      if (e.name === 'AbortError') { log('⛔ Upload interrotto.', 'warn'); break; }
-      setProductStatus(prod.id, 'error');
-      log(`❌ [${i+1}] ${prod.nome.substring(0,30)}: ${e.message}`, 'err');
+      if (e.name === 'AbortError') { log('⛔ Interrotto.', 'warn'); break; }
+      prod.status = 'error';
+      renderTableRow(prod);
+      log('❌ [' + (i+1) + '] ' + prod.nome.substring(0,25) + ': ' + e.message, 'err');
     }
     updateStats();
   }
 
-  setProgress(100, `✅ Upload completato`);
+  setProgress(100, '✅ Upload completato');
   document.getElementById('btn-upload').disabled = false;
-  document.getElementById('btn-colors').disabled = false;
-  document.getElementById('btn-csv').disabled = false;
+  document.getElementById('btn-csv').disabled    = false;
+  if (products.some(function(p){ return p.imgbbUrl; })) {
+    document.getElementById('btn-colors').disabled = false;
+  }
 }
 
 function blobToBase64(blob) {
-  return new Promise((res, rej) => {
-    const r = new FileReader();
-    r.onload = () => res(r.result);
-    r.onerror = () => rej(new Error('FileReader error'));
-    r.readAsDataURL(blob);
+  return new Promise(function(res, rej) {
+    var fr = new FileReader();
+    fr.onload  = function(){ res(fr.result); };
+    fr.onerror = function(){ rej(new Error('FileReader error')); };
+    fr.readAsDataURL(blob);
   });
 }
 
-// ═══════════════════════════════════════════════════════
-// ZIP DOWNLOAD (direct from Yupoo via Worker)
-// ═══════════════════════════════════════════════════════
-async function downloadZip() {
-  if (!workerUrl) { alert('Inserisci il Worker URL Cloudflare!'); return; }
-  const toDownload = products.filter(p => p.coverUrl);
-  if (!toDownload.length) { alert('Nessuna immagine estratta.'); return; }
+// ═══════════════════════════════════════════════
+// GEMINI COLOR DETECTION (free)
+// ═══════════════════════════════════════════════
+async function detectColorsGemini(imageUrl, apiKey) {
+  var base64data = '', mimeType = 'image/jpeg';
+  var wUrl = document.getElementById('worker-url').value.trim();
+  var isHosted = imageUrl.includes('ibb.co') || imageUrl.includes('imgbb.com');
 
-  log(`📦 Creazione ZIP di ${toDownload.length} immagini...`, 'info');
-  document.getElementById('btn-zip').disabled = true;
-  const zip = new JSZip();
+  if (isHosted) {
+    var r = await fetch(imageUrl);
+    if (!r.ok) throw new Error('Fetch immagine fallito: ' + r.status);
+    var blob = await r.blob();
+    mimeType = blob.type || 'image/jpeg';
+    base64data = await new Promise(function(res, rej) {
+      var fr = new FileReader();
+      fr.onload  = function(){ res(fr.result.split(',')[1]); };
+      fr.onerror = rej;
+      fr.readAsDataURL(blob);
+    });
+  } else if (wUrl) {
+    var variants = imageVariants(imageUrl);
+    var blob2 = null;
+    for (var vi = 0; vi < variants.length; vi++) {
+      try {
+        var proxyUrl = wUrl.replace(/\/$/, '') + '/?url=' + encodeURIComponent(variants[vi]);
+        var rp = await fetch(proxyUrl);
+        if (rp.ok) { blob2 = await rp.blob(); if (blob2 && blob2.size > 500) break; }
+      } catch(e) {}
+    }
+    if (!blob2 || blob2.size < 100) throw new Error('Immagine non scaricabile');
+    mimeType = blob2.type || 'image/jpeg';
+    base64data = await new Promise(function(res, rej) {
+      var fr = new FileReader();
+      fr.onload  = function(){ res(fr.result.split(',')[1]); };
+      fr.onerror = rej;
+      fr.readAsDataURL(blob2);
+    });
+  } else {
+    throw new Error('Nessuna fonte immagine disponibile');
+  }
+
+  var gemResp = await fetch(
+    'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=' + apiKey,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{
+          parts: [
+            { inline_data: { mime_type: mimeType, data: base64data } },
+            { text: "Guarda questo capo di abbigliamento o accessorio. Elenca SOLO i colori principali visibili, separati da virgola, in italiano. Massimo 5 colori. Rispondi con SOLO i nomi dei colori. Esempio: Nero, Bianco, Blu Navy" }
+          ]
+        }],
+        generationConfig: { maxOutputTokens: 60, temperature: 0.1 }
+      })
+    }
+  );
+
+  if (!gemResp.ok) {
+    var errJson = {};
+    try { errJson = await gemResp.json(); } catch(e) {}
+    throw new Error((errJson.error && errJson.error.message) || 'Gemini API ' + gemResp.status);
+  }
+  var gemData = await gemResp.json();
+  return (gemData.candidates &&
+          gemData.candidates[0] &&
+          gemData.candidates[0].content &&
+          gemData.candidates[0].content.parts &&
+          gemData.candidates[0].content.parts[0] &&
+          gemData.candidates[0].content.parts[0].text) || '';
+}
+
+async function detectAllColors() {
+  var gk = document.getElementById('gemini-key').value.trim();
+  if (!gk) { alert('Inserisci la API key Gemini!\nGratis su: aistudio.google.com/app/apikey'); return; }
+
+  var toProc = products.filter(function(p){ return (p.imgbbUrl || p.coverUrl) && !p.colori; });
+  if (!toProc.length) { alert('Nessun prodotto da processare (colori già presenti o immagini mancanti).'); return; }
+
+  stopped = false;
   abortCtrl = new AbortController();
-  let done = 0, failed = 0;
+  document.getElementById('btn-colors').disabled = true;
+  log('🎨 Rilevamento colori Gemini per ' + toProc.length + ' prodotti...', 'info');
 
-  for (let i = 0; i < toDownload.length; i++) {
+  for (var i = 0; i < toProc.length; i++) {
     if (stopped) break;
-    const prod = toDownload[i];
-    setProgress((i / toDownload.length) * 100, `ZIP ${i+1}/${toDownload.length}`);
+    var prod = toProc[i];
+    var imgUrl = prod.imgbbUrl || prod.coverUrl;
+    setProgress(Math.round((i / toProc.length) * 100),
+      '🎨 ' + (i+1) + '/' + toProc.length + ': ' + prod.nome.substring(0,30));
     try {
-      const variants = imageVariants(prod.coverUrl);
-      let blob = null;
-      for (const varUrl of variants) {
+      prod.colori = await detectColorsGemini(imgUrl, gk);
+      renderTableRow(prod);
+      log('🎨 [' + (i+1) + '] ' + prod.nome.substring(0,25) + ': ' + prod.colori, 'ok');
+    } catch(e) {
+      if (e.name === 'AbortError') break;
+      log('⚠ [' + (i+1) + '] ' + prod.nome.substring(0,25) + ': ' + e.message, 'warn');
+    }
+    // 4s delay: Gemini free = 15 req/min
+    await new Promise(function(r){ setTimeout(r, 4100); });
+  }
+
+  setProgress(100, '✅ Colori completati');
+  log('✅ Colori rilevati per ' + toProc.filter(function(p){return p.colori;}).length + ' prodotti', 'ok');
+  document.getElementById('btn-colors').disabled = false;
+  document.getElementById('btn-csv').disabled    = false;
+}
+
+// ═══════════════════════════════════════════════
+// ZIP
+// ═══════════════════════════════════════════════
+async function downloadZip() {
+  var wUrl = document.getElementById('worker-url').value.trim();
+  if (!wUrl) { alert('Inserisci il Worker URL Cloudflare!'); return; }
+  var toDl = products.filter(function(p){ return p.coverUrl; });
+  if (!toDl.length) { alert('Nessuna immagine disponibile.'); return; }
+
+  stopped = false;
+  abortCtrl = new AbortController();
+  document.getElementById('btn-zip').disabled = true;
+  var zip = new JSZip();
+  var done = 0, failed = 0;
+  log('📦 Creazione ZIP ' + toDl.length + ' immagini...', 'info');
+
+  for (var i = 0; i < toDl.length; i++) {
+    if (stopped) break;
+    var prod = toDl[i];
+    setProgress(Math.round((i / toDl.length) * 100), 'ZIP ' + (i+1) + '/' + toDl.length);
+    try {
+      var variants = imageVariants(prod.coverUrl);
+      var blob = null;
+      for (var vi = 0; vi < variants.length; vi++) {
         try {
-          const proxyUrl = workerUrl.replace(/\/$/, '') + '/?url=' + encodeURIComponent(varUrl);
-          const resp = await fetch(proxyUrl, { signal: abortCtrl.signal });
-          if (resp.ok) { blob = await resp.blob(); if (blob.size > 1000) break; }
+          var proxyUrl = wUrl.replace(/\/$/, '') + '/?url=' + encodeURIComponent(variants[vi]);
+          var r2 = await fetch(proxyUrl, { signal: abortCtrl.signal });
+          if (r2.ok) { blob = await r2.blob(); if (blob && blob.size > 500) break; }
         } catch(ve) { if (ve.name === 'AbortError') throw ve; }
       }
-      if (!blob || blob.size < 100) throw new Error('Immagine non scaricabile');
-      const filename = `${String(i+1).padStart(3,'0')}_${(prod.nome||'prodotto').replace(/[^a-z0-9]/gi,'_').substring(0,30)}.jpg`;
-      zip.file(filename, blob);
+      if (!blob || blob.size < 100) throw new Error('non disponibile');
+      var fname = String(i+1).padStart(3,'0') + '_' +
+        (prod.nome||'prod').replace(/[^a-z0-9]/gi,'_').substring(0,25) + '.jpg';
+      zip.file(fname, blob);
       done++;
     } catch(e) {
       if (e.name === 'AbortError') break;
@@ -770,474 +848,194 @@ async function downloadZip() {
     }
   }
 
-  log(`Generazione ZIP (${done} immagini)...`);
-  const zipBlob = await zip.generateAsync({ type:'blob', compression:'DEFLATE', compressionOptions:{level:4} });
-  saveAs(zipBlob, `lillofind_${done}img_${new Date().toISOString().slice(0,10)}.zip`);
-  log(`✅ ZIP scaricato! ${done} immagini${failed ? ', ' + failed + ' fallite' : ''}.`, 'ok');
+  var zipBlob = await zip.generateAsync({ type:'blob', compression:'DEFLATE', compressionOptions:{level:4} });
+  saveAs(zipBlob, 'lillofind_' + done + 'img_' + new Date().toISOString().slice(0,10) + '.zip');
+  log('✅ ZIP scaricato! ' + done + ' immagini' + (failed ? ', ' + failed + ' errori' : ''), 'ok');
   setProgress(100, '✅ ZIP completato');
   document.getElementById('btn-zip').disabled = false;
 }
 
-// ═══════════════════════════════════════════════════════
-// GEMINI VISION — COLOR DETECTION (FREE)
-// ═══════════════════════════════════════════════════════
-async function detectColorsGemini(imageUrl, apiKey) {
-  // Fetch image as base64
-  const proxyUrl = workerUrl.replace(/\/$/, '') + '/?url=' + encodeURIComponent(imageUrl);
-  const imgResp = await fetch(proxyUrl);
-  if (!imgResp.ok) throw new Error('Immagine non scaricabile');
-  const blob = await imgResp.blob();
-  const base64 = await blobToBase64(blob);
-  const b64data = base64.split(',')[1];
-  const mimeType = blob.type || 'image/jpeg';
-
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{
-          parts: [
-            {
-              inline_data: { mime_type: mimeType, data: b64data }
-            },
-            {
-              text: 'Guarda questo capo di abbigliamento o accessorio. Elenca SOLO i colori principali visibili, in italiano, separati da virgola. Massimo 5 colori. Rispondi solo con i nomi dei colori, nient'altro. Esempio: Nero, Bianco, Blu Navy'
-            }
-          ]
-        }],
-        generationConfig: { maxOutputTokens: 60, temperature: 0.1 }
-      })
-    }
-  );
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err?.error?.message || 'Gemini API ' + response.status);
-  }
-  const data = await response.json();
-  return data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
-}
-
-async function detectAllColors() {
-  const gk = document.getElementById('gemini-key').value.trim();
-  if (!gk) { alert('Inserisci la API key di Gemini!\nOttienila gratis su aistudio.google.com/app/apikey'); return; }
-  if (!workerUrl) { alert('Serve il Worker URL Cloudflare per scaricare le immagini.'); return; }
-
-  const toProcess = products.filter(p => (p.imgbbUrl || p.coverUrl) && !p.colori);
-  if (!toProcess.length) { alert('Tutti i prodotti hanno già i colori, oppure mancano le immagini.'); return; }
-
-  document.getElementById('btn-colors').disabled = true;
-  stopped = false;
-  abortCtrl = new AbortController();
-  log(`🎨 Rilevamento colori Gemini per ${toProcess.length} prodotti...`, 'info');
-
-  for (let i = 0; i < toProcess.length; i++) {
-    if (stopped) break;
-    const prod = toProcess[i];
-    const imgUrl = prod.imgbbUrl || prod.coverUrl;
-    setProgress((i / toProcess.length) * 100, `Colori ${i+1}/${toProcess.length}: ${prod.nome.substring(0,30)}`);
-    try {
-      prod.colori = await detectColorsGemini(imgUrl, gk);
-      renderTableRow(prod);
-      log(`🎨 [${i+1}/${toProcess.length}] ${prod.nome.substring(0,25)}: ${prod.colori}`, 'ok');
-    } catch(e) {
-      if (e.name === 'AbortError') break;
-      log(`⚠ [${i+1}] ${prod.nome.substring(0,25)}: ${e.message}`, 'warn');
-    }
-    // Rate limit: Gemini free = 15 req/min → ~4s delay
-    await new Promise(r => setTimeout(r, 4100));
-  }
-
-  setProgress(100, '🎨 Colori completati!');
-  log(`✅ Colori rilevati per ${toProcess.filter(p=>p.colori).length}/${toProcess.length} prodotti`, 'ok');
-  document.getElementById('btn-colors').disabled = false;
-  updateStats();
-}
-
-// ═══════════════════════════════════════════════════════
-// GEMINI VISION — COLOR DETECTION (GRATUITO)
-// ═══════════════════════════════════════════════════════
-async function detectColorsGemini(imageUrl, apiKey) {
-  // Fetch image as base64 via worker proxy (needed for Yupoo CDN images)
-  let imageBase64 = null;
-  let mimeType = 'image/jpeg';
-
-  const isYupoo = imageUrl.includes('photo.yupoo.com');
-  if (isYupoo && workerUrl) {
-    const proxyUrl = workerUrl.replace(/\/$/, '') + '/?url=' + encodeURIComponent(imageUrl);
-    const resp = await fetch(proxyUrl);
-    if (!resp.ok) throw new Error('Proxy ' + resp.status);
-    const blob = await resp.blob();
-    mimeType = blob.type || 'image/jpeg';
-    imageBase64 = await new Promise((res, rej) => {
-      const r = new FileReader();
-      r.onload = () => res(r.result.split(',')[1]);
-      r.onerror = rej;
-      r.readAsDataURL(blob);
-    });
-  }
-
-  const imagePart = imageBase64
-    ? { inlineData: { data: imageBase64, mimeType } }
-    : { fileData: { fileUri: imageUrl, mimeType: 'image/jpeg' } };
-
-  const resp = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{
-          parts: [
-            imagePart,
-            { text: "Guarda questo capo di abbigliamento o accessorio. Elenca SOLO i colori principali visibili nell'indumento, separati da virgola, in italiano. Massimo 5 colori. Rispondi SOLO con i nomi dei colori, nient'altro. Esempio: Nero, Bianco, Blu Navy" }
-          ]
-        }],
-        generationConfig: { maxOutputTokens: 60, temperature: 0.1 }
-      })
-    }
-  );
-  if (!resp.ok) {
-    const err = await resp.json().catch(() => ({}));
-    throw new Error(err?.error?.message || 'Gemini HTTP ' + resp.status);
-  }
-  const data = await resp.json();
-  return data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
-}
-
-async function detectAllColors() {
-  const gk = document.getElementById('gemini-key').value.trim();
-  if (!gk) {
-    alert('Inserisci la API key Gemini!
-Gratis su: aistudio.google.com/app/apikey');
-    return;
-  }
-
-  // Use imgbb URLs if available, otherwise use coverUrl
-  const toProcess = products.filter(p => (p.imgbbUrl || p.coverUrl) && !p.colori);
-  if (!toProcess.length) {
-    alert('Nessun prodotto da processare (tutti hanno già i colori o mancano le immagini).');
-    return;
-  }
-
-  document.getElementById('btn-colors').disabled = true;
-  document.getElementById('btn-colors').textContent = '⟳ RILEVA COLORI...';
-  stopped = false;
-  abortCtrl = new AbortController();
-  log(`🎨 Rilevamento colori Gemini per ${toProcess.length} prodotti...`, 'info');
-
-  let ok = 0, fail = 0;
-  for (let i = 0; i < toProcess.length; i++) {
-    if (stopped) break;
-    const prod = toProcess[i];
-    const imgUrl = prod.imgbbUrl || prod.coverUrl;
-    setProgress((i / toProcess.length) * 100, `🎨 Colori ${i+1}/${toProcess.length}: ${prod.nome.substring(0,30)}`);
-    try {
-      prod.colori = await detectColorsGemini(imgUrl, gk);
-      renderTableRow(prod);
-      log(`🎨 [${i+1}/${toProcess.length}] ${prod.nome.substring(0,25)}: ${prod.colori}`, 'ok');
-      ok++;
-    } catch(e) {
-      if (e.name === 'AbortError') break;
-      log(`⚠ [${i+1}] ${prod.nome.substring(0,25)}: ${e.message}`, 'warn');
-      fail++;
-    }
-    // Rispetta rate limit Gemini free (15 req/min) → 4s di pausa
-    if (i < toProcess.length - 1) await new Promise(r => setTimeout(r, 4100));
-  }
-
-  setProgress(100, `✅ Colori rilevati: ${ok} OK, ${fail} falliti`);
-  log(`✅ Colori completati: ${ok} prodotti, ${fail} errori`, 'ok');
-  document.getElementById('btn-colors').disabled = false;
-  document.getElementById('btn-colors').textContent = '🎨 RILEVA COLORI';
-}
-
-// ═══════════════════════════════════════════════════════
-// GEMINI VISION — COLOR DETECTION (free)
-// ═══════════════════════════════════════════════════════
-async function detectColorsGemini(imageUrl, apiKey) {
-  // First fetch image as base64 via Worker proxy (needed for Yupoo CDN images)
-  // For imgbb URLs we can fetch directly
-  let base64data = '';
-  let mimeType = 'image/jpeg';
-
-  const isImgbb = imageUrl.includes('ibb.co') || imageUrl.includes('imgbb.com');
-  if (isImgbb) {
-    const resp = await fetch(imageUrl);
-    if (!resp.ok) throw new Error('Fetch immagine fallito');
-    const blob = await resp.blob();
-    mimeType = blob.type || 'image/jpeg';
-    base64data = await new Promise((res, rej) => {
-      const r = new FileReader();
-      r.onload = () => res(r.result.split(',')[1]);
-      r.onerror = rej;
-      r.readAsDataURL(blob);
-    });
-  } else if (workerUrl) {
-    const proxyUrl = workerUrl.replace(/\/$/, '') + '/?url=' + encodeURIComponent(imageUrl);
-    const resp = await fetch(proxyUrl);
-    if (!resp.ok) throw new Error('Worker fetch fallito');
-    const blob = await resp.blob();
-    mimeType = blob.type || 'image/jpeg';
-    base64data = await new Promise((res, rej) => {
-      const r = new FileReader();
-      r.onload = () => res(r.result.split(',')[1]);
-      r.onerror = rej;
-      r.readAsDataURL(blob);
-    });
-  } else {
-    throw new Error('Serve Worker URL o URL imgbb');
-  }
-
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{
-          parts: [
-            {
-              inline_data: { mime_type: mimeType, data: base64data }
-            },
-            {
-              text: 'Guarda questo capo di abbigliamento o accessorio. Elenca SOLO i colori principali visibili, separati da virgola, in italiano. Massimo 5 colori. Rispondi con solo i nomi dei colori, nient'altro. Esempio di risposta corretta: Nero, Bianco, Blu Navy'
-            }
-          ]
-        }],
-        generationConfig: { maxOutputTokens: 60, temperature: 0.1 }
-      })
-    }
-  );
-
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err?.error?.message || 'Gemini API ' + response.status);
-  }
-  const data = await response.json();
-  return data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
-}
-
-async function detectAllColors() {
-  const gk = document.getElementById('gemini-key').value.trim();
-  if (!gk) {
-    alert('Inserisci la API key Gemini!
-Gratis su: aistudio.google.com/app/apikey');
-    return;
-  }
-  const toProcess = products.filter(p => (p.imgbbUrl || p.coverUrl) && !p.colori);
-  if (!toProcess.length) {
-    alert('Nessun prodotto da processare (tutti hanno già i colori o mancano le immagini).');
-    return;
-  }
-
-  document.getElementById('btn-colors').disabled = true;
-  stopped = false;
-  abortCtrl = new AbortController();
-  log(`🎨 Rilevamento colori Gemini per ${toProcess.length} prodotti...`, 'info');
-
-  for (let i = 0; i < toProcess.length; i++) {
-    if (stopped) break;
-    const prod = toProcess[i];
-    const imgUrl = prod.imgbbUrl || prod.coverUrl;
-    setProgress((i / toProcess.length) * 100, `🎨 Colori ${i+1}/${toProcess.length}: ${prod.nome.substring(0,30)}`);
-    try {
-      const colors = await detectColorsGemini(imgUrl, gk);
-      prod.colori = colors;
-      renderTableRow(prod);
-      log(`🎨 [${i+1}/${toProcess.length}] ${prod.nome.substring(0,25)}: ${colors}`, 'ok');
-    } catch(e) {
-      if (e.name === 'AbortError') break;
-      log(`⚠ [${i+1}] ${prod.nome.substring(0,25)}: ${e.message}`, 'warn');
-    }
-    // Rate limit: Gemini free = 15 req/min → ~4s delay
-    await new Promise(r => setTimeout(r, 4100));
-  }
-
-  setProgress(100, '✅ Rilevamento colori completato');
-  log(`✅ Colori rilevati per ${toProcess.filter(p=>p.colori).length} prodotti`, 'ok');
-  document.getElementById('btn-colors').disabled = false;
-  document.getElementById('btn-csv').disabled = false;
-}
-
-// ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════
 // CSV EXPORT
-// ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════
 function exportCSV() {
-  if (!products.length) return;
-  const header = 'nome,prezzo,brand,tipo,taglie,colori,url_immagine';
-  const rows = products.map(p => {
-    const url = p.imgbbUrl || p.coverUrl || '';
-    const price = p.final !== null ? p.final.toFixed(2) : '';
-    return [p.nome, price, p.brand, p.tipo, p.taglie, p.colori, url]
-      .map(v => `"${(v||'').replace(/"/g,'""')}"`)
+  if (!products.length) { alert('Nessun prodotto da esportare.'); return; }
+  var header = 'nome,prezzo,brand,tipo,taglie,colori,url_immagine';
+  var rows = products.map(function(p) {
+    var url = p.imgbbUrl || p.coverUrl || '';
+    return [p.nome, (p.final !== null && p.final !== undefined ? p.final.toFixed(2) : ''),
+            p.brand, p.tipo, p.taglie, p.colori, url]
+      .map(function(v){ return '"' + String(v||'').replace(/"/g,'""') + '"'; })
       .join(',');
   });
-  const csv = '\uFEFF' + [header, ...rows].join('\n');
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const a = document.createElement('a');
+  var csv = '\uFEFF' + [header].concat(rows).join('\n');
+  var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  var a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = `lillofind_${new Date().toISOString().slice(0,10)}.csv`;
+  a.download = 'lillofind_' + new Date().toISOString().slice(0,10) + '.csv';
+  document.body.appendChild(a);
   a.click();
-  log(`✅ CSV esportato! (${products.length} prodotti, url_immagine: ${products.filter(p=>p.imgbbUrl||p.coverUrl).length} compilate)`, 'ok');
+  document.body.removeChild(a);
+  log('✅ CSV esportato! ' + products.length + ' prodotti, ' +
+      products.filter(function(p){return p.imgbbUrl;}).length + ' con URL imgbb', 'ok');
 }
 
-// ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════
 // TABLE RENDER
-// ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════
 function renderTable() {
-  const tbody = document.getElementById('tbody');
-  tbody.innerHTML = products.map((p, i) => buildRow(p, i)).join('');
-}
-
-function buildRow(p, i) {
-  const imgHtml = p.imgbbUrl
-    ? `<img src="${p.imgbbUrl}" onerror="this.src='${p.coverUrl||''}'">` 
-    : p.coverUrl
-      ? `<img src="${p.coverUrl}" crossorigin="anonymous" onerror="this.outerHTML='<div class=noimg>?</div>'">`
-      : `<div class="noimg">?</div>`;
-  const urlVal = p.imgbbUrl || p.coverUrl || '';
-  const idx = products.indexOf(p);
-  return `<tr id="tr-${p.id}" class="${p.status==='uploading'?'uploading':p.status==='done'?'uploaded':p.status==='error'?'upload-err':''}">
-    <td class="td-num">${(i||idx)+1}</td>
-    <td class="td-img">${imgHtml}</td>
-    <td class="td-nome"><input value="${esc(p.nome)}" oninput="upd(${p.id},'nome',this.value)"></td>
-    <td class="td-tipo"><input value="${esc(p.tipo)}" oninput="upd(${p.id},'tipo',this.value)" style="width:100px"></td>
-    <td class="td-brand"><input value="${esc(p.brand)}" oninput="upd(${p.id},'brand',this.value)" style="width:100px"></td>
-    <td class="td-taglie"><input value="${esc(p.taglie)}" oninput="upd(${p.id},'taglie',this.value)" style="width:90px"></td>
-    <td class="td-colori"><input value="${esc(p.colori)}" oninput="upd(${p.id},'colori',this.value)" style="width:120px"></td>
-    <td class="td-cny">${p.cny ? '¥'+p.cny : '<span style="color:var(--muted)">–</span>'}</td>
-    <td class="td-eur">${p.final !== null ? '€'+p.final.toFixed(2) : '<span style="color:var(--muted)">–</span>'}</td>
-    <td class="td-url"><input value="${esc(urlVal)}" oninput="upd(${p.id},'imgbbUrl',this.value)" placeholder="url immagine..."></td>
-    <td class="td-status"><span class="status-badge ${p.status}">${statusLabel(p.status)}</span></td>
-    <td class="td-del" onclick="deleteProd(${p.id})">✕</td>
-  </tr>`;
+  var tbody = document.getElementById('tbody');
+  tbody.innerHTML = products.map(function(p, i){ return buildRow(p, i); }).join('');
 }
 
 function renderTableRow(prod) {
-  const tr = document.getElementById('tr-' + prod.id);
+  var tr = document.getElementById('row-' + prod.id);
   if (tr) {
-    const idx = products.indexOf(prod);
+    var idx = products.indexOf(prod);
     tr.outerHTML = buildRow(prod, idx);
   }
 }
 
-function setProductStatus(id, status) {
-  const p = products.find(p => p.id === id);
-  if (p) p.status = status;
+function buildRow(p, i) {
+  var imgUrl  = p.imgbbUrl || p.coverUrl || '';
+  var imgHtml = imgUrl
+    ? '<img src="' + imgUrl + '" onerror="this.style.display=\'none\'">'
+    : '<div class="noimg">?</div>';
+  var stCls = { done:'done', uploading:'uploading', error:'error' }[p.status] || '';
+  var stLbl = { done:'✅ OK', uploading:'⬆...', error:'❌ ERR' }[p.status] || '–';
+
+  return '<tr id="row-' + p.id + '" class="st-' + p.status + '">' +
+    '<td class="td-num">' + (i+1) + '</td>' +
+    '<td class="td-img">' + imgHtml + '</td>' +
+    '<td><input value="' + esc(p.nome)   + '" oninput="upd(' + p.id + ',\'nome\',this.value)"   style="min-width:150px"></td>' +
+    '<td><input value="' + esc(p.tipo)   + '" oninput="upd(' + p.id + ',\'tipo\',this.value)"   style="min-width:100px"></td>' +
+    '<td><input value="' + esc(p.brand)  + '" oninput="upd(' + p.id + ',\'brand\',this.value)"  style="min-width:110px"></td>' +
+    '<td><input value="' + esc(p.taglie) + '" oninput="upd(' + p.id + ',\'taglie\',this.value)" style="min-width:85px"></td>' +
+    '<td><input value="' + esc(p.colori) + '" oninput="upd(' + p.id + ',\'colori\',this.value)" style="min-width:120px"></td>' +
+    '<td class="td-cny">' + (p.cny ? '¥'+p.cny : '<span style="color:var(--muted)">–</span>') + '</td>' +
+    '<td class="td-eur">' + (p.final !== null && p.final !== undefined ? '€'+p.final.toFixed(2) : '<span style="color:var(--muted)">–</span>') + '</td>' +
+    '<td><input value="' + esc(imgUrl) + '" oninput="upd(' + p.id + ',\'imgbbUrl\',this.value)" style="min-width:180px;font-size:10px;color:#44aa44"></td>' +
+    '<td class="td-status"><span class="status-badge ' + stCls + '">' + stLbl + '</span></td>' +
+    '<td class="td-del" onclick="deleteProd(' + p.id + ')">✕</td>' +
+    '</tr>';
 }
 
-function statusLabel(s) {
-  return {idle:'–', extracting:'⟳', uploading:'⬆', done:'✅ OK', error:'❌', skipped:'skip'}[s] || s;
-}
-
-function upd(id, field, value) {
-  const p = products.find(p => p.id === id);
-  if (p) p[field] = value;
-  updateStats();
+function upd(id, field, val) {
+  var p = products.find(function(x){ return x.id === id; });
+  if (p) { p[field] = val; updateStats(); }
 }
 
 function deleteProd(id) {
-  products = products.filter(p => p.id !== id);
+  products = products.filter(function(p){ return p.id !== id; });
   renderTable();
   updateStats();
 }
 
-// ═══════════════════════════════════════════════════════
-// STATS
-// ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════
+// STATS & UI
+// ═══════════════════════════════════════════════
 function updateStats() {
-  document.getElementById('st-total').textContent = products.length;
-  document.getElementById('st-imgs').textContent = products.filter(p=>p.coverUrl).length;
-  document.getElementById('st-prices').textContent = products.filter(p=>p.cny).length;
-  document.getElementById('st-uploaded').textContent = products.filter(p=>p.imgbbUrl).length;
-  const prices = products.filter(p=>p.final).map(p=>p.final);
+  document.getElementById('st-total').textContent    = products.length;
+  document.getElementById('st-imgs').textContent     = products.filter(function(p){return p.coverUrl;}).length;
+  document.getElementById('st-prices').textContent   = products.filter(function(p){return p.cny;}).length;
+  document.getElementById('st-uploaded').textContent = products.filter(function(p){return p.imgbbUrl;}).length;
+  var prices = products.filter(function(p){return p.final !== null && p.final !== undefined;}).map(function(p){return p.final;});
   document.getElementById('st-avg').textContent = prices.length
-    ? '€' + (prices.reduce((a,b)=>a+b,0)/prices.length).toFixed(2) : '–';
+    ? '€' + (prices.reduce(function(a,b){return a+b;},0) / prices.length).toFixed(2) : '–';
 }
 
-// ═══════════════════════════════════════════════════════
-// UTILS
-// ═══════════════════════════════════════════════════════
-function esc(s) { return (s||'').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
 function setProgress(pct, text) {
   document.getElementById('progress-fill').style.width = pct + '%';
-  if (text) document.getElementById('progress-text').textContent = text;
+  if (text !== undefined) document.getElementById('progress-text').textContent = text;
 }
+
+function setUI(state) {
+  var extracting = state === 'extracting';
+  document.getElementById('btn-extract').disabled            = extracting;
+  document.getElementById('btn-stop').style.display          = extracting ? 'inline-block' : 'none';
+  document.getElementById('progress-section').className      = 'progress-section' + (extracting ? ' visible' : ' visible');
+}
+
 function log(msg, type) {
-  const el = document.getElementById('log-section');
-  const d = document.createElement('div');
-  d.className = type || '';
+  var el = document.getElementById('log-box');
+  var d  = document.createElement('div');
+  if (type) d.className = type;
   d.textContent = msg;
   el.appendChild(d);
   el.scrollTop = el.scrollHeight;
 }
-function clearLog() { document.getElementById('log-section').innerHTML = ''; }
-function stopExtraction() {
-  stopped = true;
-  if (abortCtrl) abortCtrl.abort();
-  document.getElementById('btn-stop').style.display = 'none';
-  document.getElementById('btn-extract').disabled = false;
-  log('⛔ Fermato.', 'warn');
-}
-function updateRateDisplay() {
-  const r = parseFloat(document.getElementById('rate').value) || 0.129;
-  document.getElementById('rate-display').textContent = `¥1 = €${r.toFixed(3)}`;
-  // Recalculate all prices
-  products.forEach(p => {
-    if (p.cny) { p.eur = p.cny * r; p.final = calcFinal(p.cny); }
-  });
-  renderTable(); updateStats();
-}
-function saveWorker() {
-  workerUrl = document.getElementById('worker-url').value.trim();
-  if (workerUrl) localStorage.setItem('yupoo_worker_url', workerUrl);
-  const inp = document.getElementById('worker-url');
-  inp.className = 'cfg-input wide' + (workerUrl.includes('workers.dev') ? ' ok' : '');
-}
-function saveGeminiKey() {
-  geminiKey = document.getElementById('gemini-key').value.trim();
-  if (geminiKey) localStorage.setItem('gemini_key', geminiKey);
-}
-function saveBrand() {
-  defaultBrand = document.getElementById('default-brand').value.trim();
-  localStorage.setItem('default_brand', defaultBrand);
-}
-function saveImgbb() {
-  imgbbKey = document.getElementById('imgbb-key').value.trim();
-  if (imgbbKey) localStorage.setItem('imgbb_key', imgbbKey);
-}
-function clearAll() {
-  products = [];
-  document.getElementById('tbody').innerHTML = '';
-  document.getElementById('table-wrap').style.display = 'none';
-  document.getElementById('empty-state').style.display = 'block';
-  document.getElementById('stats-bar').style.display = 'none';
-  document.getElementById('progress-section').classList.remove('visible');
-  clearLog();
-  document.getElementById('btn-csv').disabled = true;
-  document.getElementById('btn-zip').disabled = true;
-  document.getElementById('btn-upload').disabled = true;
-}
-function loadExample() {
-  document.getElementById('cat-url').value = 'https://huskyreps.x.yupoo.com/categories/5003229';
-  log('Esempio caricato — premi ESTRAI CATALOGO per iniziare', 'info');
+
+function clearLog() { document.getElementById('log-box').innerHTML = ''; }
+
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
-// ── INIT ──────────────────────────────────────────────
+function onRateChange() {
+  var r = parseFloat(document.getElementById('rate').value) || 0.129;
+  document.getElementById('rate-display').textContent = '¥1 = €' + r.toFixed(3);
+  products.forEach(function(p){ if (p.cny) p.final = calcEur(p.cny); });
+  renderTable(); updateStats();
+}
+
+function onWorkerChange() {
+  var val = document.getElementById('worker-url').value.trim();
+  localStorage.setItem('yupoo_worker_url', val);
+  var inp = document.getElementById('worker-url');
+  inp.className = 'cfg-input dim' + (val.includes('workers.dev') ? ' ok' : '');
+}
+
+function clearAll() {
+  products = [];
+  seenIds.clear();
+  document.getElementById('tbody').innerHTML              = '';
+  document.getElementById('table-wrap').style.display    = 'none';
+  document.getElementById('empty-state').style.display   = 'block';
+  document.getElementById('stats-bar').style.display     = 'none';
+  document.getElementById('progress-section').className  = 'progress-section';
+  document.getElementById('btn-upload').disabled = true;
+  document.getElementById('btn-colors').disabled = true;
+  document.getElementById('btn-csv').disabled    = true;
+  document.getElementById('btn-zip').disabled    = true;
+  clearLog();
+}
+
+function loadExample() {
+  document.getElementById('cat-url').value = 'https://huskyreps.x.yupoo.com/categories/5003229';
+  log('Esempio caricato — premi ⚡ ESTRAI CATALOGO per iniziare', 'info');
+}
+
+// ═══════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════
 (function init() {
-  workerUrl = workerUrl || 'https://yupoo-proxy.conti9708.workers.dev/';
-  imgbbKey = imgbbKey || '4e0f0e5bfe97cdcf39838aa5a82abb75';
-  geminiKey = geminiKey || 'AIzaSyDaMZVysTFl80i1ozvMcFv2pGopDRf26VQ';
-  localStorage.setItem('yupoo_worker_url', workerUrl);
-  localStorage.setItem('imgbb_key', imgbbKey);
-  localStorage.setItem('gemini_key', geminiKey);
-  document.getElementById('worker-url').value = workerUrl; saveWorker();
-  document.getElementById('imgbb-key').value = imgbbKey;
-  document.getElementById('gemini-key').value = geminiKey;
-  if (defaultBrand) document.getElementById('default-brand').value = defaultBrand;
-  updateRateDisplay();
+  var wUrl  = localStorage.getItem('yupoo_worker_url') || 'https://yupoo-proxy.conti9708.workers.dev/';
+  var iKey  = localStorage.getItem('imgbb_key')        || '4e0f0e5bfe97cdcf39838aa5a82abb75';
+  var gKey  = localStorage.getItem('gemini_key')       || 'AIzaSyDaMZVysTFl80i1ozvMcFv2pGopDRf26VQ';
+  var brand = localStorage.getItem('default_brand')    || '';
+
+  localStorage.setItem('yupoo_worker_url', wUrl);
+  localStorage.setItem('imgbb_key',        iKey);
+  localStorage.setItem('gemini_key',       gKey);
+
+  document.getElementById('worker-url').value    = wUrl;
+  document.getElementById('imgbb-key').value     = iKey;
+  document.getElementById('gemini-key').value    = gKey;
+  document.getElementById('default-brand').value = brand;
+
+  // Persist brand on change
+  document.getElementById('default-brand').addEventListener('input', function() {
+    localStorage.setItem('default_brand', this.value.trim());
+  });
+  document.getElementById('imgbb-key').addEventListener('input', function() {
+    localStorage.setItem('imgbb_key', this.value.trim());
+  });
+  document.getElementById('gemini-key').addEventListener('input', function() {
+    localStorage.setItem('gemini_key', this.value.trim());
+  });
+
+  onWorkerChange();
+  onRateChange();
 })();
 </script>
 </body>
