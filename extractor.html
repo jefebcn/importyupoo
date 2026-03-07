@@ -204,8 +204,9 @@ td input:focus{background:#141400;border-bottom:1px solid var(--accent);}
   <div class="action-btns">
     <button class="btn btn-purple" id="btn-upload"   onclick="uploadAllImgbb()" disabled>↑ UPLOAD IMGBB</button>
     <button class="btn btn-teal"   id="btn-colors"  onclick="detectAllColors()"  disabled>🎨 COLORI</button>
-    <button class="btn btn-orange" id="btn-ainames" onclick="renameAllAI()"      disabled>🔤 RINOMINA</button>
-    <button class="btn btn-green"  id="btn-csv"     onclick="exportCSV()"        disabled>↓ CSV</button>
+    <button class="btn btn-orange" id="btn-ainames"  onclick="renameAllAI()"   disabled>🔤 RINOMINA</button>
+    <button class="btn btn-teal"   id="btn-complete" onclick="completeData()"   disabled>🔧 COMPLETA</button>
+    <button class="btn btn-green"  id="btn-csv"      onclick="exportCSV()"      disabled>↓ CSV</button>
     <button class="btn btn-orange" id="btn-zip"     onclick="downloadZip()"      disabled>↓ ZIP</button>
   </div>
 </div>
@@ -404,20 +405,63 @@ function toTitleCase(str) {
 
 function guessType(name) {
   var n = name.toUpperCase();
-  if (/T-?SHIRT|TSHIRT/.test(n))          return 'T-shirt';
-  if (/\bPOLO\b/.test(n))                 return 'Polo';
-  if (/HOODIE|HOODED/.test(n))             return 'Felpa con cappuccio';
-  if (/SWEATER|CREWNECK|FLEECE/.test(n))   return 'Felpa';
-  if (/JACKET|BOMBER/.test(n))             return 'Giacca';
-  if (/PUFFER|PIUMINO/.test(n))            return 'Piumino';
-  if (/TROUSER|PANT/.test(n))              return 'Pantaloni';
-  if (/\bSHORT/.test(n))                   return 'Pantaloncini';
-  if (/LONG.?SLEEVE/.test(n))              return 'Maglia manica lunga';
-  if (/\bBAG\b/.test(n))                   return 'Borsa';
-  if (/BACKPACK/.test(n))                  return 'Zaino';
-  if (/\bCAP\b|BEANIE|\bHAT\b/.test(n))   return 'Cappello';
-  if (/SNEAKER|SHOE/.test(n))              return 'Sneakers';
+  if (/T-?SHIRT|TSHIRT/.test(n))                        return 'T-shirt';
+  if (/\bPOLO\b/.test(n))                               return 'Polo';
+  if (/HOODIE|HOODED/.test(n))                           return 'Felpa con cappuccio';
+  if (/SWEATER|CREWNECK|FLEECE/.test(n))                 return 'Felpa';
+  if (/CARDIGAN/.test(n))                                return 'Cardigan';
+  if (/PUFFER|PIUMINO/.test(n))                          return 'Piumino';
+  if (/JACKET|BOMBER|WINDBREAKER|ANORAK/.test(n))        return 'Giacca';
+  if (/\bCOAT\b|OVERCOAT/.test(n))                      return 'Cappotto';
+  if (/TROUSER|\bPANT\b/.test(n))                       return 'Pantaloni';
+  if (/\bSHORT/.test(n))                                 return 'Pantaloncini';
+  if (/LONG.?SLEEVE|LONGSLEEVE/.test(n))                 return 'Maglia manica lunga';
+  if (/\bVEST\b|\bGILET\b/.test(n))                   return 'Gilet';
+  if (/LEGGING/.test(n))                                 return 'Leggings';
+  if (/\bDRESS\b|\bABITO\b/.test(n))                  return 'Vestito';
+  if (/\bSKIRT\b|\bGONNA\b/.test(n))                  return 'Gonna';
+  if (/\bSHIRT\b/.test(n))                              return 'Camicia';
+  if (/BACKPACK|ZAINO/.test(n))                          return 'Zaino';
+  if (/\bBAG\b|\bBORSA\b|TOTE|CLUTCH/.test(n))        return 'Borsa';
+  if (/\bCAP\b|BEANIE|\bHAT\b|\bBERRETTO\b/.test(n)) return 'Cappello';
+  if (/SNEAKER|SHOE|\bSCARPA\b/.test(n))                return 'Sneakers';
+  if (/\bSOCK|\bCALZIN/.test(n))                        return 'Calzini';
+  if (/SCARF|SCIARPA/.test(n))                           return 'Sciarpa';
+  if (/WALLET|PORTAFOGLI/.test(n))                       return 'Portafoglio';
+  if (/\bBELT\b|CINTURA/.test(n))                       return 'Cintura';
+  if (/PANTS/.test(n))                                   return 'Pantaloni';
   return '';
+}
+
+// Indovina tipo dal contesto dei prodotti vicini
+function inferMissingType(idx) {
+  var p = products[idx];
+  if (p.albumName) { var t = guessType(p.albumName); if (t) return t; }
+  var neighbors = [];
+  for (var i = Math.max(0,idx-4); i <= Math.min(products.length-1,idx+4); i++) {
+    if (i !== idx && products[i].tipo) neighbors.push(products[i].tipo);
+  }
+  if (neighbors.length) {
+    var freq = {};
+    neighbors.forEach(function(t){ freq[t]=(freq[t]||0)+1; });
+    return Object.keys(freq).sort(function(a,b){return freq[b]-freq[a];})[0];
+  }
+  var all = {};
+  products.forEach(function(x){ if (x.tipo) all[x.tipo]=(all[x.tipo]||0)+1; });
+  var sorted = Object.keys(all).sort(function(a,b){return all[b]-all[a];});
+  return sorted[0] || 'Abbigliamento';
+}
+
+// Stima prezzo mancante dalla mediana dei prodotti con lo stesso tipo
+function inferMissingPrice(idx) {
+  var p = products[idx];
+  // Cerca prodotti con stesso tipo E prezzo noto
+  var sameType = products.filter(function(x,i){ return i!==idx && x.tipo && x.tipo===p.tipo && x.cny; });
+  var pool = sameType.length >= 2 ? sameType : products.filter(function(x,i){ return i!==idx && x.cny; });
+  if (!pool.length) return null;
+  var prices = pool.map(function(x){ return x.cny; }).sort(function(a,b){return a-b;});
+  var mid = Math.floor(prices.length/2);
+  return prices.length%2===0 ? (prices[mid-1]+prices[mid])/2 : prices[mid];
 }
 
 function calcEur(cny) {
@@ -528,8 +572,9 @@ async function startExtraction() {
 
     if (products.length) {
       document.getElementById('btn-upload').disabled  = false;
-      document.getElementById('btn-ainames').disabled = false;
-      document.getElementById('btn-csv').disabled     = false;
+      document.getElementById('btn-ainames').disabled  = false;
+      document.getElementById('btn-complete').disabled = false;
+      document.getElementById('btn-csv').disabled      = false;
       document.getElementById('btn-zip').disabled     = false;
       // Enable colors if any product has a cover image
       if (products.some(function(p){ return p.coverUrl; })) {
@@ -891,6 +936,44 @@ async function detectAllColors() {
 }
 
 // ═══════════════════════════════════════════════
+// COMPLETA DATI — tipo e prezzi mancanti
+// ═══════════════════════════════════════════════
+function completeData() {
+  if (!products.length) return;
+  document.getElementById('btn-complete').disabled = true;
+
+  var filledTipo = 0, filledPrice = 0;
+
+  products.forEach(function(p, idx) {
+    // 1. Tipo mancante
+    if (!p.tipo) {
+      var t = inferMissingType(idx);
+      if (t) { p.tipo = t; filledTipo++; }
+    }
+  });
+
+  // Secondo passaggio prezzi (dopo aver riempito i tipi)
+  products.forEach(function(p, idx) {
+    if (!p.cny) {
+      var stima = inferMissingPrice(idx);
+      if (stima) {
+        p.cny   = Math.round(stima);
+        p.final = calcEur(p.cny);
+        filledPrice++;
+      }
+    }
+  });
+
+  renderTable();
+  updateStats();
+
+  var msg = '🔧 Completato: ' + filledTipo + ' tipi e ' + filledPrice + ' prezzi stimati';
+  setProgress(100, msg);
+  log(msg + ' (prezzi = mediana per tipo)', 'ok');
+  document.getElementById('btn-complete').disabled = false;
+}
+
+// ═══════════════════════════════════════════════
 // SMART RENAME — 100% locale, zero API
 // ═══════════════════════════════════════════════
 
@@ -1228,8 +1311,9 @@ function clearAll() {
   document.getElementById('progress-section').className  = 'progress-section';
   document.getElementById('btn-upload').disabled  = true;
   document.getElementById('btn-colors').disabled  = true;
-  document.getElementById('btn-ainames').disabled = true;
-  document.getElementById('btn-csv').disabled     = true;
+  document.getElementById('btn-ainames').disabled  = true;
+  document.getElementById('btn-complete').disabled = true;
+  document.getElementById('btn-csv').disabled      = true;
   document.getElementById('btn-zip').disabled     = true;
   clearLog();
 }
