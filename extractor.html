@@ -1073,18 +1073,32 @@ function smartRename(p) {
   n = n.replace(/[^a-zA-ZÀ-ÖØ-öø-ÿ0-9\s\-&]/g, ' ')
        .replace(/\s{2,}/g,' ').trim();
 
-  // ----- 6. Componi il nome finale -----
-  // Parti: [Brand] [Tipo IT] [extra dal nome pulito] [Genere]
-  var parts = [];
-  if (brand)     parts.push(brand);
-  if (tipoFound) parts.push(tipoFound);
+  // ----- 6. Se tipoFound ancora vuoto, prova a ricavarlo dal tipo già assegnato al prodotto -----
+  if (!tipoFound && p.tipo) tipoFound = p.tipo;
 
-  // Aggiungi parole extra significative rimaste (es. "Sport", "Classic", "Logo")
-  var STOP = /^(the|a|an|and|or|of|in|on|at|to|for|with|by|la|il|lo|le|gli|di|da|su|con|per|e|un|una)$/i;
+  // ----- 7. Componi il nome finale -----
+  // Formato fisso: [Brand] [Tipo IT] [extra significativi] [Genere]
+  // Il tipo è OBBLIGATORIO nel nome — se manca il prodotto è ambiguo
+  var parts = [];
+  if (brand) parts.push(brand);
+
+  // Tipo sempre presente
+  if (tipoFound) {
+    parts.push(tipoFound);
+  } else {
+    // Ultimo tentativo: inferisci dal catalogo (richiede idx — passiamo -1 se non disponibile)
+    parts.push('Abbigliamento');
+  }
+
+  // Aggiungi parole extra significative rimaste (es. "Sport", "Classic", "Logo", "Woman")
+  var STOP = /^(the|a|an|and|or|of|in|on|at|to|for|with|by|la|il|lo|le|gli|di|da|su|con|per|e|un|una|polo|ralph|lauren)$/i;
   var extras = n.split(/\s+/).filter(function(w) {
     return w.length > 2 && !STOP.test(w);
   });
-  if (extras.length && extras.join(' ').length < 25) {
+  // Filtra anche parole già presenti nel tipo o nel brand
+  var alreadyIn = (parts.join(' ')).toLowerCase();
+  extras = extras.filter(function(w){ return alreadyIn.indexOf(w.toLowerCase()) === -1; });
+  if (extras.length && extras.join(' ').length < 22) {
     parts.push(toTitleCase(extras.join(' ')));
   }
 
@@ -1092,8 +1106,8 @@ function smartRename(p) {
 
   var result = parts.join(' ').substring(0, 60).trim();
 
-  // ----- 7. Fallback se il risultato è ancora generico -----
-  if (!result || /^prodotto\s+\d+$/i.test(result) || result.length < 4) {
+  // ----- 8. Fallback finale -----
+  if (!result || result.length < 4) {
     result = [brand, tipoFound || 'Prodotto', genere].filter(Boolean).join(' ');
   }
 
