@@ -1098,9 +1098,12 @@ function smartRename(p, idx) {
     }
   });
 
-  // ----- 3. Estrai e rimuovi tipo EN dal nome, teniamo la versione IT -----
-  var tipoFound = tipoIt; // usiamo già quello calcolato da guessType
-  // Rimuovi la keyword EN dal nome per non avere duplicati
+  // ----- 3. Tipo: più tentativi in cascata -----
+  // a) Da p.tipo già impostato all'estrazione
+  var tipoFound = tipoIt;
+  // b) Da guessType sul nome album grezzo (prima della pulizia)
+  if (!tipoFound && p.albumName) tipoFound = guessType(p.albumName);
+  // c) Da TIPO_MAP sul nome pulito (rimuovi keyword per non duplicarle)
   TIPO_MAP.forEach(function(pair) {
     if (pair[0].test(n)) {
       if (!tipoFound) tipoFound = pair[1];
@@ -1120,7 +1123,7 @@ function smartRename(p, idx) {
   n = n.replace(/[^a-zA-ZÀ-ÖØ-öø-ÿ0-9\s\-&]/g, ' ')
        .replace(/\s{2,}/g,' ').trim();
 
-  // ----- 6. Se tipoFound ancora vuoto, prova a ricavarlo dal tipo già assegnato al prodotto -----
+  // ----- 6. Usa p.tipo come fallback sicuro (già calcolato correttamente da guessType) -----
   if (!tipoFound && p.tipo) tipoFound = p.tipo;
 
   // ----- 7. Componi il nome finale -----
@@ -1167,6 +1170,19 @@ function renameAllAI() {
   log('🔤 Rinomina ' + products.length + ' prodotti (locale, zero API)...', 'info');
 
   var renamed = 0;
+  // FASE 1: riempi tipi mancanti con logica COMPLETA (vicini catalogo)
+  // così il tipo è sempre disponibile prima di costruire il nome
+  products.forEach(function(p, idx) {
+    if (!p.tipo) {
+      // prova prima dal testo grezzo
+      var t = p.albumName ? guessType(p.albumName) : '';
+      // se ancora vuoto, usa inferenza dai vicini (catalogo già estratto = affidabile)
+      if (!t) t = inferMissingType(idx);
+      if (t) p.tipo = t;
+    }
+  });
+
+  // FASE 2: rinomina con tipo sempre presente
   products.forEach(function(p, idx) {
     var nuovoNome = smartRename(p, idx);
     if (nuovoNome && nuovoNome !== p.nome) {
