@@ -405,32 +405,38 @@ function toTitleCase(str) {
 }
 
 function guessType(name) {
+  if (!name) return '';
   var n = name.toUpperCase();
-  if (/T-?SHIRT|TSHIRT/.test(n))                        return 'T-shirt';
-  if (/\bPOLO\b/.test(n))                               return 'Polo';
-  if (/HOODIE|HOODED/.test(n))                           return 'Felpa con cappuccio';
-  if (/SWEATER|CREWNECK|FLEECE/.test(n))                 return 'Felpa';
-  if (/CARDIGAN/.test(n))                                return 'Cardigan';
-  if (/PUFFER|PIUMINO/.test(n))                          return 'Piumino';
-  if (/JACKET|BOMBER|WINDBREAKER|ANORAK/.test(n))        return 'Giacca';
-  if (/\bCOAT\b|OVERCOAT/.test(n))                      return 'Cappotto';
-  if (/TROUSER|\bPANT\b/.test(n))                       return 'Pantaloni';
-  if (/\bSHORT/.test(n))                                 return 'Pantaloncini';
-  if (/LONG.?SLEEVE|LONGSLEEVE/.test(n))                 return 'Maglia manica lunga';
-  if (/\bVEST\b|\bGILET\b/.test(n))                   return 'Gilet';
-  if (/LEGGING/.test(n))                                 return 'Leggings';
-  if (/\bDRESS\b|\bABITO\b/.test(n))                  return 'Vestito';
-  if (/\bSKIRT\b|\bGONNA\b/.test(n))                  return 'Gonna';
-  if (/\bSHIRT\b/.test(n))                              return 'Camicia';
-  if (/BACKPACK|ZAINO/.test(n))                          return 'Zaino';
-  if (/\bBAG\b|\bBORSA\b|TOTE|CLUTCH/.test(n))        return 'Borsa';
-  if (/\bCAP\b|BEANIE|\bHAT\b|\bBERRETTO\b/.test(n)) return 'Cappello';
-  if (/SNEAKER|SHOE|\bSCARPA\b/.test(n))                return 'Sneakers';
-  if (/\bSOCK|\bCALZIN/.test(n))                        return 'Calzini';
-  if (/SCARF|SCIARPA/.test(n))                           return 'Sciarpa';
-  if (/WALLET|PORTAFOGLI/.test(n))                       return 'Portafoglio';
-  if (/\bBELT\b|CINTURA/.test(n))                       return 'Cintura';
-  if (/PANTS/.test(n))                                   return 'Pantaloni';
+  // Ordine importante: più specifico prima
+  if (/TANK|CANOTTA|SLEEVELESS|SINGLET|\bMUSCLE\b/.test(n))    return 'Canotta';
+  if (/T-?SHIRT|TSHIRT/.test(n))                                  return 'T-shirt';
+  if (/LONG.?SLEEVE|LONGSLEEVE/.test(n))                          return 'Maglia manica lunga';
+  if (/\bPOLO\b/.test(n))                                        return 'Polo';
+  if (/HOODIE|HOODED|ZIP.?UP/.test(n))                            return 'Felpa con cappuccio';
+  if (/SWEATER|CREWNECK|PULLOVER/.test(n))                        return 'Felpa';
+  if (/FLEECE/.test(n))                                           return 'Pile';
+  if (/CARDIGAN/.test(n))                                         return 'Cardigan';
+  if (/PUFFER|PIUMINO|DOWN\b/.test(n))                           return 'Piumino';
+  if (/WINDBREAKER|ANORAK/.test(n))                               return 'Giacca a vento';
+  if (/BOMBER/.test(n))                                           return 'Bomber';
+  if (/JACKET/.test(n))                                           return 'Giacca';
+  if (/\bCOAT\b|OVERCOAT/.test(n))                              return 'Cappotto';
+  if (/JOGGER/.test(n))                                           return 'Jogger';
+  if (/TROUSER|\bPANT\b|PANTS\b/.test(n))                      return 'Pantaloni';
+  if (/\bSHORT/.test(n))                                         return 'Pantaloncini';
+  if (/\bVEST\b|\bGILET\b/.test(n))                           return 'Gilet';
+  if (/LEGGING/.test(n))                                          return 'Leggings';
+  if (/\bDRESS\b|\bABITO\b/.test(n))                          return 'Vestito';
+  if (/\bSKIRT\b|\bGONNA\b/.test(n))                          return 'Gonna';
+  if (/\bSHIRT\b/.test(n))                                      return 'Camicia';
+  if (/BACKPACK|ZAINO/.test(n))                                   return 'Zaino';
+  if (/\bBAG\b|\bBORSA\b|TOTE|CLUTCH/.test(n))               return 'Borsa';
+  if (/\bCAP\b|BEANIE|\bHAT\b|\bBERRETTO\b/.test(n))       return 'Cappello';
+  if (/SNEAKER|SHOE|\bSCARPA\b/.test(n))                        return 'Sneakers';
+  if (/\bSOCK|\bCALZIN/.test(n))                                return 'Calzini';
+  if (/SCARF|SCIARPA/.test(n))                                    return 'Sciarpa';
+  if (/WALLET|PORTAFOGLI/.test(n))                                return 'Portafoglio';
+  if (/\bBELT\b|CINTURA/.test(n))                               return 'Cintura';
   return '';
 }
 
@@ -811,41 +817,85 @@ function extractDominantColors(imageUrl) {
     img.crossOrigin = 'anonymous';
     img.onload = function() {
       try {
-        var thief = new ColorThief();
-
-        // getPalette(img, colorCount) restituisce i N colori più dominanti
-        var palette = thief.getPalette(img, 6);
-
-        if (!palette || !palette.length) {
-          resolve('Non rilevato'); return;
-        }
-
-        // Rileva colore sfondo dai 4 angoli tramite canvas
-        var SIZE = 80;
+        // --- Campiona pixels reali tramite canvas ad alta res ---
+        var SIZE = 150;
         var cv = document.createElement('canvas');
         cv.width = SIZE; cv.height = SIZE;
         var cx = cv.getContext('2d');
         cx.drawImage(img, 0, 0, SIZE, SIZE);
         var d = cx.getImageData(0, 0, SIZE, SIZE).data;
-        var corners = [
-          [d[0], d[1], d[2]],
-          [d[(SIZE-1)*4], d[(SIZE-1)*4+1], d[(SIZE-1)*4+2]],
-          [d[SIZE*(SIZE-1)*4], d[SIZE*(SIZE-1)*4+1], d[SIZE*(SIZE-1)*4+2]],
-          [d[(SIZE*SIZE-1)*4], d[(SIZE*SIZE-1)*4+1], d[(SIZE*SIZE-1)*4+2]]
-        ];
-        var bgR = Math.round(corners.reduce(function(s,c){return s+c[0];},0)/4);
-        var bgG = Math.round(corners.reduce(function(s,c){return s+c[1];},0)/4);
-        var bgB = Math.round(corners.reduce(function(s,c){return s+c[2];},0)/4);
 
-        // Filtra colori troppo vicini allo sfondo
-        var filtered = palette.filter(function(c) {
-          return colorDistance(c[0],c[1],c[2], bgR,bgG,bgB) > 30;
-        });
-        if (!filtered.length) filtered = palette; // fallback
+        // Rileva sfondo: campiona 20px di bordo tutto intorno
+        var bgPixels = [];
+        for (var bx = 0; bx < SIZE; bx++) {
+          // top row + bottom row
+          var t = (bx)*4, bt = (SIZE*(SIZE-1)+bx)*4;
+          bgPixels.push([d[t],d[t+1],d[t+2]]);
+          bgPixels.push([d[bt],d[bt+1],d[bt+2]]);
+        }
+        for (var by = 0; by < SIZE; by++) {
+          // left col + right col
+          var l = (by*SIZE)*4, r2 = (by*SIZE+SIZE-1)*4;
+          bgPixels.push([d[l],d[l+1],d[l+2]]);
+          bgPixels.push([d[r2],d[r2+1],d[r2+2]]);
+        }
+        var bgR = Math.round(bgPixels.reduce(function(s,c){return s+c[0];},0)/bgPixels.length);
+        var bgG = Math.round(bgPixels.reduce(function(s,c){return s+c[1];},0)/bgPixels.length);
+        var bgB = Math.round(bgPixels.reduce(function(s,c){return s+c[2];},0)/bgPixels.length);
 
-        // Converti in nomi italiani, max 4, deduplicati
+        // --- Raccogli solo pixel della zona interna (20% margine) ---
+        var margin = Math.floor(SIZE * 0.20);
+        var buckets = {};
+        var step = 20;
+        for (var y = margin; y < SIZE - margin; y++) {
+          for (var x = margin; x < SIZE - margin; x++) {
+            var i = (y * SIZE + x) * 4;
+            var r = d[i], g = d[i+1], b = d[i+2], a = d[i+3];
+            if (a < 200) continue;
+
+            // Escludi sfondo (soglia alta = 55)
+            if (colorDistance(r,g,b, bgR,bgG,bgB) < 55) continue;
+
+            // Escludi bianchi, grigi chiari, beige chiari (sfondo tipico Yupoo)
+            if (r > 210 && g > 205 && b > 195) continue;
+
+            // Escludi grigi neutri puri mediamente chiari
+            var maxC = Math.max(r,g,b), minC = Math.min(r,g,b);
+            var sat = maxC > 0 ? (maxC - minC) / maxC : 0;
+            if (sat < 0.10 && r > 130 && r < 215) continue; // grigio medio = sfondo
+
+            var qr = Math.round(r/step)*step;
+            var qg = Math.round(g/step)*step;
+            var qb = Math.round(b/step)*step;
+            var key = qr+','+qg+','+qb;
+            buckets[key] = (buckets[key]||0)+1;
+          }
+        }
+
+        var sorted = Object.entries(buckets).sort(function(a,b){return b[1]-a[1];});
+
+        // Seleziona fino a 4 colori distinti (distanza minima 45)
+        var picked = [];
+        for (var j = 0; j < sorted.length && picked.length < 4; j++) {
+          var parts2 = sorted[j][0].split(',').map(Number);
+          var pr = parts2[0], pg2 = parts2[1], pb2 = parts2[2];
+          var tooClose = picked.some(function(c){
+            return colorDistance(pr,pg2,pb2,c[0],c[1],c[2]) < 45;
+          });
+          if (!tooClose) picked.push([pr, pg2, pb2]);
+        }
+
+        if (!picked.length) {
+          // Fallback: usa ColorThief senza filtri
+          try {
+            var thief = new ColorThief();
+            var pal = thief.getPalette(img, 3) || [];
+            pal.forEach(function(c){ picked.push(c); });
+          } catch(e2) {}
+        }
+
         var names = [];
-        filtered.forEach(function(c) {
+        picked.forEach(function(c) {
           if (names.length >= 4) return;
           var name = rgbToColorName(c[0], c[1], c[2]);
           if (names.indexOf(name) === -1) names.push(name);
@@ -853,7 +903,7 @@ function extractDominantColors(imageUrl) {
 
         resolve(names.join(', ') || 'Non rilevato');
       } catch(e) {
-        reject(new Error('ColorThief error: ' + e.message));
+        reject(new Error('Colori error: ' + e.message));
       }
     };
     img.onerror = function() { reject(new Error('Immagine non caricabile')); };
@@ -975,6 +1025,7 @@ function completeData() {
 
 // Mappa traduzione tipo EN → IT (usata anche nel nome finale)
 var TIPO_MAP = [
+  [/TANK|CANOTTA|SLEEVELESS|\bMUSCLE\b/i, 'Canotta'],
   [/T-?SHIRTS?\b/i,            'T-Shirt'],
   [/\bPOLOS?\b/i,              'Polo'],
   [/HOODIES?|HOODED\b/i,       'Felpa con Cappuccio'],
@@ -1028,7 +1079,7 @@ var GENERE_MAP = [
   [/\bMEN'?S?\b|\bMASCH(?:IO|ILE)?\b/i,    'Uomo'],
 ];
 
-function smartRename(p) {
+function smartRename(p, idx) {
   var raw     = (p.albumName || '').trim();
   var brand   = (p.brand || document.getElementById('default-brand').value.trim() || '').trim();
   var tipoIt  = p.tipo || '';   // tipo già tradotto in IT da guessType
@@ -1078,12 +1129,10 @@ function smartRename(p) {
   var parts = [];
   if (brand) parts.push(brand);
 
-  // Tipo sempre presente
+  // Tipo: solo se ricavato con certezza dal testo — mai inferito dai vicini
+  // (meglio nessun tipo che uno sbagliato)
   if (tipoFound) {
     parts.push(tipoFound);
-  } else {
-    // Ultimo tentativo: inferisci dal catalogo (richiede idx — passiamo -1 se non disponibile)
-    parts.push('Abbigliamento');
   }
 
   // Aggiungi parole extra significative rimaste (es. "Sport", "Classic", "Logo", "Woman")
@@ -1118,8 +1167,8 @@ function renameAllAI() {
   log('🔤 Rinomina ' + products.length + ' prodotti (locale, zero API)...', 'info');
 
   var renamed = 0;
-  products.forEach(function(p) {
-    var nuovoNome = smartRename(p);
+  products.forEach(function(p, idx) {
+    var nuovoNome = smartRename(p, idx);
     if (nuovoNome && nuovoNome !== p.nome) {
       p.nome = nuovoNome;
       renamed++;
