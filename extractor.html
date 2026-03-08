@@ -55,6 +55,8 @@ header{background:var(--card);border-bottom:2px solid var(--lime);padding:10px 2
 .b-green:hover:not(:disabled){background:var(--ok);color:#000;}
 .b-orange{background:transparent;border:1px solid var(--orange);color:var(--orange);}
 .b-orange:hover:not(:disabled){background:var(--orange);color:#000;}
+.b-purple{background:transparent;border:1px solid var(--purple);color:var(--purple);}
+.b-purple:hover:not(:disabled){background:var(--purple);color:#000;}
 
 .prog-sec{padding:7px 20px;background:var(--surface);border-bottom:1px solid var(--b1);display:none;}
 .prog-sec.on{display:block;}
@@ -109,7 +111,7 @@ td input:focus{background:#111800;border-bottom:1px solid var(--lime);}
 
 <header>
   <div class="logo">LILLOFIND <span>//</span> YUPOO → CSV
-    <small>ESTRAZIONE · PREZZI ¥→€ · COLORI AUTO · EXPORT CSV</small>
+    <small>ESTRAZIONE · PREZZI ¥→€ · RINOMINA · COMPLETA · COLORI AI · EXPORT CSV</small>
   </div>
   <div style="display:flex;gap:7px">
     <button class="btn b-out" onclick="loadEx()">ESEMPIO</button>
@@ -137,6 +139,9 @@ td input:focus{background:#111800;border-bottom:1px solid var(--lime);}
   <div class="sep"></div>
   <span class="lbl">🏷 BRAND</span>
   <input class="inp dim" type="text" id="brand" style="width:170px" placeholder="es. Polo Ralph Lauren" spellcheck="false">
+  <div class="sep"></div>
+  <span class="lbl">🎨 GEMINI</span>
+  <input class="inp dim" type="text" id="gkey" style="width:200px" placeholder="AIza... (gratis aistudio.google.com)" spellcheck="false">
 </div>
 
 <div class="url-sec">
@@ -168,9 +173,11 @@ td input:focus{background:#111800;border-bottom:1px solid var(--lime);}
   <div class="si"><span>COLORI</span><strong id="s3">0</strong></div>
   <div class="si"><span>MEDIA €</span><strong id="s4">–</strong></div>
   <div class="abtns">
-    <button class="btn b-teal"   id="bcol" onclick="doColors()"  disabled>🎨 RILEVA COLORI</button>
-    <button class="btn b-green"  id="bcsv" onclick="doCSV()"     disabled>↓ CSV</button>
-    <button class="btn b-orange" id="bzip" onclick="doZip()"     disabled>↓ ZIP IMG</button>
+    <button class="btn b-teal"   id="bcol"  onclick="doColors()"   disabled>🎨 COLORI</button>
+    <button class="btn b-orange" id="bren"  onclick="doRename()"   disabled>🔤 RINOMINA</button>
+    <button class="btn b-purple" id="bcom"  onclick="doComplete()"  disabled>🔧 COMPLETA</button>
+    <button class="btn b-green"  id="bcsv"  onclick="doCSV()"       disabled>↓ CSV</button>
+    <button class="btn b-orange" id="bzip"  onclick="doZip()"       disabled>↓ ZIP IMG</button>
   </div>
 </div>
 
@@ -331,29 +338,82 @@ function parseCny(name){
   var m=name.match(/[¥￥Y]\s*~?\s*([\d]+(?:[.,]\d{1,2})?)/i)||name.match(/([\d]+(?:[.,]\d{1,2})?)\s*[¥￥]/i);
   return m?parseFloat(m[1].replace(',','.')):null;
 }
+function toTitleCase(s){
+  var mi=/^(a|e|il|lo|la|gli|le|di|da|in|con|su|per|tra|fra|and|or|the|of|on|at|to|for)$/i;
+  return s.toLowerCase().replace(/\b\w+/g,function(w,i){return(i===0||!mi.test(w))?w[0].toUpperCase()+w.slice(1):w;});
+}
 function cleanName(name){
-  return name.replace(/[¥￥Y]\s*~?\s*[\d]+(?:[.,]\d{1,2})?/gi,'')
-             .replace(/[\d]+(?:[.,]\d{1,2})?\s*[¥￥]/gi,'')
-             .replace(/\b(L🔥|C🔥|ST🔥|🔥|im\b|\(im\)|TOP\b)/gi,'')
-             .replace(/\d{7,}/g,'').replace(/\s{2,}/g,' ').trim();
+  return toTitleCase(
+    name.replace(/[¥￥Y]\s*~?\s*[\d]+(?:[.,]\d{1,2})?/gi,'')
+        .replace(/[\d]+(?:[.,]\d{1,2})?\s*[¥￥]/gi,'')
+        .replace(/\(\s*\d{2,3}\s*(?:cm)?\s*\d{2,3}\s*(?:kg)?[^)]{0,60}\)/gi,'')
+        .replace(/\[\s*\d{2,3}\s*(?:cm)?\s*\d{2,3}\s*(?:kg)?[^\]]{0,60}\]/gi,'')
+        .replace(/\biwear\b.*$/gi,'')
+        .replace(/\bin\s+the\s+photo\b/gi,'')
+        .replace(/\bsize\s+[xsml0-9]+\b/gi,'')
+        .replace(/\b(L🔥|C🔥|ST🔥|🔥|im\b|\(im\)|TOP\b)/gi,'')
+        .replace(/\d{7,}/g,'').replace(/\s{2,}/g,' ').trim()
+  );
 }
 function guessType(name){
+  if(!name) return '';
   var n=name.toUpperCase();
-  if(/T-?SHIRT|TSHIRT/.test(n))        return 'T-shirt';
-  if(/\bPOLO\b/.test(n))               return 'Polo';
-  if(/HOODIE|HOODED/.test(n))           return 'Felpa con cappuccio';
-  if(/SWEATER|CREWNECK|FLEECE/.test(n)) return 'Felpa';
-  if(/JACKET|BOMBER/.test(n))           return 'Giacca';
-  if(/PUFFER|PIUMINO/.test(n))          return 'Piumino';
-  if(/TROUSER|PANT/.test(n))            return 'Pantaloni';
-  if(/\bSHORT/.test(n))                 return 'Pantaloncini';
-  if(/LONG.?SLEEVE/.test(n))            return 'Maglia manica lunga';
-  if(/\bBAG\b/.test(n))                 return 'Borsa';
-  if(/BACKPACK/.test(n))                return 'Zaino';
-  if(/\bCAP\b|BEANIE|\bHAT\b/.test(n)) return 'Cappello';
-  if(/SNEAKER|SHOE/.test(n))            return 'Sneakers';
+  if(/TANK|CANOTTA|SLEEVELESS|SINGLET|\bMUSCLE\b/.test(n))  return 'Canotta';
+  if(/T-?SHIRT|TSHIRT/.test(n))                              return 'T-shirt';
+  if(/LONG.?SLEEVE|LONGSLEEVE/.test(n))                      return 'Maglia manica lunga';
+  if(/\bPOLO\b/.test(n))                                     return 'Polo';
+  if(/HOODIE|HOODED|ZIP.?UP/.test(n))                        return 'Felpa con cappuccio';
+  if(/SWEATER|CREWNECK|PULLOVER/.test(n))                    return 'Felpa';
+  if(/FLEECE/.test(n))                                       return 'Pile';
+  if(/CARDIGAN/.test(n))                                     return 'Cardigan';
+  if(/PUFFER|PIUMINO|DOWN\b/.test(n))                        return 'Piumino';
+  if(/WINDBREAKER|ANORAK/.test(n))                           return 'Giacca a vento';
+  if(/BOMBER/.test(n))                                       return 'Bomber';
+  if(/JACKET/.test(n))                                       return 'Giacca';
+  if(/\bCOAT\b|OVERCOAT/.test(n))                           return 'Cappotto';
+  if(/JOGGER/.test(n))                                       return 'Jogger';
+  if(/TROUSER|\bPANT\b|PANTS\b/.test(n))                    return 'Pantaloni';
+  if(/\bSHORT/.test(n))                                      return 'Pantaloncini';
+  if(/\bVEST\b|\bGILET\b/.test(n))                          return 'Gilet';
+  if(/LEGGING/.test(n))                                      return 'Leggings';
+  if(/\bDRESS\b|\bABITO\b/.test(n))                         return 'Vestito';
+  if(/\bSKIRT\b|\bGONNA\b/.test(n))                         return 'Gonna';
+  if(/\bSHIRT\b/.test(n))                                    return 'Camicia';
+  if(/BACKPACK|ZAINO/.test(n))                               return 'Zaino';
+  if(/\bBAG\b|\bBORSA\b|TOTE|CLUTCH/.test(n))              return 'Borsa';
+  if(/\bCAP\b|BEANIE|\bHAT\b|\bBERRETTO\b/.test(n))        return 'Cappello';
+  if(/SNEAKER|SHOE|\bSCARPA\b/.test(n))                      return 'Sneakers';
+  if(/\bSOCK|\bCALZIN/.test(n))                              return 'Calzini';
+  if(/SCARF|SCIARPA/.test(n))                                return 'Sciarpa';
+  if(/WALLET|PORTAFOGLI/.test(n))                            return 'Portafoglio';
+  if(/\bBELT\b|CINTURA/.test(n))                             return 'Cintura';
   return '';
 }
+function inferType(idx){
+  var p=P[idx];
+  if(p.albumName){var t=guessType(p.albumName);if(t) return t;}
+  var nb=[];
+  for(var i=Math.max(0,idx-4);i<=Math.min(P.length-1,idx+4);i++){
+    if(i!==idx&&P[i].tipo) nb.push(P[i].tipo);
+  }
+  if(nb.length){
+    var fr={};nb.forEach(function(t){fr[t]=(fr[t]||0)+1;});
+    return Object.keys(fr).sort(function(a,b){return fr[b]-fr[a];})[0];
+  }
+  var all={};P.forEach(function(x){if(x.tipo) all[x.tipo]=(all[x.tipo]||0)+1;});
+  var s=Object.keys(all).sort(function(a,b){return all[b]-all[a];});
+  return s[0]||'';
+}
+function inferPrice(idx){
+  var p=P[idx];
+  var pool=P.filter(function(x,i){return i!==idx&&x.tipo===p.tipo&&x.cny;});
+  if(pool.length<2) pool=P.filter(function(x,i){return i!==idx&&x.cny;});
+  if(!pool.length) return null;
+  var pr=pool.map(function(x){return x.cny;}).sort(function(a,b){return a-b;});
+  var m=Math.floor(pr.length/2);
+  return pr.length%2===0?(pr[m-1]+pr[m])/2:pr[m];
+}
+
 
 // ── EXTRACTION ─────────────────────────────────────
 async function startExt(){
@@ -567,56 +627,233 @@ function extractColors(blobUrl){
   });
 }
 
-async function doColors(){
+async function imgToB64(url){
+  var r=await fetch(url);
+  var blob=await r.blob();
+  return new Promise(function(res,rej){
+    var fr=new FileReader();
+    fr.onload=function(){res(fr.result.split(',')[1]);};
+    fr.onerror=function(){rej(new Error('read error'));};
+    fr.readAsDataURL(blob);
+  });
+}
+
+async function colorWithGemini(prod){
+  var gkey=document.getElementById('gkey').value.trim();
   var wUrl=document.getElementById('wurl').value.trim();
-  if(!wUrl){alert('Inserisci il Worker URL!');return;}
-  var todo=P.filter(function(p){return p.imgUrl&&!p.colori;});
+  if(!gkey) throw new Error('no-key');
+
+  // Usa imgUrl (worker proxy) oppure coverYupoo tramite proxy
+  var fetchUrl=prod.imgUrl||'';
+  if(!fetchUrl&&prod.coverYupoo&&wUrl){
+    var vrs=variants(prod.coverYupoo);
+    for(var vi=0;vi<vrs.length;vi++){
+      try{
+        var pu=wUrl.replace(/\/$/,'')+'/?url='+encodeURIComponent(vrs[vi]);
+        var tr=await fetch(pu);
+        if(tr.ok){fetchUrl=pu;break;}
+      }catch(e){}
+    }
+  }
+  if(!fetchUrl) throw new Error('no-image');
+
+  var b64=await imgToB64(fetchUrl);
+  var prompt='Questa immagine mostra un capo di abbigliamento (o accessorio) in vendita. Spesso mostra lo stesso capo in più colori affiancati. Elenca SOLO i colori del capo/indumento, NON lo sfondo. Usa nomi italiani semplici (Nero, Bianco, Grigio, Rosso, Blu, Verde, Beige, Marrone, Rosa, Arancione, Giallo, Viola, Azzurro, Kaki, Bordeaux, Grigio Scuro, Grigio Chiaro, Blu Navy, Verde Militare). Rispondi SOLO con i nomi separati da virgola. Massimo 5 colori.';
+
+  var resp=await fetch(
+    'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key='+gkey,
+    {method:'POST',headers:{'Content-Type':'application/json'},
+     body:JSON.stringify({
+       contents:[{parts:[{inline_data:{mime_type:'image/jpeg',data:b64}},{text:prompt}]}],
+       generationConfig:{temperature:0.1,maxOutputTokens:60}
+     })}
+  );
+  if(!resp.ok){
+    var ed=await resp.json().catch(function(){return{};});
+    throw new Error('Gemini '+resp.status+': '+((ed.error||{}).message||''));
+  }
+  var data=await resp.json();
+  var txt=((data.candidates||[])[0]||{}).content
+    ?data.candidates[0].content.parts.map(function(p){return p.text||'';}).join('').trim():'';
+  if(!txt||txt.length<2) throw new Error('risposta vuota');
+  var cols=txt.replace(/[.!?*]/g,'').split(',')
+    .map(function(c){return c.trim();})
+    .filter(function(c){return c.length>1&&c.length<25;})
+    .slice(0,5);
+  if(!cols.length) throw new Error('nessun colore');
+  return cols.join(', ');
+}
+
+async function colorWithCanvas(prod){
+  var wUrl=document.getElementById('wurl').value.trim();
+  var vrs=variants(prod.coverYupoo||'');
+  var blob=null;
+  for(var vi=0;vi<vrs.length;vi++){
+    try{
+      var pu=wUrl.replace(/\/$/,'')+'/?url='+encodeURIComponent(vrs[vi]);
+      var r=await fetch(pu);
+      if(r.ok){blob=await r.blob();if(blob&&blob.size>500) break;}
+    }catch(e){}
+  }
+  if(!blob||blob.size<100) throw new Error('immagine non scaricabile');
+  var burl=URL.createObjectURL(blob);
+  try{var res=await extractColors(burl);URL.revokeObjectURL(burl);return res;}
+  catch(e){URL.revokeObjectURL(burl);throw e;}
+}
+
+async function doColors(){
+  var todo=P.filter(function(p){return (p.imgUrl||p.coverYupoo)&&!p.colori;});
   if(!todo.length){alert('Nessun prodotto da processare (o colori già presenti).');return;}
+
+  var gkey=document.getElementById('gkey').value.trim();
+  var useGemini=!!gkey;
 
   stopped=false; ctl=new AbortController();
   document.getElementById('bcol').disabled=true;
-  lg('🎨 Rilevamento colori per '+todo.length+' prodotti...','in');
+  lg('🎨 Colori via '+(useGemini?'Gemini Vision AI 👁':'canvas fallback')+' — '+todo.length+' prodotti...','in');
   document.getElementById('psec').className='prog-sec on';
 
   for(var i=0;i<todo.length;i++){
     if(stopped) break;
     var prod=todo[i];
     setProg(Math.round(i/todo.length*100),'🎨 '+(i+1)+'/'+todo.length+': '+prod.nome.substring(0,35));
-
     try{
-      // Fetch image via worker → blob URL (needed for canvas cross-origin)
-      var vrs=variants(prod.coverYupoo||'');
-      var blob=null;
-      for(var vi=0;vi<vrs.length;vi++){
+      if(useGemini){
         try{
-          var pu=wUrl.replace(/\/$/,'')+'/?url='+encodeURIComponent(vrs[vi]);
-          var r=await fetch(pu,{signal:ctl.signal});
-          if(r.ok){blob=await r.blob();if(blob&&blob.size>500) break;}
-        }catch(ve){if(ve.name==='AbortError') throw ve;}
+          prod.colori=await colorWithGemini(prod);
+        }catch(ge){
+          if(ge.message==='no-key'||ge.message.indexOf('429')>-1){
+            useGemini=false;
+            lg('⚠ Gemini quota: passo a canvas...','wn');
+            prod.colori=await colorWithCanvas(prod);
+          } else {
+            lg('⚠ Gemini: '+ge.message+' — uso canvas','wn');
+            prod.colori=await colorWithCanvas(prod);
+          }
+        }
+      } else {
+        prod.colori=await colorWithCanvas(prod);
       }
-      if(!blob||blob.size<100) throw new Error('immagine non scaricabile');
-
-      var burl=URL.createObjectURL(blob);
-      try{
-        prod.colori=await extractColors(burl);
-        URL.revokeObjectURL(burl);
-      }catch(ce){URL.revokeObjectURL(burl);throw ce;}
-
       renderTableRow(prod);
-      lg('🎨 ['+(i+1)+'/'+todo.length+'] '+prod.nome.substring(0,28)+': '+prod.colori,'ok');
+      lg('🎨 ['+(i+1)+'] '+prod.nome.substring(0,25)+': '+prod.colori,'ok');
     }catch(e){
       if(e.name==='AbortError') break;
-      lg('⚠ ['+(i+1)+'] '+prod.nome.substring(0,28)+': '+e.message,'wn');
+      lg('⚠ ['+(i+1)+'] '+prod.nome.substring(0,25)+': '+e.message,'wn');
     }
-    await new Promise(function(r){setTimeout(r,80);});
+    await new Promise(function(r){setTimeout(r,useGemini?300:80);});
   }
 
   updStats();
-  setProg(100,'✅ Colori rilevati per '+P.filter(function(p){return p.colori;}).length+' prodotti');
+  setProg(100,'✅ Colori: '+P.filter(function(p){return p.colori;}).length+' prodotti');
   lg('✅ Rilevamento colori completato','ok');
   document.getElementById('bcol').disabled=false;
   document.getElementById('bcsv').disabled=false;
 }
+
+// ── RINOMINA ────────────────────────────────────────
+var JUNK=[
+  /\(\s*\d{2,3}\s*(?:cm)?\s*\d{2,3}\s*(?:kg)?[^)]{0,60}\)/gi,
+  /\[\s*\d{2,3}\s*(?:cm)?\s*\d{2,3}\s*(?:kg)?[^\]]{0,60}\]/gi,
+  /\biwear\b.*$/gi,/\bin\s+the\s+photo\b/gi,/\bsize\s+[xsml0-9]+\b/gi,
+  /[¥￥Y]\s*~?\s*[\d]+(?:[.,]\d{1,2})?/gi,/[\d]+(?:[.,]\d{1,2})?\s*[¥￥]/gi,
+  /\bCOTTON\b|\bNEW\b|\bVERSION\b/gi,/\b\d{6,}\b/g
+];
+var TIPO_IT=[
+  [/TANK|CANOTTA|SLEEVELESS|SINGLET|\bMUSCLE\b/i,'Canotta'],
+  [/T-?SHIRTS?\b/i,'T-Shirt'],[/LONG.?SLEEVE|LONGSLEEVE/i,'Maglia Manica Lunga'],
+  [/\bPOLOS?\b/i,'Polo'],[/HOODIE|HOODED|ZIP.?UP/i,'Felpa con Cappuccio'],
+  [/SWEATER|CREWNECK|PULLOVER/i,'Felpa'],[/FLEECE\b/i,'Pile'],
+  [/CARDIGAN/i,'Cardigan'],[/PUFFER|PIUMINO|DOWN\b/i,'Piumino'],
+  [/WINDBREAKER|ANORAK/i,'Giacca a Vento'],[/BOMBER\b/i,'Bomber'],
+  [/JACKET\b/i,'Giacca'],[/\bCOAT\b|OVERCOAT/i,'Cappotto'],
+  [/JOGGER/i,'Jogger'],[/TROUSER|\bPANT\b|PANTS\b/i,'Pantaloni'],
+  [/\bSHORTS?\b/i,'Pantaloncini'],[/\bVEST\b|\bGILET\b/i,'Gilet'],
+  [/LEGGING/i,'Leggings'],[/\bDRESS\b|\bABITO\b/i,'Vestito'],
+  [/\bSKIRT\b|\bGONNA\b/i,'Gonna'],[/\bSHIRT\b/i,'Camicia'],
+  [/BACKPACK|ZAINO/i,'Zaino'],[/\bBAG\b|\bBORSA\b|TOTE|CLUTCH/i,'Borsa'],
+  [/\bCAP\b|BEANIE|\bHAT\b|\bBERRETTO\b/i,'Cappello'],
+  [/SNEAKER|SHOE|\bSCARPA\b/i,'Sneakers']
+];
+var GENERE=[[/\bWOMEN?'?S?\b/i,'Donna'],[/\bMEN'?S?\b/i,'Uomo']];
+
+function smartRename(p,idx){
+  var brand=(p.brand||document.getElementById('brand').value.trim()||'').trim();
+  var raw=(p.albumName||'').trim();
+
+  // Tipo: prima da p.tipo già impostato, poi dal testo grezzo
+  var tipo=p.tipo||guessType(raw)||inferType(idx);
+
+  // Pulisci il testo grezzo
+  var n=raw;
+  JUNK.forEach(function(rx){n=n.replace(rx,' ');});
+
+  // Estrai genere
+  var genere='';
+  GENERE.forEach(function(pair){
+    if(pair[0].test(n)){genere=pair[1];n=n.replace(pair[0],' ');}
+  });
+
+  // Rimuovi keywords tipo e brand dal testo residuo
+  TIPO_IT.forEach(function(pair){n=n.replace(pair[0],' ');});
+  if(brand){
+    var bRx=new RegExp('\\b'+brand.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\b','gi');
+    n=n.replace(bRx,' ');
+  }
+  n=n.replace(/\bRAPHAUEN\b/gi,'').replace(/[^a-zA-ZÀ-ÖØ-öø-ÿ0-9\s\-&]/g,' ').replace(/\s{2,}/g,' ').trim();
+
+  // Parole extra significative rimaste
+  var STOP=/^(the|a|an|and|or|of|in|on|at|to|for|with|by|la|il|lo|le|gli|di|da|su|con|per|e|un|una|polo|ralph|lauren)$/i;
+  var extras=n.split(/\s+/).filter(function(w){return w.length>2&&!STOP.test(w);});
+  var already=(brand+' '+tipo).toLowerCase();
+  extras=extras.filter(function(w){return already.indexOf(w.toLowerCase())===-1;});
+
+  var parts=[];
+  if(brand) parts.push(brand);
+  if(tipo)  parts.push(tipo);
+  if(extras.length&&extras.join(' ').length<22) parts.push(toTitleCase(extras.join(' ')));
+  if(genere) parts.push(genere);
+
+  var result=parts.join(' ').substring(0,60).trim();
+  return result||[brand,tipo||'Prodotto'].filter(Boolean).join(' ')||'Prodotto';
+}
+
+function doRename(){
+  if(!P.length) return;
+  document.getElementById('bren').disabled=true;
+  setProg(0,'🔤 Rinomina in corso...');
+  // Fase 1: riempi tipi mancanti
+  P.forEach(function(p,idx){
+    if(!p.tipo){var t=guessType(p.albumName||'')||inferType(idx);if(t) p.tipo=t;}
+  });
+  // Fase 2: rinomina
+  var n=0;
+  P.forEach(function(p,idx){
+    var nm=smartRename(p,idx);
+    if(nm&&nm!==p.nome){p.nome=nm;n++;}
+  });
+  renderTable();updStats();
+  setProg(100,'✅ '+n+' prodotti rinominati');
+  lg('✅ Rinomina completata: '+n+' nomi aggiornati','ok');
+  document.getElementById('bren').disabled=false;
+}
+
+function doComplete(){
+  if(!P.length) return;
+  document.getElementById('bcom').disabled=true;
+  var ft=0,fp=0;
+  P.forEach(function(p,idx){
+    if(!p.tipo){var t=guessType(p.albumName||'')||inferType(idx);if(t){p.tipo=t;ft++;}}
+  });
+  P.forEach(function(p,idx){
+    if(!p.cny){var s=inferPrice(idx);if(s){p.cny=Math.round(s);p.final=calcEur(p.cny);fp++;}}
+  });
+  renderTable();updStats();
+  var msg='🔧 Completato: '+ft+' tipi e '+fp+' prezzi stimati';
+  setProg(100,msg);
+  lg(msg,'ok');
+  document.getElementById('bcom').disabled=false;
+}
+
 
 // ── ZIP DOWNLOAD ────────────────────────────────────
 async function doZip(){
@@ -725,6 +962,8 @@ function setUI(on){
 }
 function disBtn(extracting){
   document.getElementById('bcol').disabled=extracting;
+  document.getElementById('bren').disabled=extracting;
+  document.getElementById('bcom').disabled=extracting;
   document.getElementById('bcsv').disabled=extracting;
   document.getElementById('bzip').disabled=extracting;
 }
@@ -743,7 +982,10 @@ function clearAll(){
   document.getElementById('empty').style.display='block';
   document.getElementById('stats').style.display='none';
   document.getElementById('psec').className='prog-sec';
-  disBtn(true); clearLog();
+  disBtn(true);
+  document.getElementById('bren').disabled=true;
+  document.getElementById('bcom').disabled=true;
+  clearLog();
 }
 function loadEx(){
   document.getElementById('curl').value='https://huskyreps.x.yupoo.com/categories/5003229';
