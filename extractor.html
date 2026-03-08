@@ -638,32 +638,36 @@ function cFallback(r,g,b){
   return best[1];
 }
 
-// Estrae colori con ColorThief → chiama color.pizza per i nomi
-async function extractColors(blobUrl){
+// Estrae colori con ColorThief → nomi italiani dal CMAP (niente API esterne)
+function extractColors(blobUrl){
   return new Promise(function(res,rej){
     var img=new Image();
     img.crossOrigin='anonymous';
-    img.onload=async function(){
+    img.onload=function(){
       try{
         var ct=new ColorThief();
-        // Palette di 6 colori — ne usiamo max 5 dopo deduplicazione
-        var palette=ct.getPalette(img,6,5);
+        var palette=ct.getPalette(img,8,3);
         if(!palette||!palette.length) throw new Error('palette vuota');
 
-        // Filtra colori troppo vicini al bianco/sfondo
+        // Filtra sfondo (bianco/quasi bianco) e grigi chiarissimi
         var filtered=palette.filter(function(c){
           var brightness=(c[0]+c[1]+c[2])/3;
-          // Salta bianchi puri e grigi chiarissimi solo se non sono il colore del capo
-          return brightness < 235;
+          var r=c[0],g=c[1],b=c[2];
+          var mx=Math.max(r,g,b), mn=Math.min(r,g,b);
+          var sat=mx>0?(mx-mn)/mx:0;
+          if(brightness>230) return false; // bianco/sfondo
+          if(brightness>180&&sat<0.08) return false; // grigio chiarissimo neutro
+          return true;
         });
         if(!filtered.length) filtered=palette.slice(0,3);
 
-        // Chiama color.pizza per nomi reali
-        var names=await rgbsToNames(filtered.slice(0,5));
-        // Deduplicazione nomi
-        var unique=[];
-        names.forEach(function(n){if(unique.indexOf(n)===-1) unique.push(n);});
-        res(unique.slice(0,4).join(', ')||'Non rilevato');
+        // Converti in nomi italiani e deduplicazione
+        var names=[], seen=[];
+        filtered.slice(0,5).forEach(function(c){
+          var n=cFallback(c[0],c[1],c[2]);
+          if(seen.indexOf(n)===-1){seen.push(n);names.push(n);}
+        });
+        res(names.slice(0,4).join(', ')||'Non rilevato');
       }catch(e){rej(e);}
     };
     img.onerror=function(){rej(new Error('img load failed'));};
@@ -709,7 +713,8 @@ async function colorWithClaude(prod){
     headers:{
       'Content-Type':'application/json',
       'x-api-key':ckey,
-      'anthropic-version':'2023-06-01'
+      'anthropic-version':'2023-06-01',
+      'anthropic-dangerous-direct-browser-access':'true'
     },
     body:JSON.stringify({
       model:'claude-haiku-4-5-20251001',
@@ -724,6 +729,16 @@ async function colorWithClaude(prod){
     })
   });
 
+  if(resp.status===429){
+    // Rate limit colpito — aspetta 5 secondi e riprova una volta
+    lg('⏳ Rate limit Claude — attendo 5s...','wn');
+    await new Promise(function(r){setTimeout(r,5000);});
+    resp=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-api-key':ckey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+      body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:80,messages:[{role:'user',content:[{type:'image',source:{type:'base64',media_type:'image/jpeg',data:b64}},{type:'text',text:'Questa immagine mostra un capo di abbigliamento in vendita. Spesso mostra lo stesso capo in più colori affiancati su sfondo bianco/neutro. Elenca SOLO i colori del capo, NON lo sfondo. Usa nomi italiani semplici (Nero, Bianco, Grigio, Grigio Chiaro, Grigio Scuro, Rosso, Bordeaux, Blu, Blu Navy, Azzurro, Verde, Verde Militare, Verde Oliva, Beige, Marrone, Rosa, Arancione, Giallo, Viola, Kaki). Rispondi SOLO con i nomi separati da virgola, nient\'altro. Massimo 5 colori.'}]}]})
+    });
+  }
   if(!resp.ok){
     var ed=await resp.json().catch(function(){return{};});
     var msg=((ed.error||{}).message||resp.status);
@@ -797,7 +812,8 @@ async function doColors(){
       if(e.name==='AbortError') break;
       lg('⚠ ['+(i+1)+'] '+prod.nome.substring(0,25)+': '+e.message,'wn');
     }
-    await new Promise(function(r){setTimeout(r,useClaude?400:80);});
+    // Rate limit Claude Haiku: max 50 req/min → aspettiamo 1400ms tra chiamate (≈42/min, margine sicuro)
+    await new Promise(function(r){setTimeout(r,useClaude?1400:80);});
   }
 
   updStats();
