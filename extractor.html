@@ -224,7 +224,7 @@ td input:focus{background:#141400;border-bottom:1px solid var(--accent);}
   <table>
     <thead><tr>
       <th class="td-num">#</th>
-      <th class="td-img">IMG</th>
+      <th class="td-img" title="Clicca sull'immagine per selezionare colori">IMG 🎨</th>
       <th style="min-width:160px">NOME</th>
       <th style="min-width:110px">TIPO</th>
       <th style="min-width:120px">BRAND</th>
@@ -911,41 +911,115 @@ function extractDominantColors(imageUrl) {
   });
 }
 
-async function detectColorsGemini(imageUrl, apiKey) {
-  // Canvas-based color detection — no API needed
-  // Try direct URL first (works for imgbb), then via Worker proxy as data URL
-  var wUrl = document.getElementById('worker-url').value.trim();
-  var isHosted = imageUrl.includes('ibb.co') || imageUrl.includes('imgbb.com');
+// Converte blob/URL in base64
+async function toBase64(url) {
+  var r = await fetch(url);
+  var blob = await r.blob();
+  return new Promise(function(res, rej) {
+    var fr = new FileReader();
+    fr.onload = function() { res(fr.result.split(',')[1]); };
+    fr.onerror = function() { rej(new Error('FileReader error')); };
+    fr.readAsDataURL(blob);
+  });
+}
 
-  if (isHosted) {
-    // imgbb images are CORS-friendly
-    return await extractDominantColors(imageUrl);
-  } else if (wUrl) {
-    // For Yupoo images: fetch via worker, convert to blob URL
-    var variants = imageVariants(imageUrl);
-    var blobUrl = null;
-    for (var vi = 0; vi < variants.length; vi++) {
-      try {
-        var proxyUrl = wUrl.replace(/\/$/, '') + '/?url=' + encodeURIComponent(variants[vi]);
-        var r = await fetch(proxyUrl);
-        if (r.ok) {
-          var blob = await r.blob();
-          if (blob && blob.size > 500) { blobUrl = URL.createObjectURL(blob); break; }
+async function detectColorsGemini(imageUrl) {
+  var geminiKey = document.getElementById('gemini-key').value.trim();
+
+  // --- Strategia 1: Gemini Vision (AI reale, vede l'immagine) ---
+  if (geminiKey) {
+    try {
+      // Scarica immagine come base64
+      var wUrl = document.getElementById('worker-url').value.trim();
+      var fetchUrl = imageUrl;
+
+      // Per immagini Yupoo usa il worker proxy
+      if (!imageUrl.includes('ibb.co') && !imageUrl.includes('imgbb.com') && wUrl) {
+        var variants = imageVariants(imageUrl);
+        for (var vi = 0; vi < variants.length; vi++) {
+          try {
+            var pUrl = wUrl.replace(/\/$/, '') + '/?url=' + encodeURIComponent(variants[vi]);
+            var tr = await fetch(pUrl);
+            if (tr.ok) { fetchUrl = pUrl; break; }
+          } catch(e) {}
         }
+      }
+
+      var b64 = await toBase64(fetchUrl);
+      var mimeType = 'image/jpeg';
+
+      var prompt = 'Questa immagine mostra un capo di abbigliamento (o accessorio) in vendita su un ecommerce. ' +
+        'Spesso mostra lo stesso capo in più colori affiancati. ' +
+        'Elenca SOLO i colori del capo/indumento, NON lo sfondo. ' +
+        'Usa nomi italiani semplici (es: Nero, Bianco, Grigio, Rosso, Blu, Verde, Beige, Marrone, Rosa, Arancione, Giallo, Viola, Azzurro, Kaki, Bordeaux). ' +
+        'Rispondi con SOLO i nomi separati da virgola, senza altro testo. Massimo 5 colori.';
+
+      var resp = await fetch(
+        'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=' + geminiKey,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{
+              parts: [
+                { inline_data: { mime_type: mimeType, data: b64 } },
+                { text: prompt }
+              ]
+            }],
+            generationConfig: { temperature: 0.1, maxOutputTokens: 80 }
+          })
+        }
+      );
+
+      if (resp.ok) {
+        var data = await resp.json();
+        var text = ((data.candidates||[])[0]||{}).content
+          ? data.candidates[0].content.parts.map(function(p){return p.text||'';}).join('').trim()
+          : '';
+        if (text && text.length > 1 && text.length < 200) {
+          // Pulizia: rimuovi punti, maiuscola iniziale per ogni colore
+          var colors = text.replace(/[.!?]/g,'').split(',')
+            .map(function(c){ return c.trim(); })
+            .filter(function(c){ return c.length > 1 && c.length < 30; })
+            .slice(0,5);
+          if (colors.length) return colors.join(', ');
+        }
+      } else {
+        var errData = await resp.json().catch(function(){return {};});
+        var errMsg = (errData.error||{}).message||'';
+        // Se quota esaurita, scendi al fallback canvas
+        if (resp.status !== 429) throw new Error('Gemini Vision ' + resp.status + ': ' + errMsg);
+        log('⚠ Gemini quota: uso fallback canvas...', 'warn');
+      }
+    } catch(e) {
+      if (e.name === 'AbortError') throw e;
+      log('⚠ Gemini Vision error: ' + e.message + ' — uso canvas', 'warn');
+    }
+  }
+
+  // --- Strategia 2: fallback canvas (se no key o quota esaurita) ---
+  var wUrl2 = document.getElementById('worker-url').value.trim();
+  var isHosted = imageUrl.includes('ibb.co') || imageUrl.includes('imgbb.com');
+  if (isHosted) {
+    return await extractDominantColors(imageUrl);
+  } else if (wUrl2) {
+    var variants2 = imageVariants(imageUrl);
+    var blobUrl = null;
+    for (var vi2 = 0; vi2 < variants2.length; vi2++) {
+      try {
+        var pUrl2 = wUrl2.replace(/\/$/, '') + '/?url=' + encodeURIComponent(variants2[vi2]);
+        var r2 = await fetch(pUrl2);
+        if (r2.ok) { var bl = await r2.blob(); if (bl && bl.size > 500) { blobUrl = URL.createObjectURL(bl); break; } }
       } catch(e) {}
     }
     if (!blobUrl) throw new Error('Immagine non scaricabile');
     try {
-      var result = await extractDominantColors(blobUrl);
+      var res = await extractDominantColors(blobUrl);
       URL.revokeObjectURL(blobUrl);
-      return result;
-    } catch(e) {
-      URL.revokeObjectURL(blobUrl);
-      throw e;
-    }
-  } else {
-    throw new Error('Serve Worker URL per le immagini Yupoo');
+      return res;
+    } catch(e) { URL.revokeObjectURL(blobUrl); throw e; }
   }
+  throw new Error('Inserisci Gemini key o Worker URL');
 }
 
 async function detectAllColors() {
@@ -955,7 +1029,8 @@ async function detectAllColors() {
   stopped = false;
   abortCtrl = new AbortController();
   document.getElementById('btn-colors').disabled = true;
-  log('🎨 Rilevamento colori Gemini per ' + toProc.length + ' prodotti...', 'info');
+  var hasGemini = document.getElementById('gemini-key').value.trim();
+  log('🎨 Rilevamento colori ' + (hasGemini ? 'via Gemini Vision AI 👁' : 'via canvas') + ' per ' + toProc.length + ' prodotti...', 'info');
 
   for (var i = 0; i < toProc.length; i++) {
     if (stopped) break;
@@ -964,7 +1039,7 @@ async function detectAllColors() {
     setProgress(Math.round((i / toProc.length) * 100),
       '🎨 ' + (i+1) + '/' + toProc.length + ': ' + prod.nome.substring(0,30));
     try {
-      prod.colori = await detectColorsGemini(imgUrl, '');
+      prod.colori = await detectColorsGemini(imgUrl);
       renderTableRow(prod);
       log('🎨 [' + (i+1) + '] ' + prod.nome.substring(0,25) + ': ' + prod.colori, 'ok');
     } catch(e) {
@@ -1290,7 +1365,7 @@ function renderTableRow(prod) {
 function buildRow(p, i) {
   var imgUrl  = p.imgbbUrl || p.coverUrl || '';
   var imgHtml = imgUrl
-    ? '<img src="' + imgUrl + '" onerror="this.style.display=\'none\'">'
+    ? '<img src="' + imgUrl + '" onclick="openPicker(' + p.id + ')" title="Clicca per selezionare colori" onerror="this.style.display=\'none\'" style="cursor:pointer;">'
     : '<div class="noimg">?</div>';
   var stCls = { done:'done', uploading:'uploading', error:'error' }[p.status] || '';
   var stLbl = { done:'✅ OK', uploading:'⬆...', error:'❌ ERR' }[p.status] || '–';
@@ -1431,5 +1506,172 @@ function loadExample() {
   onRateChange();
 })();
 </script>
+
+<!-- COLOR PICKER MODAL -->
+<div id="cpk-overlay" onclick="closePicker()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9000;align-items:center;justify-content:center;flex-direction:column;gap:16px;">
+  <div onclick="event.stopPropagation()" style="background:#111;border:2px solid var(--accent);border-radius:8px;padding:20px;max-width:96vw;width:500px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+      <span style="font-family:'Bebas Neue';font-size:18px;letter-spacing:3px;color:var(--accent);">🎨 SELEZIONA COLORI</span>
+      <button class="btn btn-outline" onclick="closePicker()" style="padding:4px 10px;">✕</button>
+    </div>
+    <p style="font-size:10px;color:var(--text2);margin-bottom:12px;letter-spacing:1px;">CLICCA sui colori del capo nell'immagine per aggiungere • Max 4 colori</p>
+    <div style="position:relative;display:inline-block;border:1px solid var(--border2);border-radius:4px;overflow:hidden;cursor:crosshair;">
+      <img id="cpk-img" crossorigin="anonymous" style="display:block;max-width:460px;max-height:460px;width:100%;object-fit:contain;" onclick="pickColor(event)">
+      <canvas id="cpk-canvas" style="display:none;"></canvas>
+    </div>
+    <!-- Lente di ingrandimento -->
+    <div id="cpk-lens" style="display:none;position:fixed;width:80px;height:80px;border-radius:50%;border:3px solid var(--accent);pointer-events:none;z-index:9999;overflow:hidden;box-shadow:0 0 0 2px #000;">
+      <canvas id="cpk-lens-canvas" width="80" height="80"></canvas>
+    </div>
+    <!-- Colori selezionati -->
+    <div style="margin-top:14px;">
+      <div style="font-size:9px;letter-spacing:2px;color:var(--muted);margin-bottom:8px;">COLORI SELEZIONATI:</div>
+      <div id="cpk-chips" style="display:flex;gap:8px;flex-wrap:wrap;min-height:36px;"></div>
+    </div>
+    <div style="margin-top:14px;display:flex;gap:8px;justify-content:flex-end;">
+      <button class="btn btn-red" onclick="clearPickedColors()" style="font-size:9px;">🗑 SVUOTA</button>
+      <button class="btn btn-primary" onclick="confirmPickedColors()" style="font-size:9px;">✅ CONFERMA</button>
+    </div>
+  </div>
+</div>
+
+<script>
+var cpkProductId = null;
+var cpkPicked    = [];   // [{name, r, g, b}]
+
+function openPicker(prodId) {
+  var p = products.find(function(x){ return x.id === prodId; });
+  if (!p) return;
+  var url = p.imgbbUrl || p.coverUrl;
+  if (!url) { alert('Nessuna immagine disponibile per questo prodotto.'); return; }
+
+  cpkProductId = prodId;
+  cpkPicked    = [];
+
+  var img = document.getElementById('cpk-img');
+  img.src = url;
+  img.onload = function() {
+    // Disegna su canvas nascosto per campionare pixels
+    var cv = document.getElementById('cpk-canvas');
+    cv.width  = img.naturalWidth;
+    cv.height = img.naturalHeight;
+    var ctx = cv.getContext('2d');
+    ctx.drawImage(img, 0, 0);
+    renderChips();
+  };
+
+  // Pre-carica colori già presenti
+  if (p.colori) {
+    p.colori.split(',').forEach(function(c) {
+      var t = c.trim();
+      if (t) cpkPicked.push({ name: t, r:0, g:0, b:0, preset:true });
+    });
+  }
+
+  var ov = document.getElementById('cpk-overlay');
+  ov.style.display = 'flex';
+
+  // Lente su mousemove
+  img.onmousemove = function(e) { showLens(e, img); };
+  img.onmouseleave = function() { document.getElementById('cpk-lens').style.display='none'; };
+}
+
+function showLens(e, img) {
+  var lens     = document.getElementById('cpk-lens');
+  var lensCanvas = document.getElementById('cpk-lens-canvas');
+  var cv       = document.getElementById('cpk-canvas');
+  var rect     = img.getBoundingClientRect();
+  var scaleX   = cv.width  / rect.width;
+  var scaleY   = cv.height / rect.height;
+  var px       = (e.clientX - rect.left) * scaleX;
+  var py       = (e.clientY - rect.top)  * scaleY;
+
+  // Posiziona lente vicino al cursore
+  var lx = e.clientX + 20;
+  var ly = e.clientY - 20;
+  if (lx + 80 > window.innerWidth)  lx = e.clientX - 100;
+  if (ly + 80 > window.innerHeight) ly = e.clientY - 100;
+  lens.style.left    = lx + 'px';
+  lens.style.top     = ly + 'px';
+  lens.style.display = 'block';
+
+  // Disegna zoom 5x nella lente
+  var ctx2 = lensCanvas.getContext('2d');
+  var zoom = 5;
+  var srcX = px - 8, srcY = py - 8;
+  ctx2.clearRect(0,0,80,80);
+  ctx2.drawImage(cv, srcX, srcY, 16, 16, 0, 0, 80, 80);
+
+  // Colore centrale
+  var ctx = cv.getContext('2d');
+  var pdata = ctx.getImageData(Math.round(px), Math.round(py), 1, 1).data;
+  var name = rgbToColorName(pdata[0], pdata[1], pdata[2]);
+  lens.title = name + ' (' + pdata[0]+','+pdata[1]+','+pdata[2]+')';
+}
+
+function pickColor(e) {
+  if (cpkPicked.filter(function(c){ return !c.preset; }).length >= 4) {
+    alert('Massimo 4 colori!'); return;
+  }
+  var img  = document.getElementById('cpk-img');
+  var cv   = document.getElementById('cpk-canvas');
+  var rect = img.getBoundingClientRect();
+  var scaleX = cv.width  / rect.width;
+  var scaleY = cv.height / rect.height;
+  var px   = Math.round((e.clientX - rect.left) * scaleX);
+  var py   = Math.round((e.clientY - rect.top)  * scaleY);
+
+  var ctx  = cv.getContext('2d');
+  var data = ctx.getImageData(px, py, 1, 1).data;
+  var r=data[0], g=data[1], b=data[2];
+  var name = rgbToColorName(r, g, b);
+
+  // Evita duplicati
+  if (cpkPicked.some(function(c){ return c.name===name; })) return;
+  cpkPicked.push({ name:name, r:r, g:g, b:b });
+  renderChips();
+}
+
+function renderChips() {
+  var el = document.getElementById('cpk-chips');
+  el.innerHTML = cpkPicked.map(function(c, i) {
+    var bg = c.preset ? '#1a1a1a' : 'rgb('+c.r+','+c.g+','+c.b+')';
+    var fg = (c.preset || (c.r+c.g+c.b) > 380) ? '#000' : '#fff';
+    if (c.preset) fg = 'var(--text2)';
+    return '<span style="display:inline-flex;align-items:center;gap:5px;background:'+bg+';color:'+fg+';border:1px solid #333;border-radius:12px;padding:4px 10px;font-size:10px;cursor:pointer;" onclick="removeChip('+i+')" title="Clicca per rimuovere">'
+      + (c.preset ? '' : '<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:rgb('+c.r+','+c.g+','+c.b+');border:1px solid #555;"></span>')
+      + esc(c.name) + ' ✕</span>';
+  }).join('');
+}
+
+function removeChip(i) {
+  cpkPicked.splice(i, 1);
+  renderChips();
+}
+
+function clearPickedColors() {
+  cpkPicked = [];
+  renderChips();
+}
+
+function confirmPickedColors() {
+  var p = products.find(function(x){ return x.id === cpkProductId; });
+  if (!p) { closePicker(); return; }
+  p.colori = cpkPicked.map(function(c){ return c.name; }).join(', ');
+  upd(p.id, 'colori', p.colori);
+  renderTableRow(p);
+  log('🎨 Colori aggiornati ['+p.nome+']: ' + p.colori, 'ok');
+  closePicker();
+}
+
+function closePicker() {
+  document.getElementById('cpk-overlay').style.display = 'none';
+  document.getElementById('cpk-lens').style.display    = 'none';
+  var img = document.getElementById('cpk-img');
+  img.onmousemove  = null;
+  img.onmouseleave = null;
+}
+</script>
+
 </body>
 </html>
