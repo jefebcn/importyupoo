@@ -747,11 +747,20 @@ async function uploadAllImgbb() {
       }
     } catch(e) {
       if (e.name === 'AbortError') { log('⛔ Interrotto.', 'warn'); break; }
-      prod.status = 'error';
-      renderTableRow(prod);
-      log('❌ [' + (i+1) + '] ' + prod.nome.substring(0,25) + ': ' + e.message, 'err');
+      // Retry once on rate limit after 5s
+      if (e.message && e.message.toLowerCase().includes('rate')) {
+        log('⏳ Rate limit imgbb — attendo 6s e riprovo...', 'warn');
+        await new Promise(function(r){ setTimeout(r, 6000); });
+        i--; // retry same product
+      } else {
+        prod.status = 'error';
+        renderTableRow(prod);
+        log('❌ [' + (i+1) + '] ' + prod.nome.substring(0,25) + ': ' + e.message, 'err');
+      }
     }
     updateStats();
+    // Delay tra upload: evita rate limit imgbb (max ~1 req/sec)
+    await new Promise(function(r){ setTimeout(r, 1200); });
   }
 
   setProgress(100, '✅ Upload completato');
