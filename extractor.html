@@ -733,13 +733,13 @@ async function colorWithClaude(prod){
 
   var TIPI='Canotta, T-shirt, Polo, Maglia manica lunga, Felpa, Felpa con cappuccio, Pile, Cardigan, Camicia, Giacca, Giacchetto, Bomber, Gilet, Piumino, Cappotto, Pantaloni, Pantaloncini, Jogger, Leggings, Gonna, Vestito, Borsa, Zaino, Cappello, Sneakers, Calzini, Sciarpa, Portafoglio, Cintura';
   var prompt='Analizza questa immagine di un prodotto di abbigliamento o accessorio in vendita.\n'+
-    'REGOLA COLORI: se vedi piu varianti dello stesso capo affiancate (collage), elenca il colore principale di ogni variante (max 4). Se e un singolo capo fotografato, dai SOLO il colore dominante del tessuto — ignora loghi, ricami, dettagli piccoli, bordi.\n'+
+    'REGOLA COLORI: se vedi piu varianti dello stesso capo affiancate (collage), elenca il colore principale di ogni variante (tutte, senza limite). Se e un singolo capo fotografato, dai SOLO il colore dominante del tessuto — ignora loghi, ricami, dettagli piccoli, bordi.\n'+
     'Rispondi SOLO in questo formato esatto (2 righe):\n'+
     'TIPO: [scegli UNO tra: '+TIPI+']\n'+
-    'COLORI: [nomi italiani separati da virgola, max 4, NO sfondo bianco/grigio neutro]\n'+
+    'COLORI: [nomi italiani separati da virgola, NO sfondo bianco/grigio neutro, tutte le varianti colore presenti]\n'+
     'Colori validi: Nero, Bianco, Grigio, Grigio Chiaro, Grigio Scuro, Rosso, Bordeaux, Blu, Blu Navy, Azzurro, Verde, Verde Militare, Verde Oliva, Beige, Marrone, Marrone Scuro, Rosa, Arancione, Giallo, Viola, Kaki, Indaco';
 
-  var txt=await claudeApiCall(ckey, b64, prompt, 120);
+  var txt=await claudeApiCall(ckey, b64, prompt, 180);
 
   var tipoMatch=txt.match(/TIPO:\s*([^\n]+)/i);
   var coloriMatch=txt.match(/COLORI:\s*([^\n]+)/i);
