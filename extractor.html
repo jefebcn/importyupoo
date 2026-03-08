@@ -988,7 +988,9 @@ async function detectColorsGemini(imageUrl) {
         var errData = await resp.json().catch(function(){return {};});
         var errMsg = (errData.error||{}).message||'';
         // Se quota esaurita, scendi al fallback canvas
-        if (resp.status !== 429) throw new Error('Gemini Vision ' + resp.status + ': ' + errMsg);
+        // 429 = quota, 404 = model not found → both fallback to canvas
+        if (resp.status !== 429 && resp.status !== 404) throw new Error('Gemini Vision ' + resp.status + ': ' + errMsg);
+        log('⚠ Gemini ' + resp.status + ': uso fallback canvas...', 'warn');
         log('⚠ Gemini quota: uso fallback canvas...', 'warn');
       }
     } catch(e) {
@@ -1046,8 +1048,10 @@ async function detectAllColors() {
       if (e.name === 'AbortError') break;
       log('⚠ [' + (i+1) + '] ' + prod.nome.substring(0,25) + ': ' + e.message, 'warn');
     }
-    // Small delay to keep UI responsive
-    await new Promise(function(r){ setTimeout(r, 50); });
+    // Delay: Gemini free = 15 req/min → 4s between calls
+    var hasGeminiKey = document.getElementById('gemini-key').value.trim();
+    var delayMs = hasGeminiKey ? 4100 : 50;
+    await new Promise(function(r){ setTimeout(r, delayMs); });
   }
 
   setProgress(100, '✅ Colori completati');
