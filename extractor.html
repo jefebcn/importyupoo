@@ -955,7 +955,7 @@ async function detectColorsGemini(imageUrl) {
         'Rispondi con SOLO i nomi separati da virgola, senza altro testo. Massimo 5 colori.';
 
       var resp = await fetch(
-        'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=' + geminiKey,
+        'https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent?key=' + geminiKey,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1479,7 +1479,7 @@ function loadExample() {
 (function init() {
   var wUrl  = localStorage.getItem('yupoo_worker_url') || 'https://yupoo-proxy.conti9708.workers.dev/';
   var iKey  = localStorage.getItem('imgbb_key')        || '4e0f0e5bfe97cdcf39838aa5a82abb75';
-  var gKey  = localStorage.getItem('gemini_key')       || 'AIzaSyDaMZVysTFl80i1ozvMcFv2pGopDRf26VQ';
+  var gKey  = localStorage.getItem('gemini_key')       || '';
   var brand = localStorage.getItem('default_brand')    || '';
 
   localStorage.setItem('yupoo_worker_url', wUrl);
