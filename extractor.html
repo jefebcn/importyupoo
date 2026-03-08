@@ -3,238 +3,197 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>LilloFind — Yupoo → CSV</title>
+<title>LilloFind // Yupoo → CSV</title>
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Bebas+Neue&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/color-thief/2.3.2/color-thief.umd.js"></script>
 <style>
 :root{
-  --bg:#0a0a0a;--card:#111;--surface:#161616;--border:#222;--border2:#2a2a2a;
-  --accent:#c8ff00;--orange:#ff9900;--purple:#a78bfa;--teal:#34d399;
-  --text:#f0f0f0;--text2:#888;--muted:#444;
-  --ok:#4caf50;--err:#f44336;--warn:#ff9800;
+  --bg:#0a0a0a;--card:#0f0f0f;--surface:#141414;--b1:#1e1e1e;--b2:#2a2a2a;
+  --lime:#c8ff00;--orange:#ff9800;--purple:#a78bfa;--teal:#34d399;--red:#f44336;
+  --ok:#4ade80;--warn:#fbbf24;--err:#f87171;
+  --t1:#f0f0f0;--t2:#888;--t3:#444;
 }
 *{box-sizing:border-box;margin:0;padding:0;}
-body{background:var(--bg);color:var(--text);font-family:'Space Mono',monospace;font-size:12px;min-height:100vh;}
+body{background:var(--bg);color:var(--t1);font-family:'Space Mono',monospace;font-size:12px;}
 
-/* HEADER */
-header{background:var(--card);border-bottom:2px solid var(--accent);padding:12px 24px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;}
-.logo{font-family:'Bebas Neue';font-size:22px;letter-spacing:4px;color:var(--accent);}
-.logo em{color:#333;font-style:normal;margin:0 6px;}
-.logo small{font-family:'Space Mono';font-size:9px;color:var(--muted);letter-spacing:2px;display:block;margin-top:2px;}
+header{background:var(--card);border-bottom:2px solid var(--lime);padding:10px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+.logo{font-family:'Bebas Neue';font-size:24px;letter-spacing:5px;color:var(--lime);}
+.logo span{color:#2a2a2a;margin:0 6px;}
+.logo small{font-family:'Space Mono';font-size:8px;color:var(--t3);letter-spacing:3px;display:block;}
 
-/* CONFIG STRIP */
-.config-strip{background:#0a0f00;border-bottom:1px solid #1a2200;padding:8px 24px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
-.cfg-label{font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;white-space:nowrap;}
-.cfg-input{background:#111;border:1px solid #2a2a2a;color:var(--accent);font-family:'Space Mono';font-size:12px;padding:4px 10px;outline:none;border-radius:2px;}
-.cfg-input:focus{border-color:var(--accent);}
-.cfg-input.dim{color:var(--text2);}
-.cfg-input.ok{border-color:var(--ok);color:var(--ok);}
-.cfg-select{background:#111;border:1px solid #2a2a2a;color:var(--text);font-family:'Space Mono';font-size:11px;padding:4px 8px;outline:none;border-radius:2px;cursor:pointer;}
-.cfg-sep{width:1px;height:24px;background:var(--border2);flex-shrink:0;}
-.rate-val{color:var(--accent);font-size:13px;white-space:nowrap;}
+.strip{background:#07100a;border-bottom:1px solid #162010;padding:7px 20px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.lbl{font-size:9px;letter-spacing:2px;color:var(--t3);white-space:nowrap;}
+.inp{background:#0e0e0e;border:1px solid var(--b2);color:var(--lime);font-family:'Space Mono';font-size:11px;padding:4px 9px;outline:none;border-radius:2px;}
+.inp:focus{border-color:var(--lime);}
+.inp.dim{color:var(--t2);}
+.inp.ok{border-color:var(--ok);color:var(--ok);}
+.sel{background:#0e0e0e;border:1px solid var(--b2);color:var(--t1);font-family:'Space Mono';font-size:11px;padding:4px 8px;outline:none;border-radius:2px;}
+.sep{width:1px;height:22px;background:var(--b2);flex-shrink:0;}
+.rval{color:var(--lime);font-size:12px;}
 
-/* INPUT SECTION */
-.input-section{padding:18px 24px;background:var(--card);border-bottom:1px solid var(--border);}
-.section-label{font-size:9px;letter-spacing:3px;color:var(--muted);text-transform:uppercase;margin-bottom:10px;}
-.url-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
-.url-input{flex:1;min-width:300px;background:var(--surface);border:1px solid var(--border2);color:var(--text);font-family:'Space Mono';font-size:12px;padding:10px 14px;outline:none;border-radius:3px;}
-.url-input:focus{border-color:var(--accent);}
-.url-input::placeholder{color:#333;}
-.info-box{background:#0a0a1a;border:1px solid #2a2a4a;border-radius:4px;padding:10px 16px;font-size:10px;color:var(--text2);line-height:2.2;margin-top:10px;}
-.info-box strong{color:var(--purple);}
-.info-box a{color:var(--purple);}
+.url-sec{padding:14px 20px;background:var(--card);border-bottom:1px solid var(--b1);}
+.slbl{font-size:9px;letter-spacing:3px;color:var(--t3);margin-bottom:8px;}
+.url-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+.url-inp{flex:1;min-width:280px;background:var(--surface);border:1px solid var(--b2);color:var(--t1);font-family:'Space Mono';font-size:12px;padding:9px 13px;outline:none;border-radius:3px;}
+.url-inp:focus{border-color:var(--lime);}
+.url-inp::placeholder{color:#282828;}
+.hint{background:#08081a;border:1px solid #202040;border-radius:3px;padding:8px 14px;font-size:10px;color:var(--t2);line-height:2.1;margin-top:8px;}
+.hint strong{color:var(--purple);}
 
-/* BUTTONS */
-.btn{font-family:'Space Mono';font-size:10px;letter-spacing:2px;text-transform:uppercase;padding:9px 18px;border:none;cursor:pointer;border-radius:2px;transition:all .15s;white-space:nowrap;}
-.btn:disabled{opacity:.3;cursor:not-allowed;}
-.btn-primary{background:var(--accent);color:#000;font-weight:700;}
-.btn-primary:hover:not(:disabled){background:#d9ff33;}
-.btn-red{background:transparent;border:1px solid var(--err);color:var(--err);}
-.btn-red:hover:not(:disabled){background:var(--err);color:#fff;}
-.btn-outline{background:transparent;border:1px solid var(--border2);color:var(--text2);}
-.btn-outline:hover:not(:disabled){border-color:var(--text);color:var(--text);}
-.btn-purple{background:transparent;border:1px solid var(--purple);color:var(--purple);}
-.btn-purple:hover:not(:disabled){background:var(--purple);color:#000;}
-.btn-teal{background:transparent;border:1px solid var(--teal);color:var(--teal);}
-.btn-teal:hover:not(:disabled){background:var(--teal);color:#000;}
-.btn-green{background:transparent;border:1px solid var(--ok);color:var(--ok);}
-.btn-green:hover:not(:disabled){background:var(--ok);color:#000;}
-.btn-orange{background:transparent;border:1px solid var(--orange);color:var(--orange);}
-.btn-orange:hover:not(:disabled){background:var(--orange);color:#000;}
+.btn{font-family:'Space Mono';font-size:10px;letter-spacing:2px;padding:8px 16px;border:none;cursor:pointer;border-radius:2px;white-space:nowrap;transition:all .12s;}
+.btn:disabled{opacity:.25;cursor:not-allowed;}
+.b-lime{background:var(--lime);color:#000;font-weight:700;}
+.b-lime:hover:not(:disabled){background:#d5ff1a;}
+.b-red{background:transparent;border:1px solid var(--red);color:var(--red);}
+.b-red:hover:not(:disabled){background:var(--red);color:#fff;}
+.b-out{background:transparent;border:1px solid var(--b2);color:var(--t2);}
+.b-out:hover:not(:disabled){border-color:var(--t1);color:var(--t1);}
+.b-teal{background:transparent;border:1px solid var(--teal);color:var(--teal);}
+.b-teal:hover:not(:disabled){background:var(--teal);color:#000;}
+.b-green{background:transparent;border:1px solid var(--ok);color:var(--ok);}
+.b-green:hover:not(:disabled){background:var(--ok);color:#000;}
+.b-orange{background:transparent;border:1px solid var(--orange);color:var(--orange);}
+.b-orange:hover:not(:disabled){background:var(--orange);color:#000;}
 
-/* PROGRESS */
-.progress-section{padding:8px 24px;background:var(--surface);border-bottom:1px solid var(--border);display:none;}
-.progress-section.visible{display:block;}
-.progress-bar-wrap{height:4px;background:#1a1a1a;border-radius:2px;overflow:hidden;margin:6px 0;}
-.progress-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--orange));transition:width .3s;border-radius:2px;width:0%;}
-.progress-text{font-size:10px;color:var(--text2);letter-spacing:1px;}
+.prog-sec{padding:7px 20px;background:var(--surface);border-bottom:1px solid var(--b1);display:none;}
+.prog-sec.on{display:block;}
+.prog-txt{font-size:10px;color:var(--t2);margin-bottom:5px;}
+.prog-wrap{height:3px;background:#1a1a1a;border-radius:2px;overflow:hidden;}
+.prog-fill{height:100%;background:linear-gradient(90deg,var(--lime),var(--orange));width:0%;transition:width .25s;border-radius:2px;}
 
-/* LOG */
-.log-box{background:var(--surface);border-bottom:1px solid var(--border);max-height:80px;overflow-y:auto;font-size:10px;padding:6px 24px;line-height:1.9;color:var(--text2);}
-.log-box .ok{color:var(--ok);}
-.log-box .err{color:var(--err);}
-.log-box .warn{color:var(--warn);}
-.log-box .info{color:var(--purple);}
+.log{background:var(--surface);border-bottom:1px solid var(--b1);max-height:72px;overflow-y:auto;font-size:10px;padding:5px 20px;line-height:1.9;color:var(--t2);}
+.log .ok{color:var(--ok);}
+.log .er{color:var(--err);}
+.log .wn{color:var(--warn);}
+.log .in{color:var(--purple);}
 
-/* STATS BAR */
-.stats-bar{background:var(--card);border-bottom:1px solid var(--border);padding:8px 24px;display:none;align-items:center;gap:20px;flex-wrap:wrap;}
-.stat-item span{color:var(--muted);font-size:9px;letter-spacing:2px;display:block;}
-.stat-item strong{color:var(--accent);font-size:15px;font-family:'Bebas Neue';letter-spacing:1px;}
-.action-btns{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;}
+.stats{background:var(--card);border-bottom:1px solid var(--b1);padding:7px 20px;display:none;align-items:center;gap:18px;flex-wrap:wrap;}
+.si span{color:var(--t3);font-size:9px;letter-spacing:2px;display:block;}
+.si strong{color:var(--lime);font-size:14px;font-family:'Bebas Neue';}
+.abtns{margin-left:auto;display:flex;gap:7px;flex-wrap:wrap;}
 
-/* TABLE */
-.table-wrap{overflow-x:auto;}
+.tw{overflow-x:auto;}
 table{width:100%;border-collapse:collapse;font-size:11px;}
-thead th{background:#0a0f00;color:var(--accent);font-size:9px;letter-spacing:2px;padding:10px 10px;text-align:left;border-bottom:1px solid #1a2200;white-space:nowrap;position:sticky;top:0;z-index:5;}
-tbody tr:nth-child(odd){background:#0c0c0c;}
-tbody tr:nth-child(even){background:#0a0a0a;}
-tbody tr:hover{background:#0f1400;}
-tbody tr.st-done{background:#001500;}
-tbody tr.st-error{background:#150000;}
-td{padding:7px 10px;border-bottom:1px solid #161616;vertical-align:middle;}
-td input{background:transparent;border:none;color:var(--text);font-family:'Space Mono';font-size:11px;width:100%;outline:none;}
-td input:focus{background:#141400;border-bottom:1px solid var(--accent);}
-.td-num{width:30px;color:var(--muted);text-align:center;}
-.td-img{width:62px;}
-.td-img img{width:52px;height:52px;object-fit:cover;border-radius:3px;border:1px solid var(--border);}
-.noimg{width:52px;height:52px;background:var(--surface);border:1px solid var(--border);border-radius:3px;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:18px;}
-.td-cny{color:var(--orange);text-align:right;font-weight:700;width:65px;white-space:nowrap;}
-.td-eur{color:var(--accent);text-align:right;font-weight:700;width:72px;white-space:nowrap;}
-.td-status{width:85px;text-align:center;}
-.td-del{width:28px;text-align:center;cursor:pointer;color:var(--muted);}
-.td-del:hover{color:var(--err);}
-.status-badge{font-size:9px;letter-spacing:1px;padding:2px 7px;border-radius:10px;display:inline-block;background:#1a1a1a;color:var(--muted);}
-.status-badge.done{background:#001a00;color:var(--ok);}
-.status-badge.uploading{background:#0a001a;color:var(--purple);}
-.status-badge.error{background:#1a0000;color:var(--err);}
+th{background:#070d04;color:var(--lime);font-size:8px;letter-spacing:2px;padding:9px 9px;text-align:left;border-bottom:1px solid #142010;white-space:nowrap;position:sticky;top:0;z-index:5;}
+tr:nth-child(odd){background:#0b0b0b;}
+tr:nth-child(even){background:#090909;}
+tr:hover{background:#0d1200;}
+tr.done{background:#001800;}
+tr.error{background:#180000;}
+td{padding:6px 9px;border-bottom:1px solid #111;vertical-align:middle;}
+td input{background:transparent;border:none;color:var(--t1);font-family:'Space Mono';font-size:11px;width:100%;outline:none;}
+td input:focus{background:#111800;border-bottom:1px solid var(--lime);}
+.ti{width:60px;}
+.ti img{width:50px;height:50px;object-fit:cover;border-radius:3px;border:1px solid var(--b1);}
+.ni{width:50px;height:50px;background:var(--surface);border:1px solid var(--b1);border-radius:3px;display:flex;align-items:center;justify-content:center;color:var(--t3);font-size:16px;}
+.tc{color:var(--orange);text-align:right;font-weight:700;white-space:nowrap;width:62px;}
+.te{color:var(--lime);text-align:right;font-weight:700;white-space:nowrap;width:68px;}
+.ts{width:80px;text-align:center;}
+.td{width:26px;text-align:center;cursor:pointer;color:var(--t3);}
+.td:hover{color:var(--red);}
+.badge{font-size:9px;padding:2px 6px;border-radius:8px;background:#1a1a1a;color:var(--t3);}
+.badge.done{background:#001800;color:var(--ok);}
+.badge.error{background:#180000;color:var(--err);}
 
-/* EMPTY */
-.empty-state{padding:60px 24px;text-align:center;color:var(--muted);}
-.empty-state .big{font-size:52px;margin-bottom:14px;}
-.empty-state p{font-size:11px;letter-spacing:2px;line-height:2.6;}
-.empty-state code{color:var(--accent);}
+.empty{padding:60px 20px;text-align:center;color:var(--t3);}
+.empty .ico{font-size:48px;margin-bottom:12px;}
+.empty p{font-size:10px;letter-spacing:2px;line-height:2.8;}
+.empty code{color:var(--lime);}
 
-::-webkit-scrollbar{width:4px;height:4px;}
-::-webkit-scrollbar-thumb{background:#2a2a2a;border-radius:4px;}
+::-webkit-scrollbar{width:3px;height:3px;}
+::-webkit-scrollbar-thumb{background:#2a2a2a;border-radius:3px;}
 </style>
 </head>
 <body>
 
-<!-- HEADER -->
 <header>
-  <div class="logo">LILLOFIND <em>//</em> YUPOO → CSV
-    <small>ESTRAZIONE · PREZZI ¥→€ · UPLOAD IMGBB · RINOMINA · COLORI · EXPORT CSV</small>
+  <div class="logo">LILLOFIND <span>//</span> YUPOO → CSV
+    <small>ESTRAZIONE · PREZZI ¥→€ · COLORI AUTO · EXPORT CSV</small>
   </div>
-  <div style="display:flex;gap:8px;">
-    <button class="btn btn-outline" onclick="loadExample()">ESEMPIO</button>
-    <button class="btn btn-outline" onclick="clearAll()">SVUOTA</button>
+  <div style="display:flex;gap:7px">
+    <button class="btn b-out" onclick="loadEx()">ESEMPIO</button>
+    <button class="btn b-out" onclick="clearAll()">SVUOTA</button>
   </div>
 </header>
 
-<!-- CONFIG STRIP -->
-<div class="config-strip">
-  <span class="cfg-label">CNY/EUR</span>
-  <input class="cfg-input" type="number" id="rate" value="0.129" step="0.001" min="0.001" style="width:82px" oninput="onRateChange()">
-  <span class="rate-val" id="rate-display">¥1 = €0.129</span>
-
-  <div class="cfg-sep"></div>
-  <span class="cfg-label">MARKUP %</span>
-  <input class="cfg-input" type="number" id="markup" value="0" step="1" min="0" max="999" style="width:68px">
-
-  <div class="cfg-sep"></div>
-  <span class="cfg-label">ARROTONDA</span>
-  <select class="cfg-select" id="round-mode">
+<div class="strip">
+  <span class="lbl">CNY/EUR</span>
+  <input class="inp" type="number" id="rate" value="0.129" step="0.001" min="0.001" style="width:78px" oninput="onRate()">
+  <span class="rval" id="rdsp">¥1 = €0.129</span>
+  <div class="sep"></div>
+  <span class="lbl">MARKUP %</span>
+  <input class="inp" type="number" id="markup" value="0" step="1" min="0" max="999" style="width:65px">
+  <div class="sep"></div>
+  <span class="lbl">ARROTONDA</span>
+  <select class="sel" id="rmode">
     <option value="none">Nessuno</option>
     <option value="0.99">X.99</option>
     <option value="up">Intero ↑</option>
   </select>
-
-  <div class="cfg-sep"></div>
-  <span class="cfg-label">⚡ WORKER</span>
-  <input class="cfg-input dim" type="text" id="worker-url" placeholder="https://yupoo-proxy.TUO-NOME.workers.dev" style="width:310px" spellcheck="false" oninput="onWorkerChange()">
-
-  <div class="cfg-sep"></div>
-  <span class="cfg-label">📷 IMGBB</span>
-  <input class="cfg-input dim" type="text" id="imgbb-key" placeholder="API key imgbb.com" style="width:155px" spellcheck="false">
-
-  <div class="cfg-sep"></div>
-  <span class="cfg-label">🏷 BRAND</span>
-  <input class="cfg-input dim" type="text" id="default-brand" placeholder="es. Polo Ralph Lauren" style="width:175px" spellcheck="false">
-
-  <div class="cfg-sep"></div>
-  <span class="cfg-label">🎨 GEMINI</span>
-  <input class="cfg-input dim" type="text" id="gemini-key" placeholder="AIza... (gratis)" style="width:175px" spellcheck="false">
+  <div class="sep"></div>
+  <span class="lbl">⚡ WORKER</span>
+  <input class="inp dim" type="text" id="wurl" style="width:300px" placeholder="https://yupoo-proxy.TUO-NOME.workers.dev" spellcheck="false" oninput="onWorker()">
+  <div class="sep"></div>
+  <span class="lbl">🏷 BRAND</span>
+  <input class="inp dim" type="text" id="brand" style="width:170px" placeholder="es. Polo Ralph Lauren" spellcheck="false">
 </div>
 
-<!-- URL INPUT -->
-<div class="input-section">
-  <div class="section-label">URL CATALOGO YUPOO — incolla la pagina categoria o album</div>
+<div class="url-sec">
+  <div class="slbl">URL CATALOGO YUPOO — categoria o album specifico</div>
   <div class="url-row">
-    <input class="url-input" type="text" id="cat-url"
-      placeholder="https://huskyreps.x.yupoo.com/categories/5003229">
-    <button class="btn btn-primary" id="btn-extract" onclick="startExtraction()">⚡ ESTRAI CATALOGO</button>
-    <button class="btn btn-red" id="btn-stop" onclick="stopExtraction()" style="display:none">■ STOP</button>
+    <input class="url-inp" type="text" id="curl" placeholder="https://huskyreps.x.yupoo.com/categories/5003229">
+    <button class="btn b-lime" id="bext" onclick="startExt()">⚡ ESTRAI</button>
+    <button class="btn b-red"  id="bstp" onclick="doStop()" style="display:none">■ STOP</button>
   </div>
-  <div class="info-box">
-    <strong>Come funziona:</strong> Incolla URL categoria →
-    <strong>⚡ ESTRAI</strong> → premi <strong>↑ IMGBB</strong> per caricare le foto →
-    <strong>🎨 COLORI</strong> per rilevamento automatico (Gemini gratis) →
-    <strong>↓ CSV</strong> pronto per l'import Firebase.&nbsp;
-    Gemini key gratis: <a href="https://aistudio.google.com/app/apikey" target="_blank">aistudio.google.com/app/apikey</a>
-  </div>
-</div>
-
-<!-- PROGRESS -->
-<div class="progress-section" id="progress-section">
-  <div class="progress-text" id="progress-text">Inizializzazione...</div>
-  <div class="progress-bar-wrap"><div class="progress-fill" id="progress-fill"></div></div>
-</div>
-
-<!-- LOG -->
-<div class="log-box" id="log-box"></div>
-
-<!-- STATS BAR -->
-<div class="stats-bar" id="stats-bar">
-  <div class="stat-item"><span>PRODOTTI</span><strong id="st-total">0</strong></div>
-  <div class="stat-item"><span>IMMAGINI</span><strong id="st-imgs">0</strong></div>
-  <div class="stat-item"><span>PREZZI</span><strong id="st-prices">0</strong></div>
-  <div class="stat-item"><span>CARICATI</span><strong id="st-uploaded">0</strong></div>
-  <div class="stat-item"><span>MEDIA €</span><strong id="st-avg">–</strong></div>
-  <div class="action-btns">
-    <button class="btn btn-purple" id="btn-upload"   onclick="uploadAllImgbb()" disabled>↑ UPLOAD IMGBB</button>
-    <button class="btn btn-teal"   id="btn-colors"  onclick="detectAllColors()"  disabled>🎨 COLORI</button>
-    <button class="btn btn-orange" id="btn-ainames"  onclick="renameAllAI()"   disabled>🔤 RINOMINA</button>
-    <button class="btn btn-teal"   id="btn-complete" onclick="completeData()"   disabled>🔧 COMPLETA</button>
-    <button class="btn btn-green"  id="btn-csv"      onclick="exportCSV()"      disabled>↓ CSV</button>
-    <button class="btn btn-orange" id="btn-zip"     onclick="downloadZip()"      disabled>↓ ZIP</button>
+  <div class="hint">
+    <strong>Flusso:</strong>
+    <strong>⚡ ESTRAI</strong> → raccoglie tutti i prodotti con nome + prezzo ¥→€ →
+    <strong>🎨 COLORI</strong> → rileva colori da ogni immagine (automatico, nessuna API) →
+    <strong>↓ CSV</strong> pronto per Firebase.
+    Le URL immagine puntano direttamente al tuo Worker Cloudflare — nessun upload necessario.
   </div>
 </div>
 
-<!-- RESULTS -->
-<div id="empty-state" class="empty-state">
-  <div class="big">🗂</div>
-  <p>INCOLLA L'URL DEL CATALOGO YUPOO E PREMI ⚡ ESTRAI CATALOGO<br>
+<div class="prog-sec" id="psec">
+  <div class="prog-txt" id="ptxt">...</div>
+  <div class="prog-wrap"><div class="prog-fill" id="pfil"></div></div>
+</div>
+<div class="log" id="logbox"></div>
+
+<div class="stats" id="stats">
+  <div class="si"><span>PRODOTTI</span><strong id="s0">0</strong></div>
+  <div class="si"><span>IMMAGINI</span><strong id="s1">0</strong></div>
+  <div class="si"><span>PREZZI</span><strong id="s2">0</strong></div>
+  <div class="si"><span>COLORI</span><strong id="s3">0</strong></div>
+  <div class="si"><span>MEDIA €</span><strong id="s4">–</strong></div>
+  <div class="abtns">
+    <button class="btn b-teal"   id="bcol" onclick="doColors()"  disabled>🎨 RILEVA COLORI</button>
+    <button class="btn b-green"  id="bcsv" onclick="doCSV()"     disabled>↓ CSV</button>
+    <button class="btn b-orange" id="bzip" onclick="doZip()"     disabled>↓ ZIP IMG</button>
+  </div>
+</div>
+
+<div class="empty" id="empty">
+  <div class="ico">🗂</div>
+  <p>INCOLLA L'URL DEL CATALOGO YUPOO<br>
   ES: <code>https://huskyreps.x.yupoo.com/categories/5003229</code><br><br>
-  ESTRAE: NOME · PREZZO ¥→€ · IMMAGINE · TIPO</p>
+  ESTRAE NOME · PREZZO ¥→€ · TIPO · URL IMMAGINE DIRETTA</p>
 </div>
-
-<div class="table-wrap" id="table-wrap" style="display:none">
+<div class="tw" id="tw" style="display:none">
   <table>
     <thead><tr>
-      <th class="td-num">#</th>
-      <th class="td-img" title="Clicca sull'immagine per selezionare colori">IMG 🎨</th>
-      <th style="min-width:160px">NOME</th>
-      <th style="min-width:110px">TIPO</th>
-      <th style="min-width:120px">BRAND</th>
-      <th style="min-width:95px">TAGLIE</th>
-      <th style="min-width:130px">COLORI</th>
-      <th class="td-cny">¥ CNY</th>
-      <th class="td-eur">€ EUR</th>
-      <th style="min-width:180px">URL IMMAGINE</th>
-      <th class="td-status">STATO</th>
-      <th class="td-del">✕</th>
+      <th>#</th><th class="ti">IMG</th>
+      <th style="min-width:155px">NOME</th>
+      <th style="min-width:105px">TIPO</th>
+      <th style="min-width:115px">BRAND</th>
+      <th style="min-width:90px">TAGLIE</th>
+      <th style="min-width:150px">COLORI</th>
+      <th class="tc">¥ CNY</th>
+      <th class="te">€ EUR</th>
+      <th style="min-width:200px">URL IMMAGINE</th>
+      <th class="ts">STATO</th>
+      <th class="td">✕</th>
     </tr></thead>
     <tbody id="tbody"></tbody>
   </table>
@@ -243,1478 +202,553 @@ td input:focus{background:#141400;border-bottom:1px solid var(--accent);}
 <script>
 'use strict';
 
-// ═══════════════════════════════════════════════
-// STATE
-// ═══════════════════════════════════════════════
-var products  = [];
-var stopped   = false;
-var abortCtrl = null;
-var siteBase  = '';
-var username  = '';
-var buildId   = '';
-var seenIds   = new Set();
+// ── STATE ──────────────────────────────────────────
+var P = [];           // products array
+var stopped = false;
+var ctl = null;       // AbortController
+var siteBase = '', uname = '', buildId = '';
+var seenIds  = new Set();
 
-// ═══════════════════════════════════════════════
-// PROXY HELPERS
-// ═══════════════════════════════════════════════
-async function proxyFetchText(url) {
-  var proxies = [
-    'https://corsproxy.io/?' + encodeURIComponent(url),
-    'https://thingproxy.freeboard.io/fetch/' + url
-  ];
-  for (var i = 0; i < proxies.length; i++) {
-    try {
-      var r = await fetch(proxies[i], { signal: abortCtrl.signal });
-      if (r.ok) { var t = await r.text(); if (t.length > 100) return t; }
-    } catch(e) { if (e.name === 'AbortError') throw e; }
+// ── INIT ───────────────────────────────────────────
+(function(){
+  var w = localStorage.getItem('wurl') || 'https://yupoo-proxy.conti9708.workers.dev/';
+  var b = localStorage.getItem('brand') || '';
+  localStorage.setItem('wurl', w);
+  document.getElementById('wurl').value  = w;
+  document.getElementById('brand').value = b;
+  onWorker(); onRate();
+  document.getElementById('brand').addEventListener('input', function(){ localStorage.setItem('brand', this.value.trim()); });
+})();
+
+// ── WORKER / RATE ──────────────────────────────────
+function onWorker(){
+  var v = document.getElementById('wurl').value.trim();
+  localStorage.setItem('wurl', v);
+  var el = document.getElementById('wurl');
+  el.className = 'inp dim' + (v.includes('workers.dev') ? ' ok' : '');
+}
+function onRate(){
+  var r = parseFloat(document.getElementById('rate').value) || 0.129;
+  document.getElementById('rdsp').textContent = '¥1 = €' + r.toFixed(3);
+  P.forEach(function(p){ if(p.cny) p.final = calcEur(p.cny); });
+  renderTable(); updStats();
+}
+function calcEur(cny){
+  var r = parseFloat(document.getElementById('rate').value) || 0.129;
+  var m = parseFloat(document.getElementById('markup').value) || 0;
+  var e = cny * r * (1 + m/100);
+  var mode = document.getElementById('rmode').value;
+  if(mode==='0.99') return Math.floor(e)+0.99;
+  if(mode==='up')   return Math.ceil(e);
+  return Math.round(e*100)/100;
+}
+
+// Worker URL builder — this IS the image URL (no upload needed)
+function workerImgUrl(yupooUrl){
+  var w = document.getElementById('wurl').value.trim().replace(/\/$/,'');
+  return w + '/?url=' + encodeURIComponent(yupooUrl);
+}
+
+// ── PROXY FETCH ────────────────────────────────────
+var PROXIES = [
+  function(u){ return fetch('https://corsproxy.io/?'+encodeURIComponent(u),{signal:ctl.signal}).then(function(r){ if(!r.ok) throw new Error(r.status); return r.text(); }); },
+  function(u){ return fetch('https://api.allorigins.win/get?url='+encodeURIComponent(u),{signal:ctl.signal}).then(function(r){ return r.json(); }).then(function(j){ return j.contents||''; }); },
+  function(u){ return fetch('https://thingproxy.freeboard.io/fetch/'+u,{signal:ctl.signal}).then(function(r){ if(!r.ok) throw new Error(r.status); return r.text(); }); }
+];
+
+async function pFetchText(url){
+  for(var i=0;i<PROXIES.length;i++){
+    try{ var t=await PROXIES[i](url); if(t&&t.length>100) return t; }
+    catch(e){ if(e.name==='AbortError') throw e; }
   }
-  // allorigins as last resort
-  try {
-    var r2 = await fetch('https://api.allorigins.win/get?url=' + encodeURIComponent(url), { signal: abortCtrl.signal });
-    var j = await r2.json();
-    return j.contents || '';
-  } catch(e) { if (e.name === 'AbortError') throw e; }
-  throw new Error('Tutti i proxy falliti');
+  throw new Error('Proxy falliti: '+url);
+}
+async function pFetchJson(url){
+  return JSON.parse(await pFetchText(url));
 }
 
-async function proxyFetchJson(url) {
-  var text = await proxyFetchText(url);
-  return JSON.parse(text);
+// ── IMAGE URL HELPERS ──────────────────────────────
+function toMed(url){
+  return url.replace(/\/(fit_p_\d+_\d+|large|small|thumb|tiny)\./i,'/medium.');
+}
+function variants(url){
+  if(!url) return [];
+  var b=url.replace(/\/(fit_p_\d+_\d+|large|medium|small|thumb|tiny)\./i,'/V.');
+  return [b.replace('V','medium'),b.replace('V','small'),b.replace('V','thumb'),
+          b.replace('V','fit_p_560_560'),url].filter(function(v,i,a){return a.indexOf(v)===i;});
 }
 
-// ═══════════════════════════════════════════════
-// IMAGE HELPERS
-// ═══════════════════════════════════════════════
-function toMedium(url) {
-  return url.replace(/\/(fit_p_\d+_\d+|large|small|thumb|tiny)\./i, '/medium.');
-}
+// ── ALBUM PARSING ──────────────────────────────────
+var SKIP_NAV=/^(next\s*page|prev|previous|page\s*\d+|older|newer|more|avanti|indietro)$/i;
 
-function imageVariants(url) {
-  if (!url) return [];
-  var base = url.replace(/\/(fit_p_\d+_\d+|large|medium|small|thumb|tiny)\./i, '/VARIANT.');
-  var variants = [
-    base.replace('VARIANT','medium'),
-    base.replace('VARIANT','small'),
-    base.replace('VARIANT','thumb'),
-    base.replace('VARIANT','fit_p_560_560'),
-    base.replace('VARIANT','fit_p_900_900'),
-    url
-  ];
-  return variants.filter(function(v,i,a){ return a.indexOf(v) === i; });
-}
-
-// ═══════════════════════════════════════════════
-// ALBUM PARSING
-// ═══════════════════════════════════════════════
-var SKIP_NAV = /^(next\s*page|prev|previous|page\s*\d+|older|newer|more|avanti|indietro)$/i;
-
-function coverFromAlbumObj(obj) {
-  var s = JSON.stringify(obj);
-  var m = s.match(/photo\.yupoo\.com\/[^\\"]+\.jpg/);
-  if (m) return toMedium('https://' + m[0]);
-  var uid = obj.uid || obj.coverId || obj.coverUid;
-  if (uid && username) return 'https://photo.yupoo.com/' + username + '/' + uid + '/medium.jpg';
+function coverFromObj(obj){
+  var s=JSON.stringify(obj);
+  var m=s.match(/photo\.yupoo\.com\/[^\\"]+\.jpg/);
+  if(m) return toMed('https://'+m[0]);
+  var uid=obj.uid||obj.coverId||obj.coverUid;
+  if(uid&&uname) return 'https://photo.yupoo.com/'+uname+'/'+uid+'/medium.jpg';
   return null;
 }
-
-function parseAlbums(obj, out, depth) {
-  if (!out) out = [];
-  if (!depth) depth = 0;
-  if (depth > 15 || !obj || typeof obj !== 'object') return out;
-  if (!Array.isArray(obj) && typeof obj.id === 'number' && obj.id > 0
-      && (obj.name || obj.prettyName || obj.albumName || obj.title)) {
-    var name = obj.name || obj.prettyName || obj.albumName || obj.title || String(obj.id);
-    if (!SKIP_NAV.test(name.trim())) {
-      out.push({ id: obj.id, name: name, coverUrl: coverFromAlbumObj(obj) });
-    }
+function parseAlbums(obj,out,d){
+  if(!out) out=[];
+  if(!d) d=0;
+  if(d>15||!obj||typeof obj!=='object') return out;
+  if(!Array.isArray(obj)&&typeof obj.id==='number'&&obj.id>0
+     &&(obj.name||obj.prettyName||obj.albumName||obj.title)){
+    var n=obj.name||obj.prettyName||obj.albumName||obj.title||String(obj.id);
+    if(!SKIP_NAV.test(n.trim())) out.push({id:obj.id,name:n,cover:coverFromObj(obj)});
     return out;
   }
-  if (Array.isArray(obj)) {
-    for (var i = 0; i < obj.length; i++) parseAlbums(obj[i], out, depth + 1);
-  } else {
-    var vals = Object.values(obj);
-    for (var j = 0; j < vals.length; j++) {
-      if (vals[j] && typeof vals[j] === 'object') parseAlbums(vals[j], out, depth + 1);
-    }
+  if(Array.isArray(obj)){obj.forEach(function(x){parseAlbums(x,out,d+1);});}
+  else{Object.values(obj).forEach(function(v){if(v&&typeof v==='object') parseAlbums(v,out,d+1);});}
+  return out;
+}
+function totPages(json){
+  var s=JSON.stringify(json);
+  var ks=['totalPage','totalPages','total_page','pageCount','pages'];
+  for(var i=0;i<ks.length;i++){var m=s.match(new RegExp('"'+ks[i]+'"\\s*:\\s*(\\d+)'));if(m&&+m[1]>0) return +m[1];}
+  var tot=s.match(/"(?:total|totalAlbums|count)"\s*:\s*(\d+)/);
+  var sz=s.match(/"(?:pageSize|perPage|limit|size)"\s*:\s*(\d+)/);
+  if(tot&&sz&&+sz[1]>0) return Math.ceil(+tot[1]/+sz[1]);
+  return 1;
+}
+function htmlAlbums(html){
+  var out=[],seen=new Set(),SKIP=/\/(?:icons?|avatars?|watermarks?|default|logo)\//i;
+  var re=/href=["'][^"']*\/albums\/(\d+)[^"']*["']/g,m;
+  while((m=re.exec(html))!==null){
+    var id=m[1]; if(seen.has(id)) continue; seen.add(id);
+    var ctx=html.substring(Math.max(0,m.index-400),m.index+400);
+    var nm=ctx.match(/(?:title|alt|data-name)=["']([^"']{2,80})["']/);
+    var name=nm?nm[1].trim():''; if(SKIP_NAV.test(name)) continue;
+    var im=ctx.match(/https?:\/\/photo\.yupoo\.com\/[a-z0-9_]+\/[a-z0-9]+\/[^\s"'<>]+\.jpg/i);
+    out.push({id:parseInt(id),name:name,cover:(im&&!SKIP.test(im[0]))?toMed(im[0]):null});
   }
   return out;
 }
 
-function totalPages(json) {
-  var s = JSON.stringify(json);
-  var keys = ['totalPage','totalPages','total_page','pageCount','pages'];
-  for (var i = 0; i < keys.length; i++) {
-    var m = s.match(new RegExp('"' + keys[i] + '"\\s*:\\s*(\\d+)'));
-    if (m && +m[1] > 0) return +m[1];
-  }
-  var tot  = s.match(/"(?:total|totalAlbums|count)"\s*:\s*(\d+)/);
-  var size = s.match(/"(?:pageSize|perPage|limit|size)"\s*:\s*(\d+)/);
-  if (tot && size && +size[1] > 0) return Math.ceil(+tot[1] / +size[1]);
-  return 1;
+// ── PRODUCT HELPERS ────────────────────────────────
+function parseCny(name){
+  var m=name.match(/[¥￥Y]\s*~?\s*([\d]+(?:[.,]\d{1,2})?)/i)||name.match(/([\d]+(?:[.,]\d{1,2})?)\s*[¥￥]/i);
+  return m?parseFloat(m[1].replace(',','.')):null;
 }
-
-function htmlParseAlbums(html) {
-  var albums = [], seen = new Set();
-  var SKIP_IMG = /\/(?:icons?|avatars?|watermarks?|default|logo)\//i;
-  var re = /href=["'][^"']*\/albums\/(\d+)[^"']*["']/g;
-  var m;
-  while ((m = re.exec(html)) !== null) {
-    var id = m[1];
-    if (seen.has(id)) continue;
-    seen.add(id);
-    var ctx = html.substring(Math.max(0, m.index - 400), m.index + 400);
-    var nm = ctx.match(/(?:title|alt|data-name)=["']([^"']{2,80})["']/);
-    var name = nm ? nm[1].trim() : '';
-    if (SKIP_NAV.test(name)) continue;
-    var im = ctx.match(/https?:\/\/photo\.yupoo\.com\/[a-z0-9_]+\/[a-z0-9]+\/[^\s"'<>]+\.jpg/i);
-    var coverUrl = (im && !SKIP_IMG.test(im[0])) ? toMedium(im[0]) : null;
-    albums.push({ id: parseInt(id), name: name, coverUrl: coverUrl });
-  }
-  return albums;
+function cleanName(name){
+  return name.replace(/[¥￥Y]\s*~?\s*[\d]+(?:[.,]\d{1,2})?/gi,'')
+             .replace(/[\d]+(?:[.,]\d{1,2})?\s*[¥￥]/gi,'')
+             .replace(/\b(L🔥|C🔥|ST🔥|🔥|im\b|\(im\)|TOP\b)/gi,'')
+             .replace(/\d{7,}/g,'').replace(/\s{2,}/g,' ').trim();
 }
-
-// ═══════════════════════════════════════════════
-// PRODUCT HELPERS
-// ═══════════════════════════════════════════════
-function parsePriceCny(name) {
-  var m = name.match(/[¥￥Y]\s*~?\s*([\d]+(?:[.,]\d{1,2})?)/i)
-       || name.match(/([\d]+(?:[.,]\d{1,2})?)\s*[¥￥]/i);
-  return m ? parseFloat(m[1].replace(',','.')) : null;
-}
-
-function cleanName(name) {
-  var cleaned = name
-    .replace(/[¥￥Y]\s*~?\s*[\d]+(?:[.,]\d{1,2})?/gi,'')
-    .replace(/[\d]+(?:[.,]\d{1,2})?\s*[¥￥]/gi,'')
-    .replace(/\b(L🔥|C🔥|ST🔥|🔥|im\b|\(im\)|TOP\b)/gi,'')
-    // Rimuove info modello tipo (185CM 70KG iwear size M in the photo)
-    .replace(/\(\s*\d{2,3}\s*(?:cm)?\s*\d{2,3}\s*(?:kg)?[^)]*\)/gi,'')
-    .replace(/\[\s*\d{2,3}\s*(?:cm)?\s*\d{2,3}\s*(?:kg)?[^\]]*\]/gi,'')
-    // Rimuove solo numeri residui standalone
-    .replace(/\b\d{3,}\s*(?:cm|kg|g)\b/gi,'')
-    .replace(/\d{7,}/g,'')
-    .replace(/\s{2,}/g,' ').trim();
-  return toTitleCase(cleaned);
-}
-
-function toTitleCase(str) {
-  var minuscole = /^(a|e|il|lo|la|gli|le|di|da|in|con|su|per|tra|fra|and|or|the|of|in|on|at|to|for)$/i;
-  return str.toLowerCase().replace(/\b\w+/g, function(w, i) {
-    return (i === 0 || !minuscole.test(w)) ? w.charAt(0).toUpperCase() + w.slice(1) : w;
-  });
-}
-
-function guessType(name) {
-  if (!name) return '';
-  var n = name.toUpperCase();
-  // Ordine importante: più specifico prima
-  if (/TANK|CANOTTA|SLEEVELESS|SINGLET|\bMUSCLE\b/.test(n))    return 'Canotta';
-  if (/T-?SHIRT|TSHIRT/.test(n))                                  return 'T-shirt';
-  if (/LONG.?SLEEVE|LONGSLEEVE/.test(n))                          return 'Maglia manica lunga';
-  if (/\bPOLO\b/.test(n))                                        return 'Polo';
-  if (/HOODIE|HOODED|ZIP.?UP/.test(n))                            return 'Felpa con cappuccio';
-  if (/SWEATER|CREWNECK|PULLOVER/.test(n))                        return 'Felpa';
-  if (/FLEECE/.test(n))                                           return 'Pile';
-  if (/CARDIGAN/.test(n))                                         return 'Cardigan';
-  if (/PUFFER|PIUMINO|DOWN\b/.test(n))                           return 'Piumino';
-  if (/WINDBREAKER|ANORAK/.test(n))                               return 'Giacca a vento';
-  if (/BOMBER/.test(n))                                           return 'Bomber';
-  if (/JACKET/.test(n))                                           return 'Giacca';
-  if (/\bCOAT\b|OVERCOAT/.test(n))                              return 'Cappotto';
-  if (/JOGGER/.test(n))                                           return 'Jogger';
-  if (/TROUSER|\bPANT\b|PANTS\b/.test(n))                      return 'Pantaloni';
-  if (/\bSHORT/.test(n))                                         return 'Pantaloncini';
-  if (/\bVEST\b|\bGILET\b/.test(n))                           return 'Gilet';
-  if (/LEGGING/.test(n))                                          return 'Leggings';
-  if (/\bDRESS\b|\bABITO\b/.test(n))                          return 'Vestito';
-  if (/\bSKIRT\b|\bGONNA\b/.test(n))                          return 'Gonna';
-  if (/\bSHIRT\b/.test(n))                                      return 'Camicia';
-  if (/BACKPACK|ZAINO/.test(n))                                   return 'Zaino';
-  if (/\bBAG\b|\bBORSA\b|TOTE|CLUTCH/.test(n))               return 'Borsa';
-  if (/\bCAP\b|BEANIE|\bHAT\b|\bBERRETTO\b/.test(n))       return 'Cappello';
-  if (/SNEAKER|SHOE|\bSCARPA\b/.test(n))                        return 'Sneakers';
-  if (/\bSOCK|\bCALZIN/.test(n))                                return 'Calzini';
-  if (/SCARF|SCIARPA/.test(n))                                    return 'Sciarpa';
-  if (/WALLET|PORTAFOGLI/.test(n))                                return 'Portafoglio';
-  if (/\bBELT\b|CINTURA/.test(n))                               return 'Cintura';
+function guessType(name){
+  var n=name.toUpperCase();
+  if(/T-?SHIRT|TSHIRT/.test(n))        return 'T-shirt';
+  if(/\bPOLO\b/.test(n))               return 'Polo';
+  if(/HOODIE|HOODED/.test(n))           return 'Felpa con cappuccio';
+  if(/SWEATER|CREWNECK|FLEECE/.test(n)) return 'Felpa';
+  if(/JACKET|BOMBER/.test(n))           return 'Giacca';
+  if(/PUFFER|PIUMINO/.test(n))          return 'Piumino';
+  if(/TROUSER|PANT/.test(n))            return 'Pantaloni';
+  if(/\bSHORT/.test(n))                 return 'Pantaloncini';
+  if(/LONG.?SLEEVE/.test(n))            return 'Maglia manica lunga';
+  if(/\bBAG\b/.test(n))                 return 'Borsa';
+  if(/BACKPACK/.test(n))                return 'Zaino';
+  if(/\bCAP\b|BEANIE|\bHAT\b/.test(n)) return 'Cappello';
+  if(/SNEAKER|SHOE/.test(n))            return 'Sneakers';
   return '';
 }
 
-// Indovina tipo dal contesto dei prodotti vicini
-function inferMissingType(idx) {
-  var p = products[idx];
-  if (p.albumName) { var t = guessType(p.albumName); if (t) return t; }
-  var neighbors = [];
-  for (var i = Math.max(0,idx-4); i <= Math.min(products.length-1,idx+4); i++) {
-    if (i !== idx && products[i].tipo) neighbors.push(products[i].tipo);
-  }
-  if (neighbors.length) {
-    var freq = {};
-    neighbors.forEach(function(t){ freq[t]=(freq[t]||0)+1; });
-    return Object.keys(freq).sort(function(a,b){return freq[b]-freq[a];})[0];
-  }
-  var all = {};
-  products.forEach(function(x){ if (x.tipo) all[x.tipo]=(all[x.tipo]||0)+1; });
-  var sorted = Object.keys(all).sort(function(a,b){return all[b]-all[a];});
-  return sorted[0] || 'Abbigliamento';
-}
+// ── EXTRACTION ─────────────────────────────────────
+async function startExt(){
+  var raw=document.getElementById('curl').value.trim();
+  if(!raw){alert('Inserisci un URL Yupoo!');return;}
+  var url; try{url=new URL(raw).href;}catch(e){alert('URL non valido!');return;}
 
-// Stima prezzo mancante dalla mediana dei prodotti con lo stesso tipo
-function inferMissingPrice(idx) {
-  var p = products[idx];
-  // Cerca prodotti con stesso tipo E prezzo noto
-  var sameType = products.filter(function(x,i){ return i!==idx && x.tipo && x.tipo===p.tipo && x.cny; });
-  var pool = sameType.length >= 2 ? sameType : products.filter(function(x,i){ return i!==idx && x.cny; });
-  if (!pool.length) return null;
-  var prices = pool.map(function(x){ return x.cny; }).sort(function(a,b){return a-b;});
-  var mid = Math.floor(prices.length/2);
-  return prices.length%2===0 ? (prices[mid-1]+prices[mid])/2 : prices[mid];
-}
+  var wUrl=document.getElementById('wurl').value.trim();
+  if(!wUrl){alert('Inserisci il Worker URL Cloudflare nella barra in alto!');return;}
 
-function calcEur(cny) {
-  var rate   = parseFloat(document.getElementById('rate').value)   || 0.129;
-  var markup = parseFloat(document.getElementById('markup').value) || 0;
-  var eur = cny * rate * (1 + markup / 100);
-  var mode = document.getElementById('round-mode').value;
-  if (mode === '0.99') return Math.floor(eur) + 0.99;
-  if (mode === 'up')   return Math.ceil(eur);
-  return Math.round(eur * 100) / 100;
-}
+  stopped=false; P=[]; seenIds.clear();
+  if(ctl) ctl.abort(); ctl=new AbortController();
+  var u=new URL(url);
+  uname=u.hostname.split('.')[0];
+  siteBase=u.protocol+'//'+u.hostname;
+  buildId='';
 
-// ═══════════════════════════════════════════════
-// EXTRACTION
-// ═══════════════════════════════════════════════
-async function startExtraction() {
-  var rawUrl = document.getElementById('cat-url').value.trim();
-  if (!rawUrl) { alert('Inserisci prima un URL Yupoo!'); return; }
+  setUI(true); setProg(0,'Connessione...'); clearLog();
+  document.getElementById('empty').style.display='none';
+  document.getElementById('tw').style.display='block';
+  document.getElementById('stats').style.display='flex';
+  disBtn(true);
 
-  var url;
-  try { url = new URL(rawUrl).href; }
-  catch(e) { alert('URL non valido!'); return; }
+  var isAlbum=/\/albums\//.test(url);
+  var catM=url.match(/\/categories\/(\d+)/);
+  var catId=catM?catM[1]:null;
 
-  // Reset
-  stopped = false;
-  products = [];
-  seenIds.clear();
-  if (abortCtrl) abortCtrl.abort();
-  abortCtrl = new AbortController();
-
-  var u     = new URL(url);
-  username  = u.hostname.split('.')[0];
-  siteBase  = u.protocol + '//' + u.hostname;
-  buildId   = '';
-
-  // UI reset
-  setUI('extracting');
-  setProgress(0, 'Connessione a Yupoo...');
-  clearLog();
-  document.getElementById('empty-state').style.display = 'none';
-  document.getElementById('table-wrap').style.display  = 'block';
-  document.getElementById('stats-bar').style.display   = 'flex';
-
-  var isAlbum = /\/albums\//.test(url);
-  var catM    = url.match(/\/categories\/(\d+)/);
-  var catId   = catM ? catM[1] : null;
-
-  try {
-    var allAlbums = [];
-
-    if (isAlbum) {
-      var aId = parseInt(url.match(/\/albums\/(\d+)/)[1]);
-      allAlbums = [{ id: aId, name: 'Album singolo', coverUrl: null }];
-      log('Modalità: album singolo');
+  try{
+    var albums=[];
+    if(isAlbum){
+      var aid=parseInt(url.match(/\/albums\/(\d+)/)[1]);
+      albums=[{id:aid,name:'Album singolo',cover:null}];
+      lg('Modalità: album singolo');
     } else {
-      log('Raccolta album catalogo...');
-      allAlbums = await collectAlbums(url, catId);
+      lg('Raccolta album catalogo...');
+      albums=await collectAlbums(url,catId);
     }
 
-    if (!allAlbums.length) {
-      log('❌ Nessun album trovato. Verifica URL.', 'err');
-      setUI('idle'); return;
-    }
+    if(!albums.length){lg('❌ Nessun album trovato — verifica URL','er');setUI(false);return;}
+    lg('✅ '+albums.length+' album trovati','ok');
 
-    log('✅ Trovati ' + allAlbums.length + ' album', 'ok');
-    var brand = document.getElementById('default-brand').value.trim();
+    var brand=document.getElementById('brand').value.trim();
 
-    for (var i = 0; i < allAlbums.length; i++) {
-      if (stopped) break;
-      var album = allAlbums[i];
-      setProgress(Math.round((i / allAlbums.length) * 100),
-        (i+1) + '/' + allAlbums.length + ' — ' + album.name.substring(0,40));
+    for(var i=0;i<albums.length;i++){
+      if(stopped) break;
+      var al=albums[i];
+      setProg(Math.round(i/albums.length*100),(i+1)+'/'+albums.length+' — '+al.name.substring(0,40));
 
-      var cny = parsePriceCny(album.name);
-
-      var coverUrl = album.coverUrl;
-      if (!coverUrl) {
-        try { coverUrl = await fetchCover(album.id); }
-        catch(e) {
-          if (e.name === 'AbortError') break;
-          log('⚠ Album ' + album.id + ': nessuna copertina', 'warn');
-        }
+      var cny=parseCny(al.name);
+      var coverYupoo=al.cover;
+      if(!coverYupoo){
+        try{coverYupoo=await fetchCover(al.id);}
+        catch(e){if(e.name==='AbortError') break;}
       }
 
-      products.push({
-        id:        album.id,
-        albumName: album.name,
-        nome:      cleanName(album.name) || ('Prodotto ' + (i+1)),
-        tipo:      guessType(album.name),
-        brand:     brand,
-        taglie:    'S,M,L,XL',
-        colori:    '',
-        cny:       cny,
-        final:     cny ? calcEur(cny) : null,
-        coverUrl:  coverUrl || null,
-        imgbbUrl:  '',
-        status:    'idle'
+      // The image URL = Worker proxy URL pointing to Yupoo
+      var imgUrl = coverYupoo ? workerImgUrl(coverYupoo) : '';
+
+      P.push({
+        id:al.id, albumName:al.name,
+        nome:cleanName(al.name)||('Prodotto '+(i+1)),
+        tipo:guessType(al.name), brand:brand,
+        taglie:'S,M,L,XL', colori:'',
+        cny:cny, final:cny?calcEur(cny):null,
+        coverYupoo:coverYupoo,   // original Yupoo URL
+        imgUrl:imgUrl,           // Worker proxy URL (this goes in CSV)
+        status:'idle'
       });
-
-      renderTable();
-      updateStats();
+      renderTable(); updStats();
     }
 
-    setProgress(100, '✅ ' + products.length + ' prodotti — ' +
-      products.filter(function(p){return p.coverUrl;}).length + ' immagini — ' +
-      products.filter(function(p){return p.cny;}).length + ' prezzi');
-    log('✅ Estrazione completata: ' + products.length + ' prodotti', 'ok');
+    setProg(100,'✅ '+P.length+' prodotti estratti');
+    lg('✅ Completato: '+P.length+' prodotti, '+P.filter(function(p){return p.imgUrl;}).length+' immagini','ok');
+    disBtn(false);
 
-    if (products.length) {
-      document.getElementById('btn-upload').disabled  = false;
-      document.getElementById('btn-ainames').disabled  = false;
-      document.getElementById('btn-complete').disabled = false;
-      document.getElementById('btn-csv').disabled      = false;
-      document.getElementById('btn-zip').disabled     = false;
-      // Enable colors if any product has a cover image
-      if (products.some(function(p){ return p.coverUrl; })) {
-        document.getElementById('btn-colors').disabled = false;
-      }
-    }
-
-  } catch(e) {
-    if (e.name !== 'AbortError') log('❌ ' + e.message, 'err');
+  }catch(e){
+    if(e.name!=='AbortError') lg('❌ '+e.message,'er');
   }
-
-  setUI('idle');
+  setUI(false);
 }
 
-async function collectAlbums(pageUrl, catId) {
-  var all = [];
+async function collectAlbums(pageUrl,catId){
+  var all=[];
 
-  // Strategy 1: native API
-  if (catId) {
-    log('Strategia 1: API Yupoo...', 'info');
-    try {
-      var p1 = await proxyFetchJson(siteBase + '/albums?uid=' + catId + '&page=1&t=' + Date.now());
-      parseAlbums(p1, all);
-      var tp = totalPages(p1);
-      log('API: ' + all.length + ' album pag.1 / ' + tp + ' pagine totali');
-      for (var p = 2; p <= Math.min(tp, 500); p++) {
-        if (stopped) break;
-        setProgress(Math.round((p / tp) * 35), 'Raccolta pag.' + p + '/' + tp);
-        try {
-          var pd = await proxyFetchJson(siteBase + '/albums?uid=' + catId + '&page=' + p + '&t=' + Date.now());
-          parseAlbums(pd, all);
-        } catch(e) { if (e.name === 'AbortError') throw e; }
+  // API nativa
+  if(catId){
+    lg('Strategia 1: API Yupoo...','in');
+    try{
+      var p1=await pFetchJson(siteBase+'/albums?uid='+catId+'&page=1&t='+Date.now());
+      parseAlbums(p1,all);
+      var tp=totPages(p1);
+      lg('API: '+all.length+' album pag.1 / '+tp+' pagine');
+      for(var p=2;p<=Math.min(tp,500);p++){
+        if(stopped) break;
+        setProg(Math.round(p/tp*35),'Raccolta pag.'+p+'/'+tp);
+        try{var pd=await pFetchJson(siteBase+'/albums?uid='+catId+'&page='+p+'&t='+Date.now());parseAlbums(pd,all);}
+        catch(e){if(e.name==='AbortError') throw e;}
       }
-      if (all.length) return all;
-    } catch(e) {
-      if (e.name === 'AbortError') throw e;
-      log('API nativa fallita, provo HTML...', 'warn');
-    }
+      if(all.length) return all;
+    }catch(e){if(e.name==='AbortError') throw e; lg('API fallita, provo HTML...','wn');}
   }
 
-  // Strategy 2: __NEXT_DATA__ + HTML scraping
-  log('Strategia 2: HTML scraping...', 'info');
-  var html = await proxyFetchText(pageUrl);
-  var ndM = html.match(/<script[^>]+id=["']__NEXT_DATA__["'][^>]*>([\s\S]*?)<\/script>/i);
-  if (ndM) {
-    try {
-      var nd = JSON.parse(ndM[1]);
-      buildId = nd.buildId || '';
-      parseAlbums(nd, all);
-    } catch(e) {}
-  }
-  if (all.length) { log('__NEXT_DATA__: ' + all.length + ' album', 'ok'); return all; }
-
-  var ha = htmlParseAlbums(html);
-  all = all.concat(ha);
-  if (all.length) { log('HTML scraping: ' + all.length + ' album', 'ok'); return all; }
-
+  // HTML scraping
+  lg('Strategia 2: HTML scraping...','in');
+  var html=await pFetchText(pageUrl);
+  var ndM=html.match(/<script[^>]+id=["']__NEXT_DATA__["'][^>]*>([\s\S]*?)<\/script>/i);
+  if(ndM){try{var nd=JSON.parse(ndM[1]);buildId=nd.buildId||'';parseAlbums(nd,all);}catch(e){}}
+  if(all.length){lg('__NEXT_DATA__: '+all.length+' album','ok');return all;}
+  var ha=htmlAlbums(html);
+  if(ha.length){lg('HTML scraping: '+ha.length+' album','ok');return ha;}
   return all;
 }
 
-async function fetchCover(albumId) {
-  try {
-    var json = await proxyFetchJson(siteBase + '/albums/' + albumId + '?page=1&t=' + Date.now());
-    var photos = [];
-    function find(obj, d) {
-      if (d > 15 || !obj || typeof obj !== 'object') return;
-      var uid = obj.uid || obj.imageid || obj.imageId;
-      if (uid && /^[0-9a-f]{5,20}$/i.test(String(uid)) && !obj.buildId) {
-        if (obj.path) {
-          photos.push(obj.path.startsWith('http') ? obj.path : 'https://photo.yupoo.com' + obj.path);
-        } else if (username) {
-          photos.push('https://photo.yupoo.com/' + username + '/' + uid + '/medium.jpg');
-        }
+async function fetchCover(albumId){
+  try{
+    var json=await pFetchJson(siteBase+'/albums/'+albumId+'?page=1&t='+Date.now());
+    var photos=[];
+    function find(obj,d){
+      if(d>15||!obj||typeof obj!=='object') return;
+      var uid=obj.uid||obj.imageid||obj.imageId;
+      if(uid&&/^[0-9a-f]{5,20}$/i.test(String(uid))&&!obj.buildId){
+        photos.push(obj.path?(obj.path.startsWith('http')?obj.path:'https://photo.yupoo.com'+obj.path)
+          :'https://photo.yupoo.com/'+uname+'/'+uid+'/medium.jpg');
         return;
       }
-      if (Array.isArray(obj)) { obj.forEach(function(x){ find(x, d+1); }); }
-      else { Object.values(obj).forEach(function(v){ if(v && typeof v==='object') find(v, d+1); }); }
+      if(Array.isArray(obj)){obj.forEach(function(x){find(x,d+1);});}
+      else{Object.values(obj).forEach(function(v){if(v&&typeof v==='object') find(v,d+1);});}
     }
-    find(json, 0);
-    if (photos.length) return toMedium(photos[0]);
-  } catch(e) { if (e.name === 'AbortError') throw e; }
-
-  var html = await proxyFetchText(siteBase + '/albums/' + albumId);
-  var SKIP = /\/(?:icons?|avatars?|watermarks?|default|logo)\//i;
-  var re2  = /https?:\/\/photo\.yupoo\.com\/[a-z0-9_]+\/[a-z0-9]+\/[^\s"'<>]+\.jpg/gi;
-  var m2;
-  while ((m2 = re2.exec(html)) !== null) {
-    if (!SKIP.test(m2[0])) return toMedium(m2[0]);
-  }
-  throw new Error('copertina non trovata');
+    find(json,0);
+    if(photos.length) return toMed(photos[0]);
+  }catch(e){if(e.name==='AbortError') throw e;}
+  // HTML fallback
+  var html=await pFetchText(siteBase+'/albums/'+albumId);
+  var SKIP=/\/(?:icons?|avatars?|watermarks?|default|logo)\//i;
+  var re=/https?:\/\/photo\.yupoo\.com\/[a-z0-9_]+\/[a-z0-9]+\/[^\s"'<>]+\.jpg/gi,m;
+  while((m=re.exec(html))!==null){if(!SKIP.test(m[0])) return toMed(m[0]);}
+  return null;
 }
 
-function stopExtraction() {
-  stopped = true;
-  if (abortCtrl) abortCtrl.abort();
-  log('⛔ Fermato.', 'warn');
-  setUI('idle');
+function doStop(){
+  stopped=true; if(ctl) ctl.abort();
+  lg('⛔ Fermato.','wn'); setUI(false);
 }
 
-// ═══════════════════════════════════════════════
-// IMAGE UPLOAD (Imgur primary → imgbb fallback)
-// ═══════════════════════════════════════════════
-
-// Upload to Imgur anonymously (no account needed, 1250 uploads/day)
-async function uploadToImgur(blob) {
-  var fd = new FormData();
-  fd.append('image', blob);
-  // Public Imgur client ID (anonymous upload)
-  var r = await fetch('https://api.imgur.com/3/image', {
-    method: 'POST',
-    headers: { 'Authorization': 'Client-ID 546c25a59c58ad7' },
-    body: fd
-  });
-  var j = await r.json();
-  if (j.success && j.data && j.data.link) return j.data.link;
-  throw new Error('Imgur: ' + (j.data && j.data.error ? j.data.error : 'upload fallito'));
-}
-
-// Upload to imgbb (fallback)
-async function uploadToImgbb(blob, key, prodId) {
-  var b64 = await blobToBase64(blob);
-  var fd = new FormData();
-  fd.append('key', key);
-  fd.append('image', b64.split(',')[1]);
-  fd.append('name', 'lillofind_' + prodId);
-  var r = await fetch('https://api.imgbb.com/1/upload', { method:'POST', body: fd });
-  var j = await r.json();
-  if (j.success) return j.data.url;
-  throw new Error('imgbb: ' + ((j.error && j.error.message) || 'upload fallito'));
-}
-
-async function uploadAllImgbb() {
-  var imgbbKey = document.getElementById('imgbb-key').value.trim();
-  var wUrl = document.getElementById('worker-url').value.trim();
-  if (!wUrl) { alert('Inserisci il Worker URL Cloudflare!'); return; }
-
-  var toUp = products.filter(function(p){ return p.coverUrl && !p.imgbbUrl; });
-  if (!toUp.length) { alert('Nessuna immagine da caricare (o già caricate).'); return; }
-
-  stopped = false;
-  abortCtrl = new AbortController();
-  document.getElementById('btn-upload').disabled = true;
-  log('⬆ Upload ' + toUp.length + ' immagini (Imgur → imgbb fallback)...', 'info');
-
-  var retries = 0;
-  for (var i = 0; i < toUp.length; i++) {
-    if (stopped) break;
-    var prod = toUp[i];
-    prod.status = 'uploading';
-    renderTableRow(prod);
-    setProgress(Math.round((i / toUp.length) * 100),
-      'Upload ' + (i+1) + '/' + toUp.length + ': ' + prod.nome.substring(0,30));
-
-    try {
-      // Fetch image via Worker proxy
-      var variants = imageVariants(prod.coverUrl);
-      var imgBlob = null;
-      for (var vi = 0; vi < variants.length; vi++) {
-        try {
-          var proxyUrl = wUrl.replace(/\/$/, '') + '/?url=' + encodeURIComponent(variants[vi]);
-          var resp = await fetch(proxyUrl, { signal: abortCtrl.signal });
-          if (resp.ok) {
-            var ct = resp.headers.get('content-type') || '';
-            if (ct.startsWith('image/')) { imgBlob = await resp.blob(); prod.coverUrl = variants[vi]; break; }
-          }
-        } catch(ve) { if (ve.name === 'AbortError') throw ve; }
-      }
-      if (!imgBlob) throw new Error('Immagine non scaricabile');
-
-      // Try Imgur first, fallback to imgbb
-      var uploadedUrl = null;
-      try {
-        uploadedUrl = await uploadToImgur(imgBlob);
-        log('✅ [' + (i+1) + '/' + toUp.length + '] Imgur: ' + prod.nome.substring(0,30), 'ok');
-      } catch(imgurErr) {
-        if (imgbbKey) {
-          log('⚠ Imgur fallito (' + imgurErr.message + '), provo imgbb...', 'warn');
-          await new Promise(function(r){ setTimeout(r, 1500); });
-          uploadedUrl = await uploadToImgbb(imgBlob, imgbbKey, prod.id);
-          log('✅ [' + (i+1) + '/' + toUp.length + '] imgbb: ' + prod.nome.substring(0,30), 'ok');
-        } else {
-          throw imgurErr;
-        }
-      }
-
-      prod.imgbbUrl = uploadedUrl;
-      prod.status   = 'done';
-      retries = 0;
-      renderTableRow(prod);
-
-    } catch(e) {
-      if (e.name === 'AbortError') { log('⛔ Interrotto.', 'warn'); break; }
-      var isRateLimit = e.message && (e.message.toLowerCase().includes('rate') || e.message.includes('429'));
-      if (isRateLimit && retries < 3) {
-        retries++;
-        var waitSec = retries * 10;
-        log('⏳ Rate limit — attendo ' + waitSec + 's (tentativo ' + retries + '/3)...', 'warn');
-        await new Promise(function(r){ setTimeout(r, waitSec * 1000); });
-        i--; // retry same product
-      } else {
-        retries = 0;
-        prod.status = 'error';
-        renderTableRow(prod);
-        log('❌ [' + (i+1) + '] ' + prod.nome.substring(0,25) + ': ' + e.message, 'err');
-      }
-    }
-    updateStats();
-    // Delay tra upload: evita rate limit imgbb (max ~1 req/sec)
-    await new Promise(function(r){ setTimeout(r, 1200); });
-  }
-
-  setProgress(100, '✅ Upload completato');
-  document.getElementById('btn-upload').disabled = false;
-  document.getElementById('btn-csv').disabled    = false;
-  if (products.some(function(p){ return p.imgbbUrl; })) {
-    document.getElementById('btn-colors').disabled = false;
-  }
-}
-
-function blobToBase64(blob) {
-  return new Promise(function(res, rej) {
-    var fr = new FileReader();
-    fr.onload  = function(){ res(fr.result); };
-    fr.onerror = function(){ rej(new Error('FileReader error')); };
-    fr.readAsDataURL(blob);
-  });
-}
-
-// ═══════════════════════════════════════════════
-// GEMINI COLOR DETECTION (free)
-// ═══════════════════════════════════════════════
-// Color name map: RGB → Italian name
-var COLOR_MAP = [
+// ── COLOR DETECTION (Canvas — no API, no limits) ───
+var CMAP=[
   [[0,0,0],'Nero'],[[255,255,255],'Bianco'],[[128,128,128],'Grigio'],
-  [[192,192,192],'Grigio Chiaro'],[[64,64,64],'Grigio Scuro'],
-  [[255,0,0],'Rosso'],[[139,0,0],'Rosso Scuro'],[[255,99,71],'Rosso Corallo'],
+  [[192,192,192],'Grigio Chiaro'],[[64,64,64],'Grigio Scuro'],[[105,105,105],'Grigio Medio'],
+  [[255,0,0],'Rosso'],[[139,0,0],'Bordeaux'],[[220,20,60],'Cremisi'],
   [[255,165,0],'Arancione'],[[255,140,0],'Arancione Scuro'],
-  [[255,255,0],'Giallo'],[[255,215,0],'Giallo Oro'],
-  [[0,128,0],'Verde'],[[0,255,0],'Verde Chiaro'],[[34,139,34],'Verde Foresta'],
-  [[0,100,0],'Verde Scuro'],[[128,128,0],'Verde Oliva'],[[107,142,35],'Verde Militare'],
-  [[0,0,255],'Blu'],[[0,0,139],'Blu Scuro'],[[70,130,180],'Blu Acciaio'],
-  [[173,216,230],'Blu Chiaro'],[[0,128,128],'Verde Acqua'],[[0,191,255],'Azzurro'],
-  [[25,25,112],'Blu Navy'],[[100,149,237],'Blu Fiordaliso'],
-  [[128,0,128],'Viola'],[[148,0,211],'Viola Scuro'],[[221,160,221],'Viola Chiaro'],
-  [[255,0,255],'Magenta'],[[255,20,147],'Rosa Intenso'],[[255,182,193],'Rosa'],
-  [[255,192,203],'Rosa Chiaro'],[[219,112,147],'Rosa Antico'],
-  [[165,42,42],'Marrone'],[[139,69,19],'Marrone Sella'],[[210,180,140],'Beige'],
-  [[245,245,220],'Avorio'],[[255,228,196],'Albicocca'],[[244,164,96],'Sabbia'],
-  [[240,230,140],'Kaki Chiaro'],[[189,183,107],'Kaki'],
+  [[255,255,0],'Giallo'],[[255,215,0],'Oro'],
+  [[0,128,0],'Verde'],[[0,100,0],'Verde Scuro'],[[34,139,34],'Verde Bosco'],
+  [[128,128,0],'Verde Oliva'],[[107,142,35],'Verde Militare'],[[0,128,128],'Verde Acqua'],
+  [[0,0,255],'Blu'],[[0,0,139],'Blu Scuro'],[[25,25,112],'Blu Navy'],
+  [[70,130,180],'Blu Acciaio'],[[100,149,237],'Blu Fiordaliso'],[[173,216,230],'Azzurro'],
+  [[0,191,255],'Azzurro Chiaro'],[[0,80,180],'Blu Royal'],
+  [[128,0,128],'Viola'],[[148,0,211],'Viola Scuro'],[[221,160,221],'Lilla'],
+  [[255,0,255],'Fucsia'],[[255,20,147],'Rosa Intenso'],[[255,182,193],'Rosa'],
+  [[255,192,203],'Rosa Chiaro'],
+  [[165,42,42],'Marrone'],[[139,69,19],'Marrone Sella'],[[101,67,33],'Marrone Scuro'],
+  [[210,180,140],'Beige'],[[245,245,220],'Avorio'],[[255,228,196],'Pesca'],
+  [[244,164,96],'Sabbia'],[[189,183,107],'Kaki'],[[240,230,140],'Kaki Chiaro'],
   [[47,79,79],'Verde Petrolio'],[[72,61,139],'Indaco'],
   [[230,230,250],'Lavanda'],[[255,250,205],'Crema'],
-  [[105,105,105],'Grigio Medio'],[[169,169,169],'Grigio Argento'],
 ];
-
-function colorDistance(r1,g1,b1, r2,g2,b2) {
-  return Math.sqrt((r1-r2)**2 + (g1-g2)**2 + (b1-b2)**2);
-}
-
-function rgbToColorName(r, g, b) {
-  var best = COLOR_MAP[0], bestDist = Infinity;
-  for (var i = 0; i < COLOR_MAP.length; i++) {
-    var c = COLOR_MAP[i][0];
-    var d = colorDistance(r, g, b, c[0], c[1], c[2]);
-    if (d < bestDist) { bestDist = d; best = COLOR_MAP[i]; }
-  }
+function cdist(r1,g1,b1,r2,g2,b2){return Math.sqrt((r1-r2)**2+(g1-g2)**2+(b1-b2)**2);}
+function toName(r,g,b){
+  var best=CMAP[0],bd=Infinity;
+  for(var i=0;i<CMAP.length;i++){var c=CMAP[i][0],d=cdist(r,g,b,c[0],c[1],c[2]);if(d<bd){bd=d;best=CMAP[i];}}
   return best[1];
 }
 
-function extractDominantColors(imageUrl) {
-  return new Promise(function(resolve, reject) {
-    var img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = function() {
-      try {
-        // --- Campiona pixels reali tramite canvas ad alta res ---
-        var SIZE = 150;
-        var cv = document.createElement('canvas');
-        cv.width = SIZE; cv.height = SIZE;
-        var cx = cv.getContext('2d');
-        cx.drawImage(img, 0, 0, SIZE, SIZE);
-        var d = cx.getImageData(0, 0, SIZE, SIZE).data;
-
-        // Rileva sfondo: campiona 20px di bordo tutto intorno
-        var bgPixels = [];
-        for (var bx = 0; bx < SIZE; bx++) {
-          // top row + bottom row
-          var t = (bx)*4, bt = (SIZE*(SIZE-1)+bx)*4;
-          bgPixels.push([d[t],d[t+1],d[t+2]]);
-          bgPixels.push([d[bt],d[bt+1],d[bt+2]]);
+function extractColors(blobUrl){
+  return new Promise(function(res,rej){
+    var img=new Image();
+    img.crossOrigin='anonymous';
+    img.onload=function(){
+      try{
+        var SZ=100;
+        var cv=document.createElement('canvas'); cv.width=SZ; cv.height=SZ;
+        var ctx=cv.getContext('2d'); ctx.drawImage(img,0,0,SZ,SZ);
+        var d=ctx.getImageData(0,0,SZ,SZ).data;
+        var bk={};
+        for(var i=0;i<d.length;i+=12){
+          var r=d[i],g=d[i+1],b=d[i+2],a=d[i+3];
+          if(a<128) continue;
+          if((r+g+b)/3>245) continue; // skip white bg
+          r=Math.round(r/28)*28; g=Math.round(g/28)*28; b=Math.round(b/28)*28;
+          var k=r+','+g+','+b; bk[k]=(bk[k]||0)+1;
         }
-        for (var by = 0; by < SIZE; by++) {
-          // left col + right col
-          var l = (by*SIZE)*4, r2 = (by*SIZE+SIZE-1)*4;
-          bgPixels.push([d[l],d[l+1],d[l+2]]);
-          bgPixels.push([d[r2],d[r2+1],d[r2+2]]);
-        }
-        var bgR = Math.round(bgPixels.reduce(function(s,c){return s+c[0];},0)/bgPixels.length);
-        var bgG = Math.round(bgPixels.reduce(function(s,c){return s+c[1];},0)/bgPixels.length);
-        var bgB = Math.round(bgPixels.reduce(function(s,c){return s+c[2];},0)/bgPixels.length);
-
-        // --- Raccogli solo pixel della zona interna (20% margine) ---
-        var margin = Math.floor(SIZE * 0.20);
-        var buckets = {};
-        var step = 20;
-        for (var y = margin; y < SIZE - margin; y++) {
-          for (var x = margin; x < SIZE - margin; x++) {
-            var i = (y * SIZE + x) * 4;
-            var r = d[i], g = d[i+1], b = d[i+2], a = d[i+3];
-            if (a < 200) continue;
-
-            // Escludi sfondo (soglia alta = 55)
-            if (colorDistance(r,g,b, bgR,bgG,bgB) < 55) continue;
-
-            // Escludi bianchi, grigi chiari, beige chiari (sfondo tipico Yupoo)
-            if (r > 210 && g > 205 && b > 195) continue;
-
-            // Escludi grigi neutri puri mediamente chiari
-            var maxC = Math.max(r,g,b), minC = Math.min(r,g,b);
-            var sat = maxC > 0 ? (maxC - minC) / maxC : 0;
-            if (sat < 0.10 && r > 130 && r < 215) continue; // grigio medio = sfondo
-
-            var qr = Math.round(r/step)*step;
-            var qg = Math.round(g/step)*step;
-            var qb = Math.round(b/step)*step;
-            var key = qr+','+qg+','+qb;
-            buckets[key] = (buckets[key]||0)+1;
+        var sorted=Object.entries(bk).sort(function(a,b){return b[1]-a[1];});
+        var picked=[];
+        for(var j=0;j<sorted.length&&picked.length<5;j++){
+          var pt=sorted[j][0].split(',').map(Number);
+          var close=false;
+          for(var k2=0;k2<picked.length;k2++){
+            if(cdist(pt[0],pt[1],pt[2],picked[k2][0],picked[k2][1],picked[k2][2])<55){close=true;break;}
           }
+          if(!close) picked.push(pt);
         }
-
-        var sorted = Object.entries(buckets).sort(function(a,b){return b[1]-a[1];});
-
-        // Seleziona fino a 4 colori distinti (distanza minima 45)
-        var picked = [];
-        for (var j = 0; j < sorted.length && picked.length < 4; j++) {
-          var parts2 = sorted[j][0].split(',').map(Number);
-          var pr = parts2[0], pg2 = parts2[1], pb2 = parts2[2];
-          var tooClose = picked.some(function(c){
-            return colorDistance(pr,pg2,pb2,c[0],c[1],c[2]) < 45;
-          });
-          if (!tooClose) picked.push([pr, pg2, pb2]);
-        }
-
-        if (!picked.length) {
-          // Fallback: usa ColorThief senza filtri
-          try {
-            var thief = new ColorThief();
-            var pal = thief.getPalette(img, 3) || [];
-            pal.forEach(function(c){ picked.push(c); });
-          } catch(e2) {}
-        }
-
-        var names = [];
-        picked.forEach(function(c) {
-          if (names.length >= 4) return;
-          var name = rgbToColorName(c[0], c[1], c[2]);
-          if (names.indexOf(name) === -1) names.push(name);
+        var names=[];
+        picked.forEach(function(c){
+          var n=toName(c[0],c[1],c[2]);
+          if(names.indexOf(n)===-1) names.push(n);
         });
-
-        resolve(names.join(', ') || 'Non rilevato');
-      } catch(e) {
-        reject(new Error('Colori error: ' + e.message));
-      }
+        res(names.slice(0,4).join(', ')||'Non rilevato');
+      }catch(e){rej(e);}
     };
-    img.onerror = function() { reject(new Error('Immagine non caricabile')); };
-    img.src = imageUrl;
+    img.onerror=function(){rej(new Error('img load failed'));};
+    img.src=blobUrl;
   });
 }
 
-// Converte blob/URL in base64
-async function toBase64(url) {
-  var r = await fetch(url);
-  var blob = await r.blob();
-  return new Promise(function(res, rej) {
-    var fr = new FileReader();
-    fr.onload = function() { res(fr.result.split(',')[1]); };
-    fr.onerror = function() { rej(new Error('FileReader error')); };
-    fr.readAsDataURL(blob);
-  });
-}
+async function doColors(){
+  var wUrl=document.getElementById('wurl').value.trim();
+  if(!wUrl){alert('Inserisci il Worker URL!');return;}
+  var todo=P.filter(function(p){return p.imgUrl&&!p.colori;});
+  if(!todo.length){alert('Nessun prodotto da processare (o colori già presenti).');return;}
 
-async function detectColorsGemini(imageUrl) {
-  var geminiKey = document.getElementById('gemini-key').value.trim();
+  stopped=false; ctl=new AbortController();
+  document.getElementById('bcol').disabled=true;
+  lg('🎨 Rilevamento colori per '+todo.length+' prodotti...','in');
+  document.getElementById('psec').className='prog-sec on';
 
-  // --- Strategia 1: Gemini Vision (AI reale, vede l'immagine) ---
-  if (geminiKey) {
-    try {
-      // Scarica immagine come base64
-      var wUrl = document.getElementById('worker-url').value.trim();
-      var fetchUrl = imageUrl;
+  for(var i=0;i<todo.length;i++){
+    if(stopped) break;
+    var prod=todo[i];
+    setProg(Math.round(i/todo.length*100),'🎨 '+(i+1)+'/'+todo.length+': '+prod.nome.substring(0,35));
 
-      // Per immagini Yupoo usa il worker proxy
-      if (!imageUrl.includes('ibb.co') && !imageUrl.includes('imgbb.com') && wUrl) {
-        var variants = imageVariants(imageUrl);
-        for (var vi = 0; vi < variants.length; vi++) {
-          try {
-            var pUrl = wUrl.replace(/\/$/, '') + '/?url=' + encodeURIComponent(variants[vi]);
-            var tr = await fetch(pUrl);
-            if (tr.ok) { fetchUrl = pUrl; break; }
-          } catch(e) {}
-        }
+    try{
+      // Fetch image via worker → blob URL (needed for canvas cross-origin)
+      var vrs=variants(prod.coverYupoo||'');
+      var blob=null;
+      for(var vi=0;vi<vrs.length;vi++){
+        try{
+          var pu=wUrl.replace(/\/$/,'')+'/?url='+encodeURIComponent(vrs[vi]);
+          var r=await fetch(pu,{signal:ctl.signal});
+          if(r.ok){blob=await r.blob();if(blob&&blob.size>500) break;}
+        }catch(ve){if(ve.name==='AbortError') throw ve;}
       }
+      if(!blob||blob.size<100) throw new Error('immagine non scaricabile');
 
-      var b64 = await toBase64(fetchUrl);
-      var mimeType = 'image/jpeg';
+      var burl=URL.createObjectURL(blob);
+      try{
+        prod.colori=await extractColors(burl);
+        URL.revokeObjectURL(burl);
+      }catch(ce){URL.revokeObjectURL(burl);throw ce;}
 
-      var prompt = 'Questa immagine mostra un capo di abbigliamento (o accessorio) in vendita su un ecommerce. ' +
-        'Spesso mostra lo stesso capo in più colori affiancati. ' +
-        'Elenca SOLO i colori del capo/indumento, NON lo sfondo. ' +
-        'Usa nomi italiani semplici (es: Nero, Bianco, Grigio, Rosso, Blu, Verde, Beige, Marrone, Rosa, Arancione, Giallo, Viola, Azzurro, Kaki, Bordeaux). ' +
-        'Rispondi con SOLO i nomi separati da virgola, senza altro testo. Massimo 5 colori.';
-
-      var resp = await fetch(
-        'https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent?key=' + geminiKey,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{
-              parts: [
-                { inline_data: { mime_type: mimeType, data: b64 } },
-                { text: prompt }
-              ]
-            }],
-            generationConfig: { temperature: 0.1, maxOutputTokens: 80 }
-          })
-        }
-      );
-
-      if (resp.ok) {
-        var data = await resp.json();
-        var text = ((data.candidates||[])[0]||{}).content
-          ? data.candidates[0].content.parts.map(function(p){return p.text||'';}).join('').trim()
-          : '';
-        if (text && text.length > 1 && text.length < 200) {
-          // Pulizia: rimuovi punti, maiuscola iniziale per ogni colore
-          var colors = text.replace(/[.!?]/g,'').split(',')
-            .map(function(c){ return c.trim(); })
-            .filter(function(c){ return c.length > 1 && c.length < 30; })
-            .slice(0,5);
-          if (colors.length) return colors.join(', ');
-        }
-      } else {
-        var errData = await resp.json().catch(function(){return {};});
-        var errMsg = (errData.error||{}).message||'';
-        // Se quota esaurita, scendi al fallback canvas
-        // 429 = quota, 404 = model not found → both fallback to canvas
-        if (resp.status !== 429 && resp.status !== 404) throw new Error('Gemini Vision ' + resp.status + ': ' + errMsg);
-        log('⚠ Gemini ' + resp.status + ': uso fallback canvas...', 'warn');
-        log('⚠ Gemini quota: uso fallback canvas...', 'warn');
-      }
-    } catch(e) {
-      if (e.name === 'AbortError') throw e;
-      log('⚠ Gemini Vision error: ' + e.message + ' — uso canvas', 'warn');
-    }
-  }
-
-  // --- Strategia 2: fallback canvas (se no key o quota esaurita) ---
-  var wUrl2 = document.getElementById('worker-url').value.trim();
-  var isHosted = imageUrl.includes('ibb.co') || imageUrl.includes('imgbb.com');
-  if (isHosted) {
-    return await extractDominantColors(imageUrl);
-  } else if (wUrl2) {
-    var variants2 = imageVariants(imageUrl);
-    var blobUrl = null;
-    for (var vi2 = 0; vi2 < variants2.length; vi2++) {
-      try {
-        var pUrl2 = wUrl2.replace(/\/$/, '') + '/?url=' + encodeURIComponent(variants2[vi2]);
-        var r2 = await fetch(pUrl2);
-        if (r2.ok) { var bl = await r2.blob(); if (bl && bl.size > 500) { blobUrl = URL.createObjectURL(bl); break; } }
-      } catch(e) {}
-    }
-    if (!blobUrl) throw new Error('Immagine non scaricabile');
-    try {
-      var res = await extractDominantColors(blobUrl);
-      URL.revokeObjectURL(blobUrl);
-      return res;
-    } catch(e) { URL.revokeObjectURL(blobUrl); throw e; }
-  }
-  throw new Error('Inserisci Gemini key o Worker URL');
-}
-
-async function detectAllColors() {
-  var toProc = products.filter(function(p){ return (p.imgbbUrl || p.coverUrl) && !p.colori; });
-  if (!toProc.length) { alert('Nessun prodotto da processare (colori già presenti o immagini mancanti).'); return; }
-
-  stopped = false;
-  abortCtrl = new AbortController();
-  document.getElementById('btn-colors').disabled = true;
-  var hasGemini = document.getElementById('gemini-key').value.trim();
-  log('🎨 Rilevamento colori ' + (hasGemini ? 'via Gemini Vision AI 👁' : 'via canvas') + ' per ' + toProc.length + ' prodotti...', 'info');
-
-  for (var i = 0; i < toProc.length; i++) {
-    if (stopped) break;
-    var prod = toProc[i];
-    var imgUrl = prod.imgbbUrl || prod.coverUrl;
-    setProgress(Math.round((i / toProc.length) * 100),
-      '🎨 ' + (i+1) + '/' + toProc.length + ': ' + prod.nome.substring(0,30));
-    try {
-      prod.colori = await detectColorsGemini(imgUrl);
       renderTableRow(prod);
-      log('🎨 [' + (i+1) + '] ' + prod.nome.substring(0,25) + ': ' + prod.colori, 'ok');
-    } catch(e) {
-      if (e.name === 'AbortError') break;
-      log('⚠ [' + (i+1) + '] ' + prod.nome.substring(0,25) + ': ' + e.message, 'warn');
+      lg('🎨 ['+(i+1)+'/'+todo.length+'] '+prod.nome.substring(0,28)+': '+prod.colori,'ok');
+    }catch(e){
+      if(e.name==='AbortError') break;
+      lg('⚠ ['+(i+1)+'] '+prod.nome.substring(0,28)+': '+e.message,'wn');
     }
-    // Delay: Gemini free = 15 req/min → 4s between calls
-    var hasGeminiKey = document.getElementById('gemini-key').value.trim();
-    var delayMs = hasGeminiKey ? 4100 : 50;
-    await new Promise(function(r){ setTimeout(r, delayMs); });
+    await new Promise(function(r){setTimeout(r,80);});
   }
 
-  setProgress(100, '✅ Colori completati');
-  log('✅ Colori rilevati per ' + toProc.filter(function(p){return p.colori;}).length + ' prodotti', 'ok');
-  document.getElementById('btn-colors').disabled = false;
-  document.getElementById('btn-csv').disabled    = false;
+  updStats();
+  setProg(100,'✅ Colori rilevati per '+P.filter(function(p){return p.colori;}).length+' prodotti');
+  lg('✅ Rilevamento colori completato','ok');
+  document.getElementById('bcol').disabled=false;
+  document.getElementById('bcsv').disabled=false;
 }
 
-// ═══════════════════════════════════════════════
-// COMPLETA DATI — tipo e prezzi mancanti
-// ═══════════════════════════════════════════════
-function completeData() {
-  if (!products.length) return;
-  document.getElementById('btn-complete').disabled = true;
+// ── ZIP DOWNLOAD ────────────────────────────────────
+async function doZip(){
+  var wUrl=document.getElementById('wurl').value.trim();
+  if(!wUrl){alert('Worker URL mancante!');return;}
+  var todo=P.filter(function(p){return p.coverYupoo;});
+  if(!todo.length){alert('Nessuna immagine disponibile.');return;}
 
-  var filledTipo = 0, filledPrice = 0;
+  stopped=false; ctl=new AbortController();
+  document.getElementById('bzip').disabled=true;
+  var zip=new JSZip(); var ok=0,fail=0;
+  lg('📦 ZIP '+todo.length+' immagini...','in');
 
-  products.forEach(function(p, idx) {
-    // 1. Tipo mancante
-    if (!p.tipo) {
-      var t = inferMissingType(idx);
-      if (t) { p.tipo = t; filledTipo++; }
-    }
-  });
-
-  // Secondo passaggio prezzi (dopo aver riempito i tipi)
-  products.forEach(function(p, idx) {
-    if (!p.cny) {
-      var stima = inferMissingPrice(idx);
-      if (stima) {
-        p.cny   = Math.round(stima);
-        p.final = calcEur(p.cny);
-        filledPrice++;
+  for(var i=0;i<todo.length;i++){
+    if(stopped) break;
+    setProg(Math.round(i/todo.length*100),'ZIP '+(i+1)+'/'+todo.length);
+    try{
+      var vrs=variants(todo[i].coverYupoo);
+      var blob=null;
+      for(var vi=0;vi<vrs.length;vi++){
+        try{
+          var pu=wUrl.replace(/\/$/,'')+'/?url='+encodeURIComponent(vrs[vi]);
+          var r=await fetch(pu,{signal:ctl.signal});
+          if(r.ok){blob=await r.blob();if(blob&&blob.size>500) break;}
+        }catch(ve){if(ve.name==='AbortError') throw ve;}
       }
-    }
-  });
-
-  renderTable();
-  updateStats();
-
-  var msg = '🔧 Completato: ' + filledTipo + ' tipi e ' + filledPrice + ' prezzi stimati';
-  setProgress(100, msg);
-  log(msg + ' (prezzi = mediana per tipo)', 'ok');
-  document.getElementById('btn-complete').disabled = false;
-}
-
-// ═══════════════════════════════════════════════
-// SMART RENAME — 100% locale, zero API
-// ═══════════════════════════════════════════════
-
-// Mappa traduzione tipo EN → IT (usata anche nel nome finale)
-var TIPO_MAP = [
-  [/TANK|CANOTTA|SLEEVELESS|\bMUSCLE\b/i, 'Canotta'],
-  [/T-?SHIRTS?\b/i,            'T-Shirt'],
-  [/\bPOLOS?\b/i,              'Polo'],
-  [/HOODIES?|HOODED\b/i,       'Felpa con Cappuccio'],
-  [/SWEATERS?|CREWNECK/i,      'Felpa'],
-  [/FLEECE\b/i,                'Pile'],
-  [/\bVEST\b/i,                'Gilet'],
-  [/JACKETS?\b/i,              'Giacca'],
-  [/BOMBERS?\b/i,              'Bomber'],
-  [/PUFFER|PIUMINO/i,          'Piumino'],
-  [/TROUSERS?|PANTS?\b/i,      'Pantaloni'],
-  [/SHORTS?\b/i,               'Pantaloncini'],
-  [/LONG.?SLEEVE/i,            'Maglia Manica Lunga'],
-  [/\bBAGS?\b/i,               'Borsa'],
-  [/BACKPACKS?\b/i,            'Zaino'],
-  [/\bCAPS?\b|BEANIES?|\bHATS?\b/i, 'Cappello'],
-  [/SNEAKERS?|SHOES?\b/i,      'Sneakers'],
-  [/CARDIGAN/i,                'Cardigan'],
-  [/SHIRT\b/i,                 'Camicia'],
-  [/COAT\b/i,                  'Cappotto'],
-  [/DRESS\b/i,                 'Vestito'],
-  [/SKIRT\b/i,                 'Gonna'],
-  [/LEGGINGS?\b/i,             'Leggings'],
-  [/SOCKS?\b/i,                'Calzini'],
-  [/BELT\b/i,                  'Cintura'],
-  [/WALLET\b/i,                'Portafoglio'],
-  [/SCARF\b/i,                 'Sciarpa'],
-  [/GLOVES?\b/i,               'Guanti'],
-];
-
-// Parole/pattern da rimuovere completamente dal nome
-var JUNK_PATTERNS = [
-  /\(\s*\d{2,3}\s*(?:cm)?\s*\d{2,3}\s*(?:kg)?[^)]{0,60}\)/gi,  // (185cm 70kg iwear size M in the photo)
-  /\[\s*\d{2,3}\s*(?:cm)?\s*\d{2,3}\s*(?:kg)?[^\]]{0,60}\]/gi, // [185cm 70kg ...]
-  /\d{2,3}\s*cm\b/gi,
-  /\d{2,3}\s*kg\b/gi,
-  /\biwear\b.*$/gi,
-  /\bin\s+the\s+photo\b/gi,
-  /\bsize\s+[xsml0-9]+\b/gi,
-  /[¥￥Y]\s*~?\s*[\d]+(?:[.,]\d{1,2})?/gi,
-  /[\d]+(?:[.,]\d{1,2})?\s*[¥￥]/gi,
-  /\b(L🔥|C🔥|ST🔥|🔥|im\b|\(im\)|TOP\b)/gi,
-  /\bCOTTON\b/gi,         // rimuove "Cotton" come aggettivo ridondante
-  /\bNEW\b/gi,
-  /\bVERSION\b/gi,
-  /\b\d{6,}\b/g,          // codici numerici lunghi
-];
-
-// Genere
-var GENERE_MAP = [
-  [/\bWOMEN?'?S?\b|\bFEMM(?:INE|INA)?\b/i, 'Donna'],
-  [/\bMEN'?S?\b|\bMASCH(?:IO|ILE)?\b/i,    'Uomo'],
-];
-
-function smartRename(p, idx) {
-  var raw     = (p.albumName || '').trim();
-  var brand   = (p.brand || document.getElementById('default-brand').value.trim() || '').trim();
-  var tipoIt  = p.tipo || '';   // tipo già tradotto in IT da guessType
-
-  // ----- 1. Rimuovi junk dal nome grezzo -----
-  var n = raw;
-  JUNK_PATTERNS.forEach(function(rx) { n = n.replace(rx, ' '); });
-  n = n.replace(/\s{2,}/g, ' ').trim();
-
-  // ----- 2. Estrai genere -----
-  var genere = '';
-  GENERE_MAP.forEach(function(pair) {
-    if (pair[0].test(n)) {
-      genere = pair[1];
-      n = n.replace(pair[0], ' ').trim();
-    }
-  });
-
-  // ----- 3. Tipo: più tentativi in cascata -----
-  // a) Da p.tipo già impostato all'estrazione
-  var tipoFound = tipoIt;
-  // b) Da guessType sul nome album grezzo (prima della pulizia)
-  if (!tipoFound && p.albumName) tipoFound = guessType(p.albumName);
-  // c) Da TIPO_MAP sul nome pulito (rimuovi keyword per non duplicarle)
-  TIPO_MAP.forEach(function(pair) {
-    if (pair[0].test(n)) {
-      if (!tipoFound) tipoFound = pair[1];
-      n = n.replace(pair[0], ' ').trim();
-    }
-  });
-
-  // ----- 4. Rimuovi brand dal nome se già presente -----
-  if (brand) {
-    var brandRx = new RegExp('\\b' + brand.replace(/[.*+?^${}()|[\]\\]/g,'\\$&') + '\\b', 'gi');
-    n = n.replace(brandRx, ' ').trim();
-  }
-  // Rimuovi anche varianti comuni di brand scritto male (es. RAPHAUEN → Ralph Lauren)
-  n = n.replace(/\bRAPHAUEN\b/gi, '').trim();
-
-  // ----- 5. Pulisci residui e applica Title Case -----
-  n = n.replace(/[^a-zA-ZÀ-ÖØ-öø-ÿ0-9\s\-&]/g, ' ')
-       .replace(/\s{2,}/g,' ').trim();
-
-  // ----- 6. Usa p.tipo come fallback sicuro (già calcolato correttamente da guessType) -----
-  if (!tipoFound && p.tipo) tipoFound = p.tipo;
-
-  // ----- 7. Componi il nome finale -----
-  // Formato fisso: [Brand] [Tipo IT] [extra significativi] [Genere]
-  // Il tipo è OBBLIGATORIO nel nome — se manca il prodotto è ambiguo
-  var parts = [];
-  if (brand) parts.push(brand);
-
-  // Tipo: solo se ricavato con certezza dal testo — mai inferito dai vicini
-  // (meglio nessun tipo che uno sbagliato)
-  if (tipoFound) {
-    parts.push(tipoFound);
+      if(!blob||blob.size<100) throw new Error('non disponibile');
+      var fn=String(i+1).padStart(3,'0')+'_'+(todo[i].nome||'img').replace(/[^a-z0-9]/gi,'_').substring(0,20)+'.jpg';
+      zip.file(fn,blob); ok++;
+    }catch(e){if(e.name==='AbortError') break; fail++;}
   }
 
-  // Aggiungi parole extra significative rimaste (es. "Sport", "Classic", "Logo", "Woman")
-  var STOP = /^(the|a|an|and|or|of|in|on|at|to|for|with|by|la|il|lo|le|gli|di|da|su|con|per|e|un|una|polo|ralph|lauren)$/i;
-  var extras = n.split(/\s+/).filter(function(w) {
-    return w.length > 2 && !STOP.test(w);
+  var zb=await zip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:4}});
+  saveAs(zb,'lillofind_'+ok+'img_'+new Date().toISOString().slice(0,10)+'.zip');
+  lg('✅ ZIP: '+ok+' immagini'+(fail?' ('+fail+' fallite)':''),'ok');
+  setProg(100,'✅ ZIP completato');
+  document.getElementById('bzip').disabled=false;
+}
+
+// ── CSV EXPORT ──────────────────────────────────────
+function doCSV(){
+  if(!P.length){alert('Nessun prodotto.');return;}
+  var hdr='nome,prezzo,brand,tipo,taglie,colori,url_immagine';
+  var rows=P.map(function(p){
+    return [p.nome,(p.final!==null&&p.final!==undefined?p.final.toFixed(2):''),
+            p.brand,p.tipo,p.taglie,p.colori,p.imgUrl]
+      .map(function(v){return '"'+String(v||'').replace(/"/g,'""')+'"';}).join(',');
   });
-  // Filtra anche parole già presenti nel tipo o nel brand
-  var alreadyIn = (parts.join(' ')).toLowerCase();
-  extras = extras.filter(function(w){ return alreadyIn.indexOf(w.toLowerCase()) === -1; });
-  if (extras.length && extras.join(' ').length < 22) {
-    parts.push(toTitleCase(extras.join(' ')));
-  }
-
-  if (genere) parts.push(genere);
-
-  var result = parts.join(' ').substring(0, 60).trim();
-
-  // ----- 8. Fallback finale -----
-  if (!result || result.length < 4) {
-    result = [brand, tipoFound || 'Prodotto', genere].filter(Boolean).join(' ');
-  }
-
-  return result || (brand + ' Prodotto') || 'Prodotto';
+  var csv='\uFEFF'+[hdr].concat(rows).join('\n');
+  var a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));
+  a.download='lillofind_'+new Date().toISOString().slice(0,10)+'.csv';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  lg('✅ CSV esportato — '+P.length+' prodotti','ok');
 }
 
-function renameAllAI() {
-  if (!products.length) return;
-
-  document.getElementById('btn-ainames').disabled = true;
-  setProgress(0, '🔤 Rinomina intelligente in corso...');
-  log('🔤 Rinomina ' + products.length + ' prodotti (locale, zero API)...', 'info');
-
-  var renamed = 0;
-  // FASE 1: riempi tipi mancanti con logica COMPLETA (vicini catalogo)
-  // così il tipo è sempre disponibile prima di costruire il nome
-  products.forEach(function(p, idx) {
-    if (!p.tipo) {
-      // prova prima dal testo grezzo
-      var t = p.albumName ? guessType(p.albumName) : '';
-      // se ancora vuoto, usa inferenza dai vicini (catalogo già estratto = affidabile)
-      if (!t) t = inferMissingType(idx);
-      if (t) p.tipo = t;
-    }
-  });
-
-  // FASE 2: rinomina con tipo sempre presente
-  products.forEach(function(p, idx) {
-    var nuovoNome = smartRename(p, idx);
-    if (nuovoNome && nuovoNome !== p.nome) {
-      p.nome = nuovoNome;
-      renamed++;
-    }
-  });
-
-  renderTable();
-  updateStats();
-  setProgress(100, '✅ ' + renamed + ' prodotti rinominati');
-  log('✅ Rinomina completata: ' + renamed + ' nomi aggiornati', 'ok');
-  document.getElementById('btn-ainames').disabled = false;
+// ── TABLE ───────────────────────────────────────────
+function renderTable(){
+  document.getElementById('tbody').innerHTML=P.map(function(p,i){return bRow(p,i);}).join('');
 }
-
-// ═══════════════════════════════════════════════
-// ZIP
-// ═══════════════════════════════════════════════
-async function downloadZip() {
-  var wUrl = document.getElementById('worker-url').value.trim();
-  if (!wUrl) { alert('Inserisci il Worker URL Cloudflare!'); return; }
-  var toDl = products.filter(function(p){ return p.coverUrl; });
-  if (!toDl.length) { alert('Nessuna immagine disponibile.'); return; }
-
-  stopped = false;
-  abortCtrl = new AbortController();
-  document.getElementById('btn-zip').disabled = true;
-  var zip = new JSZip();
-  var done = 0, failed = 0;
-  log('📦 Creazione ZIP ' + toDl.length + ' immagini...', 'info');
-
-  for (var i = 0; i < toDl.length; i++) {
-    if (stopped) break;
-    var prod = toDl[i];
-    setProgress(Math.round((i / toDl.length) * 100), 'ZIP ' + (i+1) + '/' + toDl.length);
-    try {
-      var variants = imageVariants(prod.coverUrl);
-      var blob = null;
-      for (var vi = 0; vi < variants.length; vi++) {
-        try {
-          var proxyUrl = wUrl.replace(/\/$/, '') + '/?url=' + encodeURIComponent(variants[vi]);
-          var r2 = await fetch(proxyUrl, { signal: abortCtrl.signal });
-          if (r2.ok) { blob = await r2.blob(); if (blob && blob.size > 500) break; }
-        } catch(ve) { if (ve.name === 'AbortError') throw ve; }
-      }
-      if (!blob || blob.size < 100) throw new Error('non disponibile');
-      var fname = String(i+1).padStart(3,'0') + '_' +
-        (prod.nome||'prod').replace(/[^a-z0-9]/gi,'_').substring(0,25) + '.jpg';
-      zip.file(fname, blob);
-      done++;
-    } catch(e) {
-      if (e.name === 'AbortError') break;
-      failed++;
-    }
-  }
-
-  var zipBlob = await zip.generateAsync({ type:'blob', compression:'DEFLATE', compressionOptions:{level:4} });
-  saveAs(zipBlob, 'lillofind_' + done + 'img_' + new Date().toISOString().slice(0,10) + '.zip');
-  log('✅ ZIP scaricato! ' + done + ' immagini' + (failed ? ', ' + failed + ' errori' : ''), 'ok');
-  setProgress(100, '✅ ZIP completato');
-  document.getElementById('btn-zip').disabled = false;
+function renderTableRow(p){
+  var tr=document.getElementById('r'+p.id);
+  if(tr) tr.outerHTML=bRow(p,P.indexOf(p));
 }
-
-// ═══════════════════════════════════════════════
-// CSV EXPORT
-// ═══════════════════════════════════════════════
-function exportCSV() {
-  if (!products.length) { alert('Nessun prodotto da esportare.'); return; }
-  var header = 'nome,prezzo,brand,tipo,taglie,colori,url_immagine';
-  var rows = products.map(function(p) {
-    var url = p.imgbbUrl || p.coverUrl || '';
-    return [p.nome, (p.final !== null && p.final !== undefined ? p.final.toFixed(2) : ''),
-            p.brand, p.tipo, p.taglie, p.colori, url]
-      .map(function(v){ return '"' + String(v||'').replace(/"/g,'""') + '"'; })
-      .join(',');
-  });
-  var csv = '\uFEFF' + [header].concat(rows).join('\n');
-  var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  var a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'lillofind_' + new Date().toISOString().slice(0,10) + '.csv';
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  log('✅ CSV esportato! ' + products.length + ' prodotti, ' +
-      products.filter(function(p){return p.imgbbUrl;}).length + ' con URL imgbb', 'ok');
-}
-
-// ═══════════════════════════════════════════════
-// TABLE RENDER
-// ═══════════════════════════════════════════════
-function renderTable() {
-  var tbody = document.getElementById('tbody');
-  tbody.innerHTML = products.map(function(p, i){ return buildRow(p, i); }).join('');
-}
-
-function renderTableRow(prod) {
-  var tr = document.getElementById('row-' + prod.id);
-  if (tr) {
-    var idx = products.indexOf(prod);
-    tr.outerHTML = buildRow(prod, idx);
-  }
-}
-
-function buildRow(p, i) {
-  var imgUrl  = p.imgbbUrl || p.coverUrl || '';
-  var imgHtml = imgUrl
-    ? '<img src="' + imgUrl + '" onclick="openPicker(' + p.id + ')" title="Clicca per selezionare colori" onerror="this.style.display=\'none\'" style="cursor:pointer;">'
-    : '<div class="noimg">?</div>';
-  var stCls = { done:'done', uploading:'uploading', error:'error' }[p.status] || '';
-  var stLbl = { done:'✅ OK', uploading:'⬆...', error:'❌ ERR' }[p.status] || '–';
-
-  return '<tr id="row-' + p.id + '" class="st-' + p.status + '">' +
-    '<td class="td-num">' + (i+1) + '</td>' +
-    '<td class="td-img">' + imgHtml + '</td>' +
-    '<td><input value="' + esc(p.nome)   + '" oninput="upd(' + p.id + ',\'nome\',this.value)"   style="min-width:150px"></td>' +
-    '<td><input value="' + esc(p.tipo)   + '" oninput="upd(' + p.id + ',\'tipo\',this.value)"   style="min-width:100px"></td>' +
-    '<td><input value="' + esc(p.brand)  + '" oninput="upd(' + p.id + ',\'brand\',this.value)"  style="min-width:110px"></td>' +
-    '<td><input value="' + esc(p.taglie) + '" oninput="upd(' + p.id + ',\'taglie\',this.value)" style="min-width:85px"></td>' +
-    '<td><input value="' + esc(p.colori) + '" oninput="upd(' + p.id + ',\'colori\',this.value)" style="min-width:120px"></td>' +
-    '<td class="td-cny">' + (p.cny ? '¥'+p.cny : '<span style="color:var(--muted)">–</span>') + '</td>' +
-    '<td class="td-eur">' + (p.final !== null && p.final !== undefined ? '€'+p.final.toFixed(2) : '<span style="color:var(--muted)">–</span>') + '</td>' +
-    '<td><input value="' + esc(imgUrl) + '" oninput="upd(' + p.id + ',\'imgbbUrl\',this.value)" style="min-width:180px;font-size:10px;color:#44aa44"></td>' +
-    '<td class="td-status"><span class="status-badge ' + stCls + '">' + stLbl + '</span></td>' +
-    '<td class="td-del" onclick="deleteProd(' + p.id + ')">✕</td>' +
+function bRow(p,i){
+  var imgH=p.imgUrl
+    ?'<img src="'+p.imgUrl+'" onerror="this.style.display=\'none\'">'
+    :'<div class="ni">?</div>';
+  var stC={done:'done',error:'error'}[p.status]||'';
+  var stL={done:'✅ OK',error:'❌ ERR'}[p.status]||'–';
+  return '<tr id="r'+p.id+'" class="'+p.status+'">' +
+    '<td style="color:var(--t3);text-align:center">'+(i+1)+'</td>'+
+    '<td class="ti">'+imgH+'</td>'+
+    '<td><input value="'+e(p.nome)+'"   oninput="upd('+p.id+',\'nome\',this.value)"   style="min-width:145px"></td>'+
+    '<td><input value="'+e(p.tipo)+'"   oninput="upd('+p.id+',\'tipo\',this.value)"   style="min-width:100px"></td>'+
+    '<td><input value="'+e(p.brand)+'"  oninput="upd('+p.id+',\'brand\',this.value)"  style="min-width:110px"></td>'+
+    '<td><input value="'+e(p.taglie)+'" oninput="upd('+p.id+',\'taglie\',this.value)" style="min-width:82px"></td>'+
+    '<td><input value="'+e(p.colori)+'" oninput="upd('+p.id+',\'colori\',this.value)" style="min-width:145px"></td>'+
+    '<td class="tc">'+(p.cny?'¥'+p.cny:'<span style="color:var(--t3)">–</span>')+'</td>'+
+    '<td class="te">'+(p.final!==null&&p.final!==undefined?'€'+p.final.toFixed(2):'<span style="color:var(--t3)">–</span>')+'</td>'+
+    '<td><input value="'+e(p.imgUrl)+'" oninput="upd('+p.id+',\'imgUrl\',this.value)" style="min-width:200px;font-size:10px;color:#4ade80"></td>'+
+    '<td class="ts"><span class="badge '+stC+'">'+stL+'</span></td>'+
+    '<td class="td" onclick="delP('+p.id+')">✕</td>'+
     '</tr>';
 }
+function upd(id,f,v){var p=P.find(function(x){return x.id===id;});if(p){p[f]=v;updStats();}}
+function delP(id){P=P.filter(function(p){return p.id!==id;});renderTable();updStats();}
 
-function upd(id, field, val) {
-  var p = products.find(function(x){ return x.id === id; });
-  if (p) { p[field] = val; updateStats(); }
+// ── STATS & UI ──────────────────────────────────────
+function updStats(){
+  document.getElementById('s0').textContent=P.length;
+  document.getElementById('s1').textContent=P.filter(function(p){return p.imgUrl;}).length;
+  document.getElementById('s2').textContent=P.filter(function(p){return p.cny;}).length;
+  document.getElementById('s3').textContent=P.filter(function(p){return p.colori;}).length;
+  var pr=P.filter(function(p){return p.final!=null;}).map(function(p){return p.final;});
+  document.getElementById('s4').textContent=pr.length?'€'+(pr.reduce(function(a,b){return a+b;},0)/pr.length).toFixed(2):'–';
 }
-
-function deleteProd(id) {
-  products = products.filter(function(p){ return p.id !== id; });
-  renderTable();
-  updateStats();
+function setProg(pct,txt){
+  document.getElementById('pfil').style.width=pct+'%';
+  if(txt!==undefined) document.getElementById('ptxt').textContent=txt;
 }
-
-// ═══════════════════════════════════════════════
-// STATS & UI
-// ═══════════════════════════════════════════════
-function updateStats() {
-  document.getElementById('st-total').textContent    = products.length;
-  document.getElementById('st-imgs').textContent     = products.filter(function(p){return p.coverUrl;}).length;
-  document.getElementById('st-prices').textContent   = products.filter(function(p){return p.cny;}).length;
-  document.getElementById('st-uploaded').textContent = products.filter(function(p){return p.imgbbUrl;}).length;
-  var prices = products.filter(function(p){return p.final !== null && p.final !== undefined;}).map(function(p){return p.final;});
-  document.getElementById('st-avg').textContent = prices.length
-    ? '€' + (prices.reduce(function(a,b){return a+b;},0) / prices.length).toFixed(2) : '–';
+function setUI(on){
+  document.getElementById('bext').disabled=on;
+  document.getElementById('bstp').style.display=on?'inline-block':'none';
+  document.getElementById('psec').className='prog-sec'+(on?' on':'');
 }
-
-function setProgress(pct, text) {
-  document.getElementById('progress-fill').style.width = pct + '%';
-  if (text !== undefined) document.getElementById('progress-text').textContent = text;
+function disBtn(extracting){
+  document.getElementById('bcol').disabled=extracting;
+  document.getElementById('bcsv').disabled=extracting;
+  document.getElementById('bzip').disabled=extracting;
 }
-
-function setUI(state) {
-  var extracting = state === 'extracting';
-  document.getElementById('btn-extract').disabled            = extracting;
-  document.getElementById('btn-stop').style.display          = extracting ? 'inline-block' : 'none';
-  document.getElementById('progress-section').className      = 'progress-section' + (extracting ? ' visible' : ' visible');
+function lg(msg,cls){
+  var el=document.getElementById('logbox');
+  var d=document.createElement('div');
+  if(cls) d.className=cls;
+  d.textContent=msg; el.appendChild(d); el.scrollTop=el.scrollHeight;
 }
-
-function log(msg, type) {
-  var el = document.getElementById('log-box');
-  var d  = document.createElement('div');
-  if (type) d.className = type;
-  d.textContent = msg;
-  el.appendChild(d);
-  el.scrollTop = el.scrollHeight;
+function clearLog(){document.getElementById('logbox').innerHTML='';}
+function e(s){return String(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');}
+function clearAll(){
+  P=[];seenIds.clear();
+  document.getElementById('tbody').innerHTML='';
+  document.getElementById('tw').style.display='none';
+  document.getElementById('empty').style.display='block';
+  document.getElementById('stats').style.display='none';
+  document.getElementById('psec').className='prog-sec';
+  disBtn(true); clearLog();
 }
-
-function clearLog() { document.getElementById('log-box').innerHTML = ''; }
-
-function esc(s) {
-  return String(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-}
-
-function onRateChange() {
-  var r = parseFloat(document.getElementById('rate').value) || 0.129;
-  document.getElementById('rate-display').textContent = '¥1 = €' + r.toFixed(3);
-  products.forEach(function(p){ if (p.cny) p.final = calcEur(p.cny); });
-  renderTable(); updateStats();
-}
-
-function onWorkerChange() {
-  var val = document.getElementById('worker-url').value.trim();
-  localStorage.setItem('yupoo_worker_url', val);
-  var inp = document.getElementById('worker-url');
-  inp.className = 'cfg-input dim' + (val.includes('workers.dev') ? ' ok' : '');
-}
-
-function clearAll() {
-  products = [];
-  seenIds.clear();
-  document.getElementById('tbody').innerHTML              = '';
-  document.getElementById('table-wrap').style.display    = 'none';
-  document.getElementById('empty-state').style.display   = 'block';
-  document.getElementById('stats-bar').style.display     = 'none';
-  document.getElementById('progress-section').className  = 'progress-section';
-  document.getElementById('btn-upload').disabled  = true;
-  document.getElementById('btn-colors').disabled  = true;
-  document.getElementById('btn-ainames').disabled  = true;
-  document.getElementById('btn-complete').disabled = true;
-  document.getElementById('btn-csv').disabled      = true;
-  document.getElementById('btn-zip').disabled     = true;
-  clearLog();
-}
-
-function loadExample() {
-  document.getElementById('cat-url').value = 'https://huskyreps.x.yupoo.com/categories/5003229';
-  log('Esempio caricato — premi ⚡ ESTRAI CATALOGO per iniziare', 'info');
-}
-
-// ═══════════════════════════════════════════════
-// INIT
-// ═══════════════════════════════════════════════
-(function init() {
-  var wUrl  = localStorage.getItem('yupoo_worker_url') || 'https://yupoo-proxy.conti9708.workers.dev/';
-  var iKey  = localStorage.getItem('imgbb_key')        || '4e0f0e5bfe97cdcf39838aa5a82abb75';
-  var gKey  = localStorage.getItem('gemini_key')       || '';
-  var brand = localStorage.getItem('default_brand')    || '';
-
-  localStorage.setItem('yupoo_worker_url', wUrl);
-  localStorage.setItem('imgbb_key',        iKey);
-  localStorage.setItem('gemini_key',       gKey);
-
-  document.getElementById('worker-url').value    = wUrl;
-  document.getElementById('imgbb-key').value     = iKey;
-  document.getElementById('gemini-key').value    = gKey;
-  document.getElementById('default-brand').value = brand;
-
-  // Persist brand on change
-  document.getElementById('default-brand').addEventListener('input', function() {
-    localStorage.setItem('default_brand', this.value.trim());
-  });
-  document.getElementById('imgbb-key').addEventListener('input', function() {
-    localStorage.setItem('imgbb_key', this.value.trim());
-  });
-  document.getElementById('gemini-key').addEventListener('input', function() {
-    localStorage.setItem('gemini_key', this.value.trim());
-  });
-
-  onWorkerChange();
-  onRateChange();
-})();
-</script>
-
-<!-- COLOR PICKER MODAL -->
-<div id="cpk-overlay" onclick="closePicker()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9000;align-items:center;justify-content:center;flex-direction:column;gap:16px;">
-  <div onclick="event.stopPropagation()" style="background:#111;border:2px solid var(--accent);border-radius:8px;padding:20px;max-width:96vw;width:500px;">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-      <span style="font-family:'Bebas Neue';font-size:18px;letter-spacing:3px;color:var(--accent);">🎨 SELEZIONA COLORI</span>
-      <button class="btn btn-outline" onclick="closePicker()" style="padding:4px 10px;">✕</button>
-    </div>
-    <p style="font-size:10px;color:var(--text2);margin-bottom:12px;letter-spacing:1px;">CLICCA sui colori del capo nell'immagine per aggiungere • Max 4 colori</p>
-    <div style="position:relative;display:inline-block;border:1px solid var(--border2);border-radius:4px;overflow:hidden;cursor:crosshair;">
-      <img id="cpk-img" crossorigin="anonymous" style="display:block;max-width:460px;max-height:460px;width:100%;object-fit:contain;" onclick="pickColor(event)">
-      <canvas id="cpk-canvas" style="display:none;"></canvas>
-    </div>
-    <!-- Lente di ingrandimento -->
-    <div id="cpk-lens" style="display:none;position:fixed;width:80px;height:80px;border-radius:50%;border:3px solid var(--accent);pointer-events:none;z-index:9999;overflow:hidden;box-shadow:0 0 0 2px #000;">
-      <canvas id="cpk-lens-canvas" width="80" height="80"></canvas>
-    </div>
-    <!-- Colori selezionati -->
-    <div style="margin-top:14px;">
-      <div style="font-size:9px;letter-spacing:2px;color:var(--muted);margin-bottom:8px;">COLORI SELEZIONATI:</div>
-      <div id="cpk-chips" style="display:flex;gap:8px;flex-wrap:wrap;min-height:36px;"></div>
-    </div>
-    <div style="margin-top:14px;display:flex;gap:8px;justify-content:flex-end;">
-      <button class="btn btn-red" onclick="clearPickedColors()" style="font-size:9px;">🗑 SVUOTA</button>
-      <button class="btn btn-primary" onclick="confirmPickedColors()" style="font-size:9px;">✅ CONFERMA</button>
-    </div>
-  </div>
-</div>
-
-<script>
-var cpkProductId = null;
-var cpkPicked    = [];   // [{name, r, g, b}]
-
-function openPicker(prodId) {
-  var p = products.find(function(x){ return x.id === prodId; });
-  if (!p) return;
-  var url = p.imgbbUrl || p.coverUrl;
-  if (!url) { alert('Nessuna immagine disponibile per questo prodotto.'); return; }
-
-  cpkProductId = prodId;
-  cpkPicked    = [];
-
-  var img = document.getElementById('cpk-img');
-  img.src = url;
-  img.onload = function() {
-    // Disegna su canvas nascosto per campionare pixels
-    var cv = document.getElementById('cpk-canvas');
-    cv.width  = img.naturalWidth;
-    cv.height = img.naturalHeight;
-    var ctx = cv.getContext('2d');
-    ctx.drawImage(img, 0, 0);
-    renderChips();
-  };
-
-  // Pre-carica colori già presenti
-  if (p.colori) {
-    p.colori.split(',').forEach(function(c) {
-      var t = c.trim();
-      if (t) cpkPicked.push({ name: t, r:0, g:0, b:0, preset:true });
-    });
-  }
-
-  var ov = document.getElementById('cpk-overlay');
-  ov.style.display = 'flex';
-
-  // Lente su mousemove
-  img.onmousemove = function(e) { showLens(e, img); };
-  img.onmouseleave = function() { document.getElementById('cpk-lens').style.display='none'; };
-}
-
-function showLens(e, img) {
-  var lens     = document.getElementById('cpk-lens');
-  var lensCanvas = document.getElementById('cpk-lens-canvas');
-  var cv       = document.getElementById('cpk-canvas');
-  var rect     = img.getBoundingClientRect();
-  var scaleX   = cv.width  / rect.width;
-  var scaleY   = cv.height / rect.height;
-  var px       = (e.clientX - rect.left) * scaleX;
-  var py       = (e.clientY - rect.top)  * scaleY;
-
-  // Posiziona lente vicino al cursore
-  var lx = e.clientX + 20;
-  var ly = e.clientY - 20;
-  if (lx + 80 > window.innerWidth)  lx = e.clientX - 100;
-  if (ly + 80 > window.innerHeight) ly = e.clientY - 100;
-  lens.style.left    = lx + 'px';
-  lens.style.top     = ly + 'px';
-  lens.style.display = 'block';
-
-  // Disegna zoom 5x nella lente
-  var ctx2 = lensCanvas.getContext('2d');
-  var zoom = 5;
-  var srcX = px - 8, srcY = py - 8;
-  ctx2.clearRect(0,0,80,80);
-  ctx2.drawImage(cv, srcX, srcY, 16, 16, 0, 0, 80, 80);
-
-  // Colore centrale
-  var ctx = cv.getContext('2d');
-  var pdata = ctx.getImageData(Math.round(px), Math.round(py), 1, 1).data;
-  var name = rgbToColorName(pdata[0], pdata[1], pdata[2]);
-  lens.title = name + ' (' + pdata[0]+','+pdata[1]+','+pdata[2]+')';
-}
-
-function pickColor(e) {
-  if (cpkPicked.filter(function(c){ return !c.preset; }).length >= 4) {
-    alert('Massimo 4 colori!'); return;
-  }
-  var img  = document.getElementById('cpk-img');
-  var cv   = document.getElementById('cpk-canvas');
-  var rect = img.getBoundingClientRect();
-  var scaleX = cv.width  / rect.width;
-  var scaleY = cv.height / rect.height;
-  var px   = Math.round((e.clientX - rect.left) * scaleX);
-  var py   = Math.round((e.clientY - rect.top)  * scaleY);
-
-  var ctx  = cv.getContext('2d');
-  var data = ctx.getImageData(px, py, 1, 1).data;
-  var r=data[0], g=data[1], b=data[2];
-  var name = rgbToColorName(r, g, b);
-
-  // Evita duplicati
-  if (cpkPicked.some(function(c){ return c.name===name; })) return;
-  cpkPicked.push({ name:name, r:r, g:g, b:b });
-  renderChips();
-}
-
-function renderChips() {
-  var el = document.getElementById('cpk-chips');
-  el.innerHTML = cpkPicked.map(function(c, i) {
-    var bg = c.preset ? '#1a1a1a' : 'rgb('+c.r+','+c.g+','+c.b+')';
-    var fg = (c.preset || (c.r+c.g+c.b) > 380) ? '#000' : '#fff';
-    if (c.preset) fg = 'var(--text2)';
-    return '<span style="display:inline-flex;align-items:center;gap:5px;background:'+bg+';color:'+fg+';border:1px solid #333;border-radius:12px;padding:4px 10px;font-size:10px;cursor:pointer;" onclick="removeChip('+i+')" title="Clicca per rimuovere">'
-      + (c.preset ? '' : '<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:rgb('+c.r+','+c.g+','+c.b+');border:1px solid #555;"></span>')
-      + esc(c.name) + ' ✕</span>';
-  }).join('');
-}
-
-function removeChip(i) {
-  cpkPicked.splice(i, 1);
-  renderChips();
-}
-
-function clearPickedColors() {
-  cpkPicked = [];
-  renderChips();
-}
-
-function confirmPickedColors() {
-  var p = products.find(function(x){ return x.id === cpkProductId; });
-  if (!p) { closePicker(); return; }
-  p.colori = cpkPicked.map(function(c){ return c.name; }).join(', ');
-  upd(p.id, 'colori', p.colori);
-  renderTableRow(p);
-  log('🎨 Colori aggiornati ['+p.nome+']: ' + p.colori, 'ok');
-  closePicker();
-}
-
-function closePicker() {
-  document.getElementById('cpk-overlay').style.display = 'none';
-  document.getElementById('cpk-lens').style.display    = 'none';
-  var img = document.getElementById('cpk-img');
-  img.onmousemove  = null;
-  img.onmouseleave = null;
+function loadEx(){
+  document.getElementById('curl').value='https://huskyreps.x.yupoo.com/categories/5003229';
+  lg('Esempio caricato — premi ⚡ ESTRAI','in');
 }
 </script>
-
 </body>
 </html>
