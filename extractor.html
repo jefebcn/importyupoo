@@ -6,6 +6,7 @@
 <title>LilloFind // Yupoo → CSV</title>
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Bebas+Neue&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/color-thief/2.3.2/color-thief.umd.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
 <style>
 :root{
@@ -140,8 +141,8 @@ td input:focus{background:#111800;border-bottom:1px solid var(--lime);}
   <span class="lbl">🏷 BRAND</span>
   <input class="inp dim" type="text" id="brand" style="width:170px" placeholder="es. Polo Ralph Lauren" spellcheck="false">
   <div class="sep"></div>
-  <span class="lbl">🎨 GEMINI</span>
-  <input class="inp dim" type="text" id="gkey" style="width:200px" placeholder="AIza... (gratis aistudio.google.com)" spellcheck="false">
+  <span class="lbl">🤖 CLAUDE KEY</span>
+  <input class="inp dim" type="text" id="ckey" style="width:260px" placeholder="sk-ant-... (anthropic.com/settings/keys)" spellcheck="false">
 </div>
 
 <div class="url-sec">
@@ -560,74 +561,116 @@ function doStop(){
   lg('⛔ Fermato.','wn'); setUI(false);
 }
 
-// ── COLOR DETECTION (Canvas — no API, no limits) ───
-var CMAP=[
+// ── COLOR DETECTION — ColorThief + color.pizza API ───
+
+// EN→IT color name map (color.pizza restituisce nomi inglesi)
+var EN_IT={
+  'black':'Nero','white':'Bianco','gray':'Grigio','grey':'Grigio',
+  'light gray':'Grigio Chiaro','light grey':'Grigio Chiaro',
+  'dark gray':'Grigio Scuro','dark grey':'Grigio Scuro',
+  'red':'Rosso','dark red':'Bordeaux','crimson':'Bordeaux','maroon':'Bordeaux',
+  'burgundy':'Bordeaux','wine':'Bordeaux',
+  'orange':'Arancione','dark orange':'Arancione Scuro',
+  'yellow':'Giallo','gold':'Oro','mustard':'Senape',
+  'green':'Verde','dark green':'Verde Scuro','forest green':'Verde Bosco',
+  'olive':'Verde Oliva','army green':'Verde Militare','khaki':'Kaki',
+  'teal':'Verde Petrolio','cyan':'Azzurro',
+  'blue':'Blu','dark blue':'Blu Scuro','navy':'Blu Navy','navy blue':'Blu Navy',
+  'royal blue':'Blu Royal','light blue':'Azzurro','sky blue':'Azzurro',
+  'purple':'Viola','dark purple':'Viola Scuro','lavender':'Lavanda','lilac':'Lilla',
+  'magenta':'Fucsia','hot pink':'Rosa Intenso','pink':'Rosa','light pink':'Rosa Chiaro',
+  'brown':'Marrone','dark brown':'Marrone Scuro','tan':'Beige','beige':'Beige',
+  'cream':'Crema','ivory':'Avorio','peach':'Pesca','salmon':'Salmone',
+  'indigo':'Indaco','violet':'Viola','coral':'Corallo',
+  'silver':'Argento','bronze':'Bronzo',
+};
+
+function enToIt(name){
+  if(!name) return '';
+  var l=name.toLowerCase();
+  // cerca corrispondenza esatta
+  if(EN_IT[l]) return EN_IT[l];
+  // cerca corrispondenza parziale
+  for(var k in EN_IT){
+    if(l.indexOf(k)>-1) return EN_IT[k];
+  }
+  // fallback: prima lettera maiuscola
+  return name.charAt(0).toUpperCase()+name.slice(1);
+}
+
+// Chiama color.pizza con array di [r,g,b]
+async function rgbsToNames(rgbList){
+  try{
+    var hex=rgbList.map(function(c){
+      return ((1<<24)+(c[0]<<16)+(c[1]<<8)+c[2]).toString(16).slice(1).toUpperCase();
+    });
+    var url='https://api.color.pizza/v1/?values='+hex.join(',')+'&noduplicates=true&goodnamesonly=true';
+    var r=await fetch(url,{signal:AbortSignal.timeout(6000)});
+    if(!r.ok) throw new Error('color.pizza status '+r.status);
+    var data=await r.json();
+    return (data.colors||[]).map(function(c){return enToIt(c.name);});
+  }catch(e){
+    // fallback: nomi dal nostro CMAP
+    return rgbList.map(function(c){return cFallback(c[0],c[1],c[2]);});
+  }
+}
+
+// Fallback minimale se color.pizza non risponde
+var CMAP_FB=[
   [[0,0,0],'Nero'],[[255,255,255],'Bianco'],[[128,128,128],'Grigio'],
-  [[192,192,192],'Grigio Chiaro'],[[64,64,64],'Grigio Scuro'],[[105,105,105],'Grigio Medio'],
-  [[255,0,0],'Rosso'],[[139,0,0],'Bordeaux'],[[220,20,60],'Cremisi'],
-  [[255,165,0],'Arancione'],[[255,140,0],'Arancione Scuro'],
-  [[255,255,0],'Giallo'],[[255,215,0],'Oro'],
-  [[0,128,0],'Verde'],[[0,100,0],'Verde Scuro'],[[34,139,34],'Verde Bosco'],
-  [[128,128,0],'Verde Oliva'],[[107,142,35],'Verde Militare'],[[0,128,128],'Verde Acqua'],
-  [[0,0,255],'Blu'],[[0,0,139],'Blu Scuro'],[[25,25,112],'Blu Navy'],
-  [[70,130,180],'Blu Acciaio'],[[100,149,237],'Blu Fiordaliso'],[[173,216,230],'Azzurro'],
-  [[0,191,255],'Azzurro Chiaro'],[[0,80,180],'Blu Royal'],
-  [[128,0,128],'Viola'],[[148,0,211],'Viola Scuro'],[[221,160,221],'Lilla'],
-  [[255,0,255],'Fucsia'],[[255,20,147],'Rosa Intenso'],[[255,182,193],'Rosa'],
-  [[255,192,203],'Rosa Chiaro'],
-  [[165,42,42],'Marrone'],[[139,69,19],'Marrone Sella'],[[101,67,33],'Marrone Scuro'],
-  [[210,180,140],'Beige'],[[245,245,220],'Avorio'],[[255,228,196],'Pesca'],
-  [[244,164,96],'Sabbia'],[[189,183,107],'Kaki'],[[240,230,140],'Kaki Chiaro'],
+  [[192,192,192],'Grigio Chiaro'],[[64,64,64],'Grigio Scuro'],
+  [[255,0,0],'Rosso'],[[139,0,0],'Bordeaux'],[[255,165,0],'Arancione'],
+  [[255,255,0],'Giallo'],[[255,215,0],'Oro'],[[128,128,0],'Verde Oliva'],
+  [[0,128,0],'Verde'],[[0,100,0],'Verde Scuro'],[[107,142,35],'Verde Militare'],
+  [[0,128,128],'Verde Petrolio'],[[0,0,255],'Blu'],[[0,0,139],'Blu Scuro'],
+  [[25,25,112],'Blu Navy'],[[173,216,230],'Azzurro'],[[128,0,128],'Viola'],
+  [[255,20,147],'Rosa Intenso'],[[255,182,193],'Rosa'],[[165,42,42],'Marrone'],
+  [[210,180,140],'Beige'],[[245,245,220],'Avorio'],[[189,183,107],'Kaki'],
   [[47,79,79],'Verde Petrolio'],[[72,61,139],'Indaco'],
-  [[230,230,250],'Lavanda'],[[255,250,205],'Crema'],
 ];
-function cdist(r1,g1,b1,r2,g2,b2){return Math.sqrt((r1-r2)**2+(g1-g2)**2+(b1-b2)**2);}
-function toName(r,g,b){
-  var best=CMAP[0],bd=Infinity;
-  for(var i=0;i<CMAP.length;i++){var c=CMAP[i][0],d=cdist(r,g,b,c[0],c[1],c[2]);if(d<bd){bd=d;best=CMAP[i];}}
+function cFallback(r,g,b){
+  var best=CMAP_FB[0],bd=Infinity;
+  for(var i=0;i<CMAP_FB.length;i++){
+    var c=CMAP_FB[i][0];
+    var d=Math.sqrt((r-c[0])**2+(g-c[1])**2+(b-c[2])**2);
+    if(d<bd){bd=d;best=CMAP_FB[i];}
+  }
   return best[1];
 }
 
-function extractColors(blobUrl){
+// Estrae colori con ColorThief → chiama color.pizza per i nomi
+async function extractColors(blobUrl){
   return new Promise(function(res,rej){
     var img=new Image();
     img.crossOrigin='anonymous';
-    img.onload=function(){
+    img.onload=async function(){
       try{
-        var SZ=100;
-        var cv=document.createElement('canvas'); cv.width=SZ; cv.height=SZ;
-        var ctx=cv.getContext('2d'); ctx.drawImage(img,0,0,SZ,SZ);
-        var d=ctx.getImageData(0,0,SZ,SZ).data;
-        var bk={};
-        for(var i=0;i<d.length;i+=12){
-          var r=d[i],g=d[i+1],b=d[i+2],a=d[i+3];
-          if(a<128) continue;
-          if((r+g+b)/3>245) continue; // skip white bg
-          r=Math.round(r/28)*28; g=Math.round(g/28)*28; b=Math.round(b/28)*28;
-          var k=r+','+g+','+b; bk[k]=(bk[k]||0)+1;
-        }
-        var sorted=Object.entries(bk).sort(function(a,b){return b[1]-a[1];});
-        var picked=[];
-        for(var j=0;j<sorted.length&&picked.length<5;j++){
-          var pt=sorted[j][0].split(',').map(Number);
-          var close=false;
-          for(var k2=0;k2<picked.length;k2++){
-            if(cdist(pt[0],pt[1],pt[2],picked[k2][0],picked[k2][1],picked[k2][2])<55){close=true;break;}
-          }
-          if(!close) picked.push(pt);
-        }
-        var names=[];
-        picked.forEach(function(c){
-          var n=toName(c[0],c[1],c[2]);
-          if(names.indexOf(n)===-1) names.push(n);
+        var ct=new ColorThief();
+        // Palette di 6 colori — ne usiamo max 5 dopo deduplicazione
+        var palette=ct.getPalette(img,6,5);
+        if(!palette||!palette.length) throw new Error('palette vuota');
+
+        // Filtra colori troppo vicini al bianco/sfondo
+        var filtered=palette.filter(function(c){
+          var brightness=(c[0]+c[1]+c[2])/3;
+          // Salta bianchi puri e grigi chiarissimi solo se non sono il colore del capo
+          return brightness < 235;
         });
-        res(names.slice(0,4).join(', ')||'Non rilevato');
+        if(!filtered.length) filtered=palette.slice(0,3);
+
+        // Chiama color.pizza per nomi reali
+        var names=await rgbsToNames(filtered.slice(0,5));
+        // Deduplicazione nomi
+        var unique=[];
+        names.forEach(function(n){if(unique.indexOf(n)===-1) unique.push(n);});
+        res(unique.slice(0,4).join(', ')||'Non rilevato');
       }catch(e){rej(e);}
     };
     img.onerror=function(){rej(new Error('img load failed'));};
     img.src=blobUrl;
   });
 }
+
 
 async function imgToB64(url){
   var r=await fetch(url);
@@ -640,12 +683,12 @@ async function imgToB64(url){
   });
 }
 
-async function colorWithGemini(prod){
-  var gkey=document.getElementById('gkey').value.trim();
+async function colorWithClaude(prod){
+  var ckey=document.getElementById('ckey').value.trim();
   var wUrl=document.getElementById('wurl').value.trim();
-  if(!gkey) throw new Error('no-key');
+  if(!ckey) throw new Error('no-key');
 
-  // Usa imgUrl (worker proxy) oppure coverYupoo tramite proxy
+  // Ottieni URL immagine: preferisci imgUrl (già caricato), altrimenti proxy Yupoo
   var fetchUrl=prod.imgUrl||'';
   if(!fetchUrl&&prod.coverYupoo&&wUrl){
     var vrs=variants(prod.coverYupoo);
@@ -660,27 +703,39 @@ async function colorWithGemini(prod){
   if(!fetchUrl) throw new Error('no-image');
 
   var b64=await imgToB64(fetchUrl);
-  var prompt='Questa immagine mostra un capo di abbigliamento (o accessorio) in vendita. Spesso mostra lo stesso capo in più colori affiancati. Elenca SOLO i colori del capo/indumento, NON lo sfondo. Usa nomi italiani semplici (Nero, Bianco, Grigio, Rosso, Blu, Verde, Beige, Marrone, Rosa, Arancione, Giallo, Viola, Azzurro, Kaki, Bordeaux, Grigio Scuro, Grigio Chiaro, Blu Navy, Verde Militare). Rispondi SOLO con i nomi separati da virgola. Massimo 5 colori.';
 
-  var resp=await fetch(
-    'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key='+gkey,
-    {method:'POST',headers:{'Content-Type':'application/json'},
-     body:JSON.stringify({
-       contents:[{parts:[{inline_data:{mime_type:'image/jpeg',data:b64}},{text:prompt}]}],
-       generationConfig:{temperature:0.1,maxOutputTokens:60}
-     })}
-  );
+  var resp=await fetch('https://api.anthropic.com/v1/messages',{
+    method:'POST',
+    headers:{
+      'Content-Type':'application/json',
+      'x-api-key':ckey,
+      'anthropic-version':'2023-06-01'
+    },
+    body:JSON.stringify({
+      model:'claude-haiku-4-5-20251001',
+      max_tokens:80,
+      messages:[{
+        role:'user',
+        content:[
+          {type:'image',source:{type:'base64',media_type:'image/jpeg',data:b64}},
+          {type:'text',text:'Questa immagine mostra un capo di abbigliamento in vendita. Spesso mostra lo stesso capo in più colori affiancati su sfondo bianco/neutro. Elenca SOLO i colori del capo, NON lo sfondo. Usa nomi italiani semplici (Nero, Bianco, Grigio, Grigio Chiaro, Grigio Scuro, Rosso, Bordeaux, Blu, Blu Navy, Azzurro, Verde, Verde Militare, Verde Oliva, Beige, Marrone, Rosa, Arancione, Giallo, Viola, Kaki). Rispondi SOLO con i nomi separati da virgola, nient\'altro. Massimo 5 colori.'}
+        ]
+      }]
+    })
+  });
+
   if(!resp.ok){
     var ed=await resp.json().catch(function(){return{};});
-    throw new Error('Gemini '+resp.status+': '+((ed.error||{}).message||''));
+    var msg=((ed.error||{}).message||resp.status);
+    throw new Error('Claude API: '+msg);
   }
   var data=await resp.json();
-  var txt=((data.candidates||[])[0]||{}).content
-    ?data.candidates[0].content.parts.map(function(p){return p.text||'';}).join('').trim():'';
+  var txt=((data.content||[])[0]||{}).text||'';
+  txt=txt.trim();
   if(!txt||txt.length<2) throw new Error('risposta vuota');
-  var cols=txt.replace(/[.!?*]/g,'').split(',')
-    .map(function(c){return c.trim();})
-    .filter(function(c){return c.length>1&&c.length<25;})
+  var cols=txt.replace(/[.!?*\n]/g,'').split(',')
+    .map(function(x){return x.trim();})
+    .filter(function(x){return x.length>1&&x.length<25;})
     .slice(0,5);
   if(!cols.length) throw new Error('nessun colore');
   return cols.join(', ');
@@ -707,12 +762,12 @@ async function doColors(){
   var todo=P.filter(function(p){return (p.imgUrl||p.coverYupoo)&&!p.colori;});
   if(!todo.length){alert('Nessun prodotto da processare (o colori già presenti).');return;}
 
-  var gkey=document.getElementById('gkey').value.trim();
-  var useGemini=!!gkey;
+  var ckey=document.getElementById('ckey').value.trim();
+  var useClaude=!!ckey;
 
   stopped=false; ctl=new AbortController();
   document.getElementById('bcol').disabled=true;
-  lg('🎨 Colori via '+(useGemini?'Gemini Vision AI 👁':'canvas fallback')+' — '+todo.length+' prodotti...','in');
+  lg('🎨 Colori via '+(useClaude?'Claude Vision AI 👁':'canvas fallback')+' — '+todo.length+' prodotti...','in');
   document.getElementById('psec').className='prog-sec on';
 
   for(var i=0;i<todo.length;i++){
@@ -720,16 +775,16 @@ async function doColors(){
     var prod=todo[i];
     setProg(Math.round(i/todo.length*100),'🎨 '+(i+1)+'/'+todo.length+': '+prod.nome.substring(0,35));
     try{
-      if(useGemini){
+      if(useClaude){
         try{
-          prod.colori=await colorWithGemini(prod);
+          prod.colori=await colorWithClaude(prod);
         }catch(ge){
-          if(ge.message==='no-key'||ge.message.indexOf('429')>-1){
-            useGemini=false;
-            lg('⚠ Gemini quota: passo a canvas...','wn');
+          if(ge.message==='no-key'||ge.message.indexOf('529')>-1||ge.message.indexOf('overloaded')>-1){
+            useClaude=false;
+            lg('⚠ Claude overload: passo a canvas...','wn');
             prod.colori=await colorWithCanvas(prod);
           } else {
-            lg('⚠ Gemini: '+ge.message+' — uso canvas','wn');
+            lg('⚠ Claude: '+ge.message+' — uso canvas','wn');
             prod.colori=await colorWithCanvas(prod);
           }
         }
@@ -742,7 +797,7 @@ async function doColors(){
       if(e.name==='AbortError') break;
       lg('⚠ ['+(i+1)+'] '+prod.nome.substring(0,25)+': '+e.message,'wn');
     }
-    await new Promise(function(r){setTimeout(r,useGemini?300:80);});
+    await new Promise(function(r){setTimeout(r,useClaude?400:80);});
   }
 
   updStats();
