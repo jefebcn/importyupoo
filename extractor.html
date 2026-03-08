@@ -348,6 +348,8 @@ function cleanName(name){
         .replace(/[\d]+(?:[.,]\d{1,2})?\s*[¥￥]/gi,'')
         .replace(/\(\s*\d{2,3}\s*(?:cm)?\s*\d{2,3}\s*(?:kg)?[^)]{0,60}\)/gi,'')
         .replace(/\[\s*\d{2,3}\s*(?:cm)?\s*\d{2,3}\s*(?:kg)?[^\]]{0,60}\]/gi,'')
+        .replace(/\b\d{3}\s*cm\b/gi,'')
+        .replace(/\b\d{2,3}\s*kg\b/gi,'')
         .replace(/\biwear\b.*$/gi,'')
         .replace(/\bin\s+the\s+photo\b/gi,'')
         .replace(/\bsize\s+[xsml0-9]+\b/gi,'')
@@ -752,8 +754,10 @@ async function doColors(){
 
 // ── RINOMINA ────────────────────────────────────────
 var JUNK=[
-  /\(\s*\d{2,3}\s*(?:cm)?\s*\d{2,3}\s*(?:kg)?[^)]{0,60}\)/gi,
-  /\[\s*\d{2,3}\s*(?:cm)?\s*\d{2,3}\s*(?:kg)?[^\]]{0,60}\]/gi,
+  /\(\s*\d{2,3}\s*(?:cm)?\s*\d{2,3}\s*(?:kg)?[^)]{0,60}\)/gi,  // (176cm 58kg ...)
+  /\[\s*\d{2,3}\s*(?:cm)?\s*\d{2,3}\s*(?:kg)?[^\]]{0,60}\]/gi, // [176cm 58kg ...]
+  /\b\d{3}\s*cm\b/gi,          // bare: 176cm
+  /\b\d{2,3}\s*kg\b/gi,         // bare: 58kg
   /\biwear\b.*$/gi,/\bin\s+the\s+photo\b/gi,/\bsize\s+[xsml0-9]+\b/gi,
   /[¥￥Y]\s*~?\s*[\d]+(?:[.,]\d{1,2})?/gi,/[\d]+(?:[.,]\d{1,2})?\s*[¥￥]/gi,
   /\bCOTTON\b|\bNEW\b|\bVERSION\b/gi,/\b\d{6,}\b/g
@@ -774,7 +778,7 @@ var TIPO_IT=[
   [/\bCAP\b|BEANIE|\bHAT\b|\bBERRETTO\b/i,'Cappello'],
   [/SNEAKER|SHOE|\bSCARPA\b/i,'Sneakers']
 ];
-var GENERE=[[/\bWOMEN?'?S?\b/i,'Donna'],[/\bMEN'?S?\b/i,'Uomo']];
+var GENERE=[[/\bWOMAN\b|\bWOMEN'?S?\b/i,'Donna'],[/\bMAN\b|\bMEN'?S?\b/i,'Uomo']];
 
 function smartRename(p,idx){
   var brand=(p.brand||document.getElementById('brand').value.trim()||'').trim();
