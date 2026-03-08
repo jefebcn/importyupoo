@@ -687,12 +687,35 @@ async function imgToB64(url){
   });
 }
 
+async function claudeApiCall(ckey, b64, prompt, maxTokens){
+  var body=JSON.stringify({
+    model:'claude-haiku-4-5-20251001',
+    max_tokens:maxTokens||120,
+    messages:[{role:'user',content:[
+      {type:'image',source:{type:'base64',media_type:'image/jpeg',data:b64}},
+      {type:'text',text:prompt}
+    ]}]
+  });
+  var hdrs={'Content-Type':'application/json','x-api-key':ckey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'};
+  var resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:hdrs,body:body});
+  if(resp.status===429){
+    lg('⏳ Rate limit Claude — attendo 6s...','wn');
+    await new Promise(function(r){setTimeout(r,6000);});
+    resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:hdrs,body:body});
+  }
+  if(!resp.ok){
+    var ed=await resp.json().catch(function(){return{};});
+    throw new Error('Claude API: '+((ed.error||{}).message||resp.status));
+  }
+  var data=await resp.json();
+  return ((data.content||[])[0]||{}).text||'';
+}
+
 async function colorWithClaude(prod){
   var ckey=document.getElementById('ckey').value.trim();
   var wUrl=document.getElementById('wurl').value.trim();
   if(!ckey) throw new Error('no-key');
 
-  // Ottieni URL immagine: preferisci imgUrl (già caricato), altrimenti proxy Yupoo
   var fetchUrl=prod.imgUrl||'';
   if(!fetchUrl&&prod.coverYupoo&&wUrl){
     var vrs=variants(prod.coverYupoo);
@@ -708,53 +731,22 @@ async function colorWithClaude(prod){
 
   var b64=await imgToB64(fetchUrl);
 
-  var resp=await fetch('https://api.anthropic.com/v1/messages',{
-    method:'POST',
-    headers:{
-      'Content-Type':'application/json',
-      'x-api-key':ckey,
-      'anthropic-version':'2023-06-01',
-      'anthropic-dangerous-direct-browser-access':'true'
-    },
-    body:JSON.stringify({
-      model:'claude-haiku-4-5-20251001',
-      max_tokens:80,
-      messages:[{
-        role:'user',
-        content:[
-          {type:'image',source:{type:'base64',media_type:'image/jpeg',data:b64}},
-          {type:'text',text:'Questa immagine mostra un capo di abbigliamento in vendita. Spesso mostra lo stesso capo in più colori affiancati su sfondo bianco/neutro. Elenca SOLO i colori del capo, NON lo sfondo. Usa nomi italiani semplici (Nero, Bianco, Grigio, Grigio Chiaro, Grigio Scuro, Rosso, Bordeaux, Blu, Blu Navy, Azzurro, Verde, Verde Militare, Verde Oliva, Beige, Marrone, Rosa, Arancione, Giallo, Viola, Kaki). Rispondi SOLO con i nomi separati da virgola, nient\'altro. Massimo 5 colori.'}
-        ]
-      }]
-    })
-  });
+  var TIPI='Canotta, T-shirt, Polo, Maglia manica lunga, Felpa, Felpa con cappuccio, Pile, Cardigan, Camicia, Giacca, Giacca a vento, Bomber, Gilet, Piumino, Cappotto, Pantaloni, Pantaloncini, Jogger, Leggings, Gonna, Vestito, Borsa, Zaino, Cappello, Sneakers, Calzini, Sciarpa, Portafoglio, Cintura';
+  var prompt='Analizza questa immagine di un prodotto di abbigliamento o accessorio in vendita.\nRispondi SOLO in questo formato (2 righe, nient altro):\nTIPO: [scegli UNO tra: '+TIPI+']\nCOLORI: [nomi italiani separati da virgola, max 5, SOLO colori del capo non lo sfondo]\nColori validi: Nero, Bianco, Grigio, Grigio Chiaro, Grigio Scuro, Rosso, Bordeaux, Blu, Blu Navy, Azzurro, Verde, Verde Militare, Verde Oliva, Beige, Marrone, Marrone Scuro, Rosa, Arancione, Giallo, Viola, Kaki, Indaco';
 
-  if(resp.status===429){
-    // Rate limit colpito — aspetta 5 secondi e riprova una volta
-    lg('⏳ Rate limit Claude — attendo 5s...','wn');
-    await new Promise(function(r){setTimeout(r,5000);});
-    resp=await fetch('https://api.anthropic.com/v1/messages',{
-      method:'POST',
-      headers:{'Content-Type':'application/json','x-api-key':ckey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-      body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:80,messages:[{role:'user',content:[{type:'image',source:{type:'base64',media_type:'image/jpeg',data:b64}},{type:'text',text:'Questa immagine mostra un capo di abbigliamento in vendita. Spesso mostra lo stesso capo in più colori affiancati su sfondo bianco/neutro. Elenca SOLO i colori del capo, NON lo sfondo. Usa nomi italiani semplici (Nero, Bianco, Grigio, Grigio Chiaro, Grigio Scuro, Rosso, Bordeaux, Blu, Blu Navy, Azzurro, Verde, Verde Militare, Verde Oliva, Beige, Marrone, Rosa, Arancione, Giallo, Viola, Kaki). Rispondi SOLO con i nomi separati da virgola, nient\'altro. Massimo 5 colori.'}]}]})
-    });
-  }
-  if(!resp.ok){
-    var ed=await resp.json().catch(function(){return{};});
-    var msg=((ed.error||{}).message||resp.status);
-    throw new Error('Claude API: '+msg);
-  }
-  var data=await resp.json();
-  var txt=((data.content||[])[0]||{}).text||'';
-  txt=txt.trim();
-  if(!txt||txt.length<2) throw new Error('risposta vuota');
-  var cols=txt.replace(/[.!?*\n]/g,'').split(',')
-    .map(function(x){return x.trim();})
-    .filter(function(x){return x.length>1&&x.length<25;})
-    .slice(0,5);
-  if(!cols.length) throw new Error('nessun colore');
-  return cols.join(', ');
+  var txt=await claudeApiCall(ckey, b64, prompt, 120);
+
+  var tipoMatch=txt.match(/TIPO:\s*([^\n]+)/i);
+  var coloriMatch=txt.match(/COLORI:\s*([^\n]+)/i);
+  var tipoRaw=(tipoMatch?tipoMatch[1]:'').replace(/[.*\[\]]/g,'').trim();
+  var coloriRaw=(coloriMatch?coloriMatch[1]:'').replace(/[.*\[\]]/g,'').trim();
+
+  var cols=coloriRaw.split(',').map(function(x){return x.trim();})
+    .filter(function(x){return x.length>1&&x.length<30;}).slice(0,5);
+
+  return {colori:cols.join(', ')||'', tipo:tipoRaw||''};
 }
+
 
 async function colorWithCanvas(prod){
   var wUrl=document.getElementById('wurl').value.trim();
@@ -792,7 +784,12 @@ async function doColors(){
     try{
       if(useClaude){
         try{
-          prod.colori=await colorWithClaude(prod);
+          var res=await colorWithClaude(prod);
+          prod.colori=res.colori||prod.colori;
+          // Aggiorna tipo solo se Claude lo ha rilevato e quello attuale è vuoto o generico
+          if(res.tipo&&(!prod.tipo||prod.tipo===inferType(P.indexOf(prod)))){
+            prod.tipo=res.tipo;
+          }
         }catch(ge){
           if(ge.message==='no-key'||ge.message.indexOf('529')>-1||ge.message.indexOf('overloaded')>-1){
             useClaude=false;
@@ -807,7 +804,7 @@ async function doColors(){
         prod.colori=await colorWithCanvas(prod);
       }
       renderTableRow(prod);
-      lg('🎨 ['+(i+1)+'] '+prod.nome.substring(0,25)+': '+prod.colori,'ok');
+      lg('🎨 ['+(i+1)+'] '+prod.nome.substring(0,25)+' | '+prod.tipo+' | '+prod.colori,'ok');
     }catch(e){
       if(e.name==='AbortError') break;
       lg('⚠ ['+(i+1)+'] '+prod.nome.substring(0,25)+': '+e.message,'wn');
