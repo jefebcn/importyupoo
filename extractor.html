@@ -786,9 +786,14 @@ async function doColors(){
         try{
           var res=await colorWithClaude(prod);
           prod.colori=res.colori||prod.colori;
-          // Aggiorna tipo solo se Claude lo ha rilevato e quello attuale è vuoto o generico
-          if(res.tipo&&(!prod.tipo||prod.tipo===inferType(P.indexOf(prod)))){
+          // Aggiorna tipo se Claude lo ha rilevato
+          if(res.tipo){
+            var idx=P.indexOf(prod);
+            var tipoChanged=(prod.tipo!==res.tipo);
             prod.tipo=res.tipo;
+            // Rigenera il nome con il tipo corretto
+            var newNome=smartRename(prod,idx);
+            if(newNome) prod.nome=newNome;
           }
         }catch(ge){
           if(ge.message==='no-key'||ge.message.indexOf('529')>-1||ge.message.indexOf('overloaded')>-1){
