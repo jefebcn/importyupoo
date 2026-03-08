@@ -370,7 +370,7 @@ function guessType(name){
   if(/FLEECE/.test(n))                                       return 'Pile';
   if(/CARDIGAN/.test(n))                                     return 'Cardigan';
   if(/PUFFER|PIUMINO|DOWN\b/.test(n))                        return 'Piumino';
-  if(/WINDBREAKER|ANORAK/.test(n))                           return 'Giacca a vento';
+  if(/WINDBREAKER|ANORAK|GIACCHETTO/.test(n))                           return 'Giacchetto';
   if(/BOMBER/.test(n))                                       return 'Bomber';
   if(/JACKET/.test(n))                                       return 'Giacca';
   if(/\bCOAT\b|OVERCOAT/.test(n))                           return 'Cappotto';
@@ -731,8 +731,13 @@ async function colorWithClaude(prod){
 
   var b64=await imgToB64(fetchUrl);
 
-  var TIPI='Canotta, T-shirt, Polo, Maglia manica lunga, Felpa, Felpa con cappuccio, Pile, Cardigan, Camicia, Giacca, Giacca a vento, Bomber, Gilet, Piumino, Cappotto, Pantaloni, Pantaloncini, Jogger, Leggings, Gonna, Vestito, Borsa, Zaino, Cappello, Sneakers, Calzini, Sciarpa, Portafoglio, Cintura';
-  var prompt='Analizza questa immagine di un prodotto di abbigliamento o accessorio in vendita.\nRispondi SOLO in questo formato (2 righe, nient altro):\nTIPO: [scegli UNO tra: '+TIPI+']\nCOLORI: [nomi italiani separati da virgola, max 5, SOLO colori del capo non lo sfondo]\nColori validi: Nero, Bianco, Grigio, Grigio Chiaro, Grigio Scuro, Rosso, Bordeaux, Blu, Blu Navy, Azzurro, Verde, Verde Militare, Verde Oliva, Beige, Marrone, Marrone Scuro, Rosa, Arancione, Giallo, Viola, Kaki, Indaco';
+  var TIPI='Canotta, T-shirt, Polo, Maglia manica lunga, Felpa, Felpa con cappuccio, Pile, Cardigan, Camicia, Giacca, Giacchetto, Bomber, Gilet, Piumino, Cappotto, Pantaloni, Pantaloncini, Jogger, Leggings, Gonna, Vestito, Borsa, Zaino, Cappello, Sneakers, Calzini, Sciarpa, Portafoglio, Cintura';
+  var prompt='Analizza questa immagine di un prodotto di abbigliamento o accessorio in vendita.\n'+
+    'REGOLA COLORI: se vedi piu varianti dello stesso capo affiancate (collage), elenca il colore principale di ogni variante (max 4). Se e un singolo capo fotografato, dai SOLO il colore dominante del tessuto — ignora loghi, ricami, dettagli piccoli, bordi.\n'+
+    'Rispondi SOLO in questo formato esatto (2 righe):\n'+
+    'TIPO: [scegli UNO tra: '+TIPI+']\n'+
+    'COLORI: [nomi italiani separati da virgola, max 4, NO sfondo bianco/grigio neutro]\n'+
+    'Colori validi: Nero, Bianco, Grigio, Grigio Chiaro, Grigio Scuro, Rosso, Bordeaux, Blu, Blu Navy, Azzurro, Verde, Verde Militare, Verde Oliva, Beige, Marrone, Marrone Scuro, Rosa, Arancione, Giallo, Viola, Kaki, Indaco';
 
   var txt=await claudeApiCall(ckey, b64, prompt, 120);
 
@@ -841,7 +846,7 @@ var TIPO_IT=[
   [/\bPOLOS?\b/i,'Polo'],[/HOODIE|HOODED|ZIP.?UP/i,'Felpa con Cappuccio'],
   [/SWEATER|CREWNECK|PULLOVER/i,'Felpa'],[/FLEECE\b/i,'Pile'],
   [/CARDIGAN/i,'Cardigan'],[/PUFFER|PIUMINO|DOWN\b/i,'Piumino'],
-  [/WINDBREAKER|ANORAK/i,'Giacca a Vento'],[/BOMBER\b/i,'Bomber'],
+  [/WINDBREAKER|ANORAK|GIACCHETTO/i,'Giacchetto'],[/BOMBER\b/i,'Bomber'],
   [/JACKET\b/i,'Giacca'],[/\bCOAT\b|OVERCOAT/i,'Cappotto'],
   [/JOGGER/i,'Jogger'],[/TROUSER|\bPANT\b|PANTS\b/i,'Pantaloni'],
   [/\bSHORTS?\b/i,'Pantaloncini'],[/\bVEST\b|\bGILET\b/i,'Gilet'],
