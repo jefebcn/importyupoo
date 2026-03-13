@@ -148,7 +148,7 @@ td input:focus{background:#111800;border-bottom:1px solid var(--lime);}
 <div class="url-sec">
   <div class="slbl">URL CATALOGO YUPOO — categoria o album specifico</div>
   <div class="url-row">
-    <input class="url-inp" type="text" id="curl" placeholder="https://huskyreps.x.yupoo.com/categories/5003229">
+    <input class="url-inp" type="text" id="curl" placeholder="https://venditore.x.yupoo.com/  oppure  /categories/ID  oppure  /albums/ID">
     <button class="btn b-lime" id="bext" onclick="startExt()">⚡ ESTRAI</button>
     <button class="btn b-red"  id="bstp" onclick="doStop()" style="display:none">■ STOP</button>
   </div>
@@ -185,7 +185,9 @@ td input:focus{background:#111800;border-bottom:1px solid var(--lime);}
 <div class="empty" id="empty">
   <div class="ico">🗂</div>
   <p>INCOLLA L'URL DEL CATALOGO YUPOO<br>
-  ES: <code>https://huskyreps.x.yupoo.com/categories/5003229</code><br><br>
+  ES homepage: <code>https://venditore.x.yupoo.com/</code><br>
+  ES categoria: <code>https://venditore.x.yupoo.com/categories/5003229</code><br>
+  ES album singolo: <code>https://venditore.x.yupoo.com/albums/1234567</code><br><br>
   ESTRAE NOME · PREZZO ¥→€ · TIPO · URL IMMAGINE DIRETTA</p>
 </div>
 <div class="tw" id="tw" style="display:none">
@@ -265,23 +267,18 @@ var PROXIES = [
 ];
 
 async function pFetchText(url){
-  // Usa il Worker Cloudflare come primo proxy (il più affidabile)
   var wUrl=(document.getElementById('wurl').value||'').trim().replace(/\/$/,'');
-  var proxies=[];
+  var all=[];
   if(wUrl){
-    proxies.push(function(u){
+    all.push(function(u){
       return fetch(wUrl+'/?url='+encodeURIComponent(u),{signal:ctl.signal})
-        .then(function(r){if(!r.ok) throw new Error('Worker '+r.status);return r.text();});
+        .then(function(r){if(!r.ok) throw new Error('Worker '+r.status); return r.text();});
     });
   }
-  proxies=proxies.concat(PROXIES);
-
-  for(var i=0;i<proxies.length;i++){
-    try{
-      var t=await proxies[i](url);
-      if(t&&t.length>100) return t;
-    }
-    catch(e){if(e.name==='AbortError') throw e; lg('⚠ Proxy '+(i+1)+' fallito, provo prossimo...','wn');}
+  all=all.concat(PROXIES);
+  for(var i=0;i<all.length;i++){
+    try{ var t=await all[i](url); if(t&&t.length>100) return t; }
+    catch(e){ if(e.name==='AbortError') throw e; }
   }
   throw new Error('Proxy falliti: '+url);
 }
@@ -301,7 +298,7 @@ function variants(url){
 }
 
 // ── ALBUM PARSING ──────────────────────────────────
-var SKIP_NAV=/^(next\s*page|prev|previous|page\s*\d+|older|newer|more|avanti|indietro)$/i;
+var SKIP_NAV=/^(next\s*page|prev|previous|page\s*\d+|older|newer|more|avanti|indietro|后一页|前一页|下一页|上一页|首页|末页|更多|加载更多)$/i;
 
 function coverFromObj(obj){
   var s=JSON.stringify(obj);
@@ -454,9 +451,11 @@ async function startExt(){
   document.getElementById('stats').style.display='flex';
   disBtn(true);
 
-  var isAlbum=/\/albums\//.test(url);
+  var isAlbum=/\/albums\/\d+/.test(url);
   var catM=url.match(/\/categories\/(\d+)/);
   var catId=catM?catM[1]:null;
+  // homepage o /albums o /albums?page= → catalogo completo
+  var isFullCatalog=!isAlbum&&!catId;
 
   try{
     var albums=[];
@@ -466,7 +465,7 @@ async function startExt(){
       lg('Modalità: album singolo');
     } else {
       lg('Raccolta album catalogo...');
-      albums=await collectAlbums(url,catId);
+      albums=await collectAlbums(url,catId,isFullCatalog);
     }
 
     if(!albums.length){lg('❌ Nessun album trovato — verifica URL','er');setUI(false);return;}
@@ -512,12 +511,43 @@ async function startExt(){
   setUI(false);
 }
 
-async function collectAlbums(pageUrl,catId){
+async function collectAlbums(pageUrl,catId,isFullCatalog){
   var all=[];
 
-  // API nativa
+  // ── Catalogo completo (homepage / /albums) ──────────────────
+  if(isFullCatalog){
+    lg('Modalità: catalogo completo venditore...','in');
+    // Strategia A: API /albums paginata (senza uid = tutti gli album)
+    try{
+      var p1=await pFetchJson(siteBase+'/albums?page=1&t='+Date.now());
+      parseAlbums(p1,all);
+      var tp=totPages(p1);
+      lg('API catalogo: '+all.length+' album pag.1 / '+tp+' pagine');
+      for(var p=2;p<=Math.min(tp,500);p++){
+        if(stopped) break;
+        setProg(Math.round(p/tp*35),'Raccolta pag.'+p+'/'+tp);
+        try{var pd=await pFetchJson(siteBase+'/albums?page='+p+'&t='+Date.now());parseAlbums(pd,all);}
+        catch(e){if(e.name==='AbortError') throw e;}
+      }
+      if(all.length){lg('✅ '+all.length+' album trovati via API','ok');return dedup(all);}
+    }catch(e){if(e.name==='AbortError') throw e; lg('API catalogo fallita, provo HTML...','wn');}
+    // Strategia B: HTML homepage / /albums
+    var tryUrls=[siteBase+'/albums',siteBase+'/',pageUrl];
+    for(var ti=0;ti<tryUrls.length;ti++){
+      try{
+        var html=await pFetchText(tryUrls[ti]);
+        var ndM=html.match(/<script[^>]+id=["']__NEXT_DATA__["'][^>]*>([\s\S]*?)<\/script>/i);
+        if(ndM){try{var nd=JSON.parse(ndM[1]);buildId=nd.buildId||'';parseAlbums(nd,all);}catch(e){}}
+        if(!all.length){var ha=htmlAlbums(html);all=all.concat(ha);}
+        if(all.length){lg('✅ '+all.length+' album trovati via HTML','ok');return dedup(all);}
+      }catch(e){if(e.name==='AbortError') throw e;}
+    }
+    return dedup(all);
+  }
+
+  // ── Categoria specifica ─────────────────────────────────────
   if(catId){
-    lg('Strategia 1: API Yupoo...','in');
+    lg('Strategia 1: API categoria...','in');
     try{
       var p1=await pFetchJson(siteBase+'/albums?uid='+catId+'&page=1&t='+Date.now());
       parseAlbums(p1,all);
@@ -529,19 +559,24 @@ async function collectAlbums(pageUrl,catId){
         try{var pd=await pFetchJson(siteBase+'/albums?uid='+catId+'&page='+p+'&t='+Date.now());parseAlbums(pd,all);}
         catch(e){if(e.name==='AbortError') throw e;}
       }
-      if(all.length) return all;
+      if(all.length) return dedup(all);
     }catch(e){if(e.name==='AbortError') throw e; lg('API fallita, provo HTML...','wn');}
   }
 
-  // HTML scraping
+  // ── HTML scraping generico ──────────────────────────────────
   lg('Strategia 2: HTML scraping...','in');
   var html=await pFetchText(pageUrl);
   var ndM=html.match(/<script[^>]+id=["']__NEXT_DATA__["'][^>]*>([\s\S]*?)<\/script>/i);
   if(ndM){try{var nd=JSON.parse(ndM[1]);buildId=nd.buildId||'';parseAlbums(nd,all);}catch(e){}}
-  if(all.length){lg('__NEXT_DATA__: '+all.length+' album','ok');return all;}
+  if(all.length){lg('__NEXT_DATA__: '+all.length+' album','ok');return dedup(all);}
   var ha=htmlAlbums(html);
-  if(ha.length){lg('HTML scraping: '+ha.length+' album','ok');return ha;}
+  if(ha.length){lg('HTML scraping: '+ha.length+' album','ok');return dedup(ha);}
   return all;
+}
+
+function dedup(arr){
+  var seen=new Set();
+  return arr.filter(function(a){if(seen.has(a.id)) return false; seen.add(a.id); return true;});
 }
 
 async function fetchCover(albumId){
@@ -1085,7 +1120,9 @@ function clearAll(){
 }
 function loadEx(){
   document.getElementById('curl').value='https://huskyreps.x.yupoo.com/categories/5003229';
-  lg('Esempio caricato — premi ⚡ ESTRAI','in');
+  document.getElementById('brand').value='Ralph Lauren';
+  localStorage.setItem('brand','Ralph Lauren');
+  lg('Esempio caricato (huskyreps · Ralph Lauren) — premi ⚡ ESTRAI','in');
 }
 </script>
 </body>
