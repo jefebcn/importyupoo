@@ -258,21 +258,37 @@ function workerImgUrl(yupooUrl){
 }
 
 // ── PROXY FETCH ────────────────────────────────────
+// Crea signal con timeout locale + rispetta STOP utente
+function timedSignal(ms){
+  var tc=new AbortController();
+  var tid=setTimeout(function(){tc.abort();},ms);
+  if(ctl){ctl.signal.addEventListener('abort',function(){clearTimeout(tid);tc.abort();},{once:true});}
+  return {signal:tc.signal,clear:function(){clearTimeout(tid);}};
+}
+
+// Lista proxy pubblici per HTML scraping (NON il Worker che è solo per immagini)
 var PROXIES = [
-  function(u){ return fetch('https://corsproxy.io/?'+encodeURIComponent(u),{signal:ctl.signal}).then(function(r){ if(!r.ok) throw new Error(r.status); return r.text(); }); },
-  function(u){ return fetch('https://api.allorigins.win/get?url='+encodeURIComponent(u),{signal:ctl.signal}).then(function(r){ return r.json(); }).then(function(j){ return j.contents||''; }); },
-  function(u){ return fetch('https://thingproxy.freeboard.io/fetch/'+u,{signal:ctl.signal}).then(function(r){ if(!r.ok) throw new Error(r.status); return r.text(); }); }
+  function(u,s){ return fetch('https://corsproxy.io/?'+encodeURIComponent(u),{signal:s}).then(function(r){if(!r.ok)throw new Error(r.status);return r.text();}); },
+  function(u,s){ return fetch('https://api.allorigins.win/get?url='+encodeURIComponent(u),{signal:s}).then(function(r){return r.json();}).then(function(j){if(!j.contents||j.contents.length<200)throw new Error('vuoto');return j.contents;}); },
+  function(u,s){ return fetch('https://api.codetabs.com/v1/proxy?quest='+encodeURIComponent(u),{signal:s}).then(function(r){if(!r.ok)throw new Error(r.status);return r.text();}); },
+  function(u,s){ return fetch('https://yacdn.org/proxy/'+u,{signal:s}).then(function(r){if(!r.ok)throw new Error(r.status);return r.text();}); },
+  function(u,s){ return fetch('https://thingproxy.freeboard.io/fetch/'+u,{signal:s}).then(function(r){if(!r.ok)throw new Error(r.status);return r.text();}); }
 ];
 
-async function pFetchText(url){
+async function pFetchText(url,timeoutMs){
+  timeoutMs=timeoutMs||14000;
   for(var i=0;i<PROXIES.length;i++){
-    try{ var t=await PROXIES[i](url); if(t&&t.length>100) return t; }
-    catch(e){ if(e.name==='AbortError') throw e; }
+    if(ctl&&ctl.signal.aborted) throw new DOMException('stop','AbortError');
+    var ts=timedSignal(timeoutMs);
+    try{
+      var t=await PROXIES[i](url,ts.signal); ts.clear();
+      if(t&&t.length>200) return t;
+    }catch(e){ ts.clear(); if(ctl&&ctl.signal.aborted) throw new DOMException('stop','AbortError'); }
   }
   throw new Error('Proxy falliti: '+url);
 }
-async function pFetchJson(url){
-  return JSON.parse(await pFetchText(url));
+async function pFetchJson(url,timeoutMs){
+  return JSON.parse(await pFetchText(url,timeoutMs));
 }
 
 // ── IMAGE URL HELPERS ──────────────────────────────
@@ -287,7 +303,7 @@ function variants(url){
 }
 
 // ── ALBUM PARSING ──────────────────────────────────
-var SKIP_NAV=/^(next\s*page|prev|previous|page\s*\d+|older|newer|more|avanti|indietro)$/i;
+var SKIP_NAV=/^(next\s*page|prev|previous|page\s*\d+|older|newer|more|avanti|indietro|后一页|前一页|下一页|上一页|首页|末页|更多|加载更多)$/i;
 
 function coverFromObj(obj){
   var s=JSON.stringify(obj);
@@ -472,10 +488,10 @@ async function startExt(){
         catch(e){if(e.name==='AbortError') break;}
       }
 
-      // Se non c'è immagine dopo tutte le strategie → salta il prodotto
+      // Se nessuna strategia ha trovato l'immagine → saltiamo il prodotto
       if(!coverYupoo){ continue; }
 
-      var imgUrl = workerImgUrl(coverYupoo);
+      var imgUrl=workerImgUrl(coverYupoo);
 
       P.push({
         id:al.id, albumName:al.name,
@@ -503,7 +519,7 @@ async function startExt(){
 async function collectAlbums(pageUrl,catId){
   var all=[];
 
-  // API nativa
+  // ── Strategia 1: API Yupoo JSON ────────────────────
   if(catId){
     lg('Strategia 1: API Yupoo...','in');
     try{
@@ -521,20 +537,77 @@ async function collectAlbums(pageUrl,catId){
     }catch(e){if(e.name==='AbortError') throw e; lg('API fallita, provo HTML...','wn');}
   }
 
-  // HTML scraping
+  // ── Strategia 2: HTML scraping ─────────────────────
   lg('Strategia 2: HTML scraping...','in');
-  var html=await pFetchText(pageUrl);
-  var ndM=html.match(/<script[^>]+id=["']__NEXT_DATA__["'][^>]*>([\s\S]*?)<\/script>/i);
-  if(ndM){try{var nd=JSON.parse(ndM[1]);buildId=nd.buildId||'';parseAlbums(nd,all);}catch(e){}}
-  if(all.length){lg('__NEXT_DATA__: '+all.length+' album','ok');return all;}
-  var ha=htmlAlbums(html);
-  if(ha.length){lg('HTML scraping: '+ha.length+' album','ok');return ha;}
+  try{
+    var html=await pFetchText(pageUrl);
+    var ndM=html.match(/<script[^>]+id=["']__NEXT_DATA__["'][^>]*>([\s\S]*?)<\/script>/i);
+    if(ndM){try{var nd=JSON.parse(ndM[1]);buildId=nd.buildId||'';parseAlbums(nd,all);}catch(e){}}
+    if(all.length){lg('__NEXT_DATA__: '+all.length+' album','ok');return all;}
+    var ha=htmlAlbums(html);
+    if(ha.length){lg('HTML scraping: '+ha.length+' album','ok');return ha;}
+  }catch(e){if(e.name==='AbortError') throw e; lg('HTML fallito, provo Claude...','wn');}
+
+  // ── Strategia 3: Claude web_search ─────────────────
+  var ckey=(document.getElementById('ckey').value||'').trim();
+  if(ckey){
+    lg('Strategia 3: Claude web_search catalogo...','in');
+    try{
+      var clAlbums=await fetchAlbumsWithClaude(ckey,pageUrl,catId);
+      if(clAlbums&&clAlbums.length){
+        lg('✅ Claude trovato '+clAlbums.length+' album','ok');
+        return clAlbums;
+      }
+    }catch(e){if(e.name==='AbortError') throw e; lg('Claude fallito: '+e.message,'wn');}
+  }
+
   return all;
 }
 
-async function fetchCover(albumId){
+// Claude web_search per estrarre lista album dal catalogo Yupoo
+async function fetchAlbumsWithClaude(ckey,pageUrl,catId){
+  var tc=new AbortController();
+  var tid=setTimeout(function(){tc.abort();},30000);
+  if(ctl){ctl.signal.addEventListener('abort',function(){clearTimeout(tid);tc.abort();},{once:true});}
   try{
-    var json=await pFetchJson(siteBase+'/albums/'+albumId+'?page=1&t='+Date.now());
+    var apiUrl=catId?(siteBase+'/albums?uid='+catId+'&page=1&t='+Date.now()):pageUrl;
+    var hdrs={
+      'Content-Type':'application/json','x-api-key':ckey,
+      'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'
+    };
+    var body=JSON.stringify({
+      model:'claude-haiku-4-5-20251001',
+      max_tokens:2000,
+      tools:[{type:'web_search_20250305',name:'web_search'}],
+      messages:[{role:'user',content:
+        'Fetch this URL and extract ALL album IDs and names from the Yupoo catalog. URL: '+apiUrl+
+        '\nReturn ONLY a JSON array like: [{"id":12345,"name":"Product Name"},...]'+
+        '\nExtract as many albums as possible from the page. Return ONLY valid JSON, no extra text.'
+      }]
+    });
+    var resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:hdrs,body:body,signal:tc.signal});
+    if(!resp.ok) throw new Error('Claude API '+resp.status);
+    var data=await resp.json();
+    var allText=(data.content||[]).map(function(b){return b.text||'';}).join('');
+    var m=allText.match(/\[\s*\{[\s\S]*?\}\s*\]/);
+    if(!m) return [];
+    var parsed=JSON.parse(m[0]);
+    return parsed.filter(function(a){return a.id&&a.name;}).map(function(a){
+      return {id:parseInt(a.id),name:String(a.name),cover:null};
+    });
+  }catch(e){
+    if(ctl&&ctl.signal.aborted) throw new DOMException('stop','AbortError');
+    return [];
+  }finally{clearTimeout(tid);}
+}
+
+async function fetchCover(albumId){
+  var TOUT=10000;
+  var SKIP=/\/(?:icons?|avatars?|watermarks?|default|logo)\//i;
+
+  // Strategia 1: API JSON
+  try{
+    var json=await pFetchJson(siteBase+'/albums/'+albumId+'?page=1&t='+Date.now(),TOUT);
     var photos=[];
     function find(obj,d){
       if(d>15||!obj||typeof obj!=='object') return;
@@ -549,13 +622,53 @@ async function fetchCover(albumId){
     }
     find(json,0);
     if(photos.length) return toMed(photos[0]);
-  }catch(e){if(e.name==='AbortError') throw e;}
-  // HTML fallback
-  var html=await pFetchText(siteBase+'/albums/'+albumId);
-  var SKIP=/\/(?:icons?|avatars?|watermarks?|default|logo)\//i;
-  var re=/https?:\/\/photo\.yupoo\.com\/[a-z0-9_]+\/[a-z0-9]+\/[^\s"'<>]+\.jpg/gi,m;
-  while((m=re.exec(html))!==null){if(!SKIP.test(m[0])) return toMed(m[0]);}
+  }catch(e){if(ctl&&ctl.signal.aborted) throw new DOMException('stop','AbortError');}
+
+  // Strategia 2: HTML scraping
+  try{
+    var html=await pFetchText(siteBase+'/albums/'+albumId,TOUT);
+    var re=/https?:\/\/photo\.yupoo\.com\/[a-z0-9_]+\/[a-z0-9]+\/[^\s"'<>]+\.jpg/gi,m;
+    while((m=re.exec(html))!==null){if(!SKIP.test(m[0])) return toMed(m[0]);}
+  }catch(e){if(ctl&&ctl.signal.aborted) throw new DOMException('stop','AbortError');}
+
+  // Strategia 3: Claude web_search
+  var ckey=(document.getElementById('ckey').value||'').trim();
+  if(ckey){
+    var imgUrl=await fetchCoverWithClaude(ckey,siteBase+'/albums/'+albumId);
+    if(imgUrl) return imgUrl;
+  }
   return null;
+}
+
+async function fetchCoverWithClaude(ckey,albumUrl){
+  var tc=new AbortController();
+  var tid=setTimeout(function(){tc.abort();},20000);
+  if(ctl){ctl.signal.addEventListener('abort',function(){clearTimeout(tid);tc.abort();},{once:true});}
+  try{
+    var hdrs={
+      'Content-Type':'application/json','x-api-key':ckey,
+      'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'
+    };
+    var body=JSON.stringify({
+      model:'claude-haiku-4-5-20251001',
+      max_tokens:200,
+      tools:[{type:'web_search_20250305',name:'web_search'}],
+      messages:[{role:'user',content:
+        'Fetch this Yupoo album URL and return ONLY the first product image URL that starts with https://photo.yupoo.com/. URL: '+albumUrl+
+        '\nReply with ONLY the image URL (https://photo.yupoo.com/...) or NOT_FOUND. No other text.'
+      }]
+    });
+    var resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:hdrs,body:body,signal:tc.signal});
+    if(resp.status===429){await new Promise(function(r){setTimeout(r,5000);});}
+    if(!resp.ok) throw new Error(resp.status);
+    var data=await resp.json();
+    var txt=(data.content||[]).map(function(b){return b.text||'';}).join(' ');
+    var m=txt.match(/https?:\/\/photo\.yupoo\.com\/[a-z0-9_/.-]+\.jpg/i);
+    return m?toMed(m[0]):null;
+  }catch(e){
+    if(ctl&&ctl.signal.aborted) throw new DOMException('stop','AbortError');
+    return null;
+  }finally{clearTimeout(tid);}
 }
 
 function doStop(){
