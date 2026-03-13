@@ -490,10 +490,8 @@ async function startExt(){
       if(!coverYupoo){
         try{
           coverYupoo=await fetchCover(al.id);
-          if(!coverYupoo) lg('⚠ Nessuna img per: '+al.name.substring(0,30),'wn');
         }catch(e){
           if(e.name==='AbortError') break;
-          lg('⚠ Img fallita (skipped): '+al.name.substring(0,30),'wn');
           coverYupoo=null;
         }
       }
@@ -588,44 +586,55 @@ async function fetchCover(albumId){
   // Strategia 3: Claude API con web_search — recupera l'URL immagine direttamente
   var ckey=(document.getElementById('ckey').value||'').trim();
   if(ckey){
-    try{
-      var albumUrl=siteBase+'/albums/'+albumId;
-      var imgUrl=await fetchCoverWithClaude(ckey,albumUrl);
-      if(imgUrl) return imgUrl;
-    }catch(e){if(ctl&&ctl.signal.aborted) throw new DOMException('stop','AbortError');}
+    if(ctl&&ctl.signal.aborted) throw new DOMException('stop','AbortError');
+    var albumUrl=siteBase+'/albums/'+albumId;
+    var imgUrl=await fetchCoverWithClaude(ckey,albumUrl);
+    if(imgUrl) return imgUrl;
   }
 
-  return null;
+  return null; // nessuna strategia ha funzionato — il prodotto viene aggiunto senza immagine
 }
 
 // Claude API con web_search tool per recuperare l'URL immagine di un album Yupoo
 async function fetchCoverWithClaude(ckey, albumUrl){
-  var hdrs={
-    'Content-Type':'application/json',
-    'x-api-key':ckey,
-    'anthropic-version':'2023-06-01',
-    'anthropic-dangerous-direct-browser-access':'true'
-  };
-  var body=JSON.stringify({
-    model:'claude-haiku-4-5-20251001',
-    max_tokens:400,
-    tools:[{type:'web_search_20250305',name:'web_search'}],
-    messages:[{role:'user',content:
-      'Fetch this Yupoo album page and return ONLY the first product image URL from photo.yupoo.com (format: https://photo.yupoo.com/..../medium.jpg). Page: '+albumUrl+
-      '\nReply with ONLY the raw URL, nothing else. If not found, reply: NOT_FOUND'
-    }]
-  });
-  var resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:hdrs,body:body});
-  if(resp.status===429){
-    await new Promise(function(r){setTimeout(r,6000);});
-    resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:hdrs,body:body});
+  // Timeout duro 20s — se Claude web_search è lento, saltiamo e continuiamo
+  var CLAUDE_TOUT = 20000;
+  var tc = new AbortController();
+  var tid = setTimeout(function(){ tc.abort(); }, CLAUDE_TOUT);
+  if(ctl){ ctl.signal.addEventListener('abort', function(){ clearTimeout(tid); tc.abort(); }, {once:true}); }
+
+  try{
+    var hdrs={
+      'Content-Type':'application/json',
+      'x-api-key':ckey,
+      'anthropic-version':'2023-06-01',
+      'anthropic-dangerous-direct-browser-access':'true'
+    };
+    var body=JSON.stringify({
+      model:'claude-haiku-4-5-20251001',
+      max_tokens:300,
+      tools:[{type:'web_search_20250305',name:'web_search'}],
+      messages:[{role:'user',content:
+        'Visit this URL and find the first product photo URL containing photo.yupoo.com. URL: '+albumUrl+
+        '\nReply with ONLY the image URL (https://photo.yupoo.com/...) or NOT_FOUND.'
+      }]
+    });
+    var resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:hdrs,body:body,signal:tc.signal});
+    if(resp.status===429){
+      await new Promise(function(r){setTimeout(r,4000);});
+      resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:hdrs,body:body,signal:tc.signal});
+    }
+    if(!resp.ok) throw new Error('status '+resp.status);
+    var data=await resp.json();
+    var allText=(data.content||[]).map(function(b){return b.text||'';}).join(' ');
+    var m=allText.match(/https?:\/\/photo\.yupoo\.com\/[a-z0-9_/.-]+\.jpg/i);
+    return m?toMed(m[0]):null;
+  }catch(e){
+    if(ctl&&ctl.signal.aborted) throw new DOMException('stop','AbortError');
+    return null; // timeout o errore → null, il loop continua
+  }finally{
+    clearTimeout(tid);
   }
-  if(!resp.ok) throw new Error('Claude web_search: '+resp.status);
-  var data=await resp.json();
-  // Cerca tra tutti i blocchi di contenuto un URL photo.yupoo.com
-  var allText=(data.content||[]).map(function(b){return b.text||'';}).join(' ');
-  var m=allText.match(/https?:\/\/photo\.yupoo\.com\/[a-z0-9_/]+\.jpg/i);
-  return m?toMed(m[0]):null;
 }
 
 function doStop(){
