@@ -260,14 +260,28 @@ function workerImgUrl(yupooUrl){
 // ── PROXY FETCH ────────────────────────────────────
 var PROXIES = [
   function(u){ return fetch('https://corsproxy.io/?'+encodeURIComponent(u),{signal:ctl.signal}).then(function(r){ if(!r.ok) throw new Error(r.status); return r.text(); }); },
-  function(u){ return fetch('https://api.allorigins.win/get?url='+encodeURIComponent(u),{signal:ctl.signal}).then(function(r){ return r.json(); }).then(function(j){ return j.contents||''; }); },
+  function(u){ return fetch('https://api.allorigins.win/get?url='+encodeURIComponent(u),{signal:ctl.signal}).then(function(r){ return r.json(); }).then(function(j){ if(!j.contents||j.contents.length<100) throw new Error('vuoto'); return j.contents; }); },
   function(u){ return fetch('https://thingproxy.freeboard.io/fetch/'+u,{signal:ctl.signal}).then(function(r){ if(!r.ok) throw new Error(r.status); return r.text(); }); }
 ];
 
 async function pFetchText(url){
-  for(var i=0;i<PROXIES.length;i++){
-    try{ var t=await PROXIES[i](url); if(t&&t.length>100) return t; }
-    catch(e){ if(e.name==='AbortError') throw e; }
+  // Usa il Worker Cloudflare come primo proxy (il più affidabile)
+  var wUrl=(document.getElementById('wurl').value||'').trim().replace(/\/$/,'');
+  var proxies=[];
+  if(wUrl){
+    proxies.push(function(u){
+      return fetch(wUrl+'/?url='+encodeURIComponent(u),{signal:ctl.signal})
+        .then(function(r){if(!r.ok) throw new Error('Worker '+r.status);return r.text();});
+    });
+  }
+  proxies=proxies.concat(PROXIES);
+
+  for(var i=0;i<proxies.length;i++){
+    try{
+      var t=await proxies[i](url);
+      if(t&&t.length>100) return t;
+    }
+    catch(e){if(e.name==='AbortError') throw e; lg('⚠ Proxy '+(i+1)+' fallito, provo prossimo...','wn');}
   }
   throw new Error('Proxy falliti: '+url);
 }
