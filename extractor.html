@@ -259,40 +259,20 @@ function workerImgUrl(yupooUrl){
 
 // ── PROXY FETCH ────────────────────────────────────
 var PROXIES = [
-  function(u,s){ return fetch('https://corsproxy.io/?'+encodeURIComponent(u),{signal:s}).then(function(r){ if(!r.ok) throw new Error(r.status); return r.text(); }); },
-  function(u,s){ return fetch('https://api.allorigins.win/get?url='+encodeURIComponent(u),{signal:s}).then(function(r){ return r.json(); }).then(function(j){ if(!j.contents||j.contents.length<100) throw new Error('vuoto'); return j.contents; }); },
-  function(u,s){ return fetch('https://thingproxy.freeboard.io/fetch/'+u,{signal:s}).then(function(r){ if(!r.ok) throw new Error(r.status); return r.text(); }); }
+  function(u){ return fetch('https://corsproxy.io/?'+encodeURIComponent(u),{signal:ctl.signal}).then(function(r){ if(!r.ok) throw new Error(r.status); return r.text(); }); },
+  function(u){ return fetch('https://api.allorigins.win/get?url='+encodeURIComponent(u),{signal:ctl.signal}).then(function(r){ return r.json(); }).then(function(j){ return j.contents||''; }); },
+  function(u){ return fetch('https://thingproxy.freeboard.io/fetch/'+u,{signal:ctl.signal}).then(function(r){ if(!r.ok) throw new Error(r.status); return r.text(); }); }
 ];
 
-// Crea un segnale con timeout locale + rispetta STOP utente
-function timedSignal(ms){
-  var tc=new AbortController();
-  var tid=setTimeout(function(){tc.abort();},ms);
-  if(ctl){ctl.signal.addEventListener('abort',function(){clearTimeout(tid);tc.abort();},{once:true});}
-  return {signal:tc.signal,clear:function(){clearTimeout(tid);}};
-}
-
-async function pFetchText(url,timeoutMs){
-  timeoutMs=timeoutMs||12000;
-  var wUrl=(document.getElementById('wurl').value||'').trim().replace(/\/$/,'');
-  var all=[];
-  if(wUrl) all.push(function(u,s){
-    return fetch(wUrl+'/?url='+encodeURIComponent(u),{signal:s})
-      .then(function(r){if(!r.ok) throw new Error('Worker '+r.status);return r.text();});
-  });
-  all=all.concat(PROXIES);
-  for(var i=0;i<all.length;i++){
-    if(ctl&&ctl.signal.aborted) throw new DOMException('stop','AbortError');
-    var ts=timedSignal(timeoutMs);
-    try{
-      var t=await all[i](url,ts.signal); ts.clear();
-      if(t&&t.length>100) return t;
-    }catch(e){ ts.clear(); if(ctl&&ctl.signal.aborted) throw new DOMException('stop','AbortError'); }
+async function pFetchText(url){
+  for(var i=0;i<PROXIES.length;i++){
+    try{ var t=await PROXIES[i](url); if(t&&t.length>100) return t; }
+    catch(e){ if(e.name==='AbortError') throw e; }
   }
   throw new Error('Proxy falliti: '+url);
 }
-async function pFetchJson(url,timeoutMs){
-  return JSON.parse(await pFetchText(url,timeoutMs));
+async function pFetchJson(url){
+  return JSON.parse(await pFetchText(url));
 }
 
 // ── IMAGE URL HELPERS ──────────────────────────────
@@ -307,7 +287,7 @@ function variants(url){
 }
 
 // ── ALBUM PARSING ──────────────────────────────────
-var SKIP_NAV=/^(next\s*page|prev|previous|page\s*\d+|older|newer|more|avanti|indietro|后一页|前一页|下一页|上一页|首页|末页|更多|加载更多)$/i;
+var SKIP_NAV=/^(next\s*page|prev|previous|page\s*\d+|older|newer|more|avanti|indietro)$/i;
 
 function coverFromObj(obj){
   var s=JSON.stringify(obj);
@@ -488,16 +468,14 @@ async function startExt(){
       var cny=parseCny(al.name);
       var coverYupoo=al.cover;
       if(!coverYupoo){
-        try{
-          coverYupoo=await fetchCover(al.id);
-        }catch(e){
-          if(e.name==='AbortError') break;
-          coverYupoo=null;
-        }
+        try{coverYupoo=await fetchCover(al.id);}
+        catch(e){if(e.name==='AbortError') break;}
       }
 
-      // The image URL = Worker proxy URL pointing to Yupoo
-      var imgUrl = coverYupoo ? workerImgUrl(coverYupoo) : '';
+      // Se non c'è immagine dopo tutte le strategie → salta il prodotto
+      if(!coverYupoo){ continue; }
+
+      var imgUrl = workerImgUrl(coverYupoo);
 
       P.push({
         id:al.id, albumName:al.name,
@@ -555,10 +533,8 @@ async function collectAlbums(pageUrl,catId){
 }
 
 async function fetchCover(albumId){
-  var TOUT=10000;
-  // Strategia 1: API JSON
   try{
-    var json=await pFetchJson(siteBase+'/albums/'+albumId+'?page=1&t='+Date.now(),TOUT);
+    var json=await pFetchJson(siteBase+'/albums/'+albumId+'?page=1&t='+Date.now());
     var photos=[];
     function find(obj,d){
       if(d>15||!obj||typeof obj!=='object') return;
@@ -573,68 +549,13 @@ async function fetchCover(albumId){
     }
     find(json,0);
     if(photos.length) return toMed(photos[0]);
-  }catch(e){if(ctl&&ctl.signal.aborted) throw new DOMException('stop','AbortError');}
-
-  // Strategia 2: HTML scraping
-  try{
-    var html=await pFetchText(siteBase+'/albums/'+albumId,TOUT);
-    var SKIP=/\/(?:icons?|avatars?|watermarks?|default|logo)\//i;
-    var re=/https?:\/\/photo\.yupoo\.com\/[a-z0-9_]+\/[a-z0-9]+\/[^\s"'<>]+\.jpg/gi,m;
-    while((m=re.exec(html))!==null){if(!SKIP.test(m[0])) return toMed(m[0]);}
-  }catch(e){if(ctl&&ctl.signal.aborted) throw new DOMException('stop','AbortError');}
-
-  // Strategia 3: Claude API con web_search — recupera l'URL immagine direttamente
-  var ckey=(document.getElementById('ckey').value||'').trim();
-  if(ckey){
-    if(ctl&&ctl.signal.aborted) throw new DOMException('stop','AbortError');
-    var albumUrl=siteBase+'/albums/'+albumId;
-    var imgUrl=await fetchCoverWithClaude(ckey,albumUrl);
-    if(imgUrl) return imgUrl;
-  }
-
-  return null; // nessuna strategia ha funzionato — il prodotto viene aggiunto senza immagine
-}
-
-// Claude API con web_search tool per recuperare l'URL immagine di un album Yupoo
-async function fetchCoverWithClaude(ckey, albumUrl){
-  // Timeout duro 20s — se Claude web_search è lento, saltiamo e continuiamo
-  var CLAUDE_TOUT = 20000;
-  var tc = new AbortController();
-  var tid = setTimeout(function(){ tc.abort(); }, CLAUDE_TOUT);
-  if(ctl){ ctl.signal.addEventListener('abort', function(){ clearTimeout(tid); tc.abort(); }, {once:true}); }
-
-  try{
-    var hdrs={
-      'Content-Type':'application/json',
-      'x-api-key':ckey,
-      'anthropic-version':'2023-06-01',
-      'anthropic-dangerous-direct-browser-access':'true'
-    };
-    var body=JSON.stringify({
-      model:'claude-haiku-4-5-20251001',
-      max_tokens:300,
-      tools:[{type:'web_search_20250305',name:'web_search'}],
-      messages:[{role:'user',content:
-        'Visit this URL and find the first product photo URL containing photo.yupoo.com. URL: '+albumUrl+
-        '\nReply with ONLY the image URL (https://photo.yupoo.com/...) or NOT_FOUND.'
-      }]
-    });
-    var resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:hdrs,body:body,signal:tc.signal});
-    if(resp.status===429){
-      await new Promise(function(r){setTimeout(r,4000);});
-      resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:hdrs,body:body,signal:tc.signal});
-    }
-    if(!resp.ok) throw new Error('status '+resp.status);
-    var data=await resp.json();
-    var allText=(data.content||[]).map(function(b){return b.text||'';}).join(' ');
-    var m=allText.match(/https?:\/\/photo\.yupoo\.com\/[a-z0-9_/.-]+\.jpg/i);
-    return m?toMed(m[0]):null;
-  }catch(e){
-    if(ctl&&ctl.signal.aborted) throw new DOMException('stop','AbortError');
-    return null; // timeout o errore → null, il loop continua
-  }finally{
-    clearTimeout(tid);
-  }
+  }catch(e){if(e.name==='AbortError') throw e;}
+  // HTML fallback
+  var html=await pFetchText(siteBase+'/albums/'+albumId);
+  var SKIP=/\/(?:icons?|avatars?|watermarks?|default|logo)\//i;
+  var re=/https?:\/\/photo\.yupoo\.com\/[a-z0-9_]+\/[a-z0-9]+\/[^\s"'<>]+\.jpg/gi,m;
+  while((m=re.exec(html))!==null){if(!SKIP.test(m[0])) return toMed(m[0]);}
+  return null;
 }
 
 function doStop(){
